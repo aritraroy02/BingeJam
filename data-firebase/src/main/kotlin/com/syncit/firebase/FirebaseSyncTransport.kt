@@ -91,7 +91,9 @@ class FirebaseSyncTransport(
                 if (!e.isPermissionDenied()) throw e
             }
         }
-        error("Couldn't find a free room code, try again")
+        // 32^6 codes, so five collisions in a row almost never happen: repeated denials usually
+        // mean the rules aren't published or anonymous auth is off.
+        error("Couldn't create a room (permission denied). Check the database rules and anonymous sign-in.")
     }
 
     override suspend fun joinRoom(code: String, displayName: String) {
