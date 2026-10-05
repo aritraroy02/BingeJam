@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sync it</string>
+
+    <!-- Prominent disclosure for Notification Access (Play policy). Keep in sync with PLAY_STORE_READINESS.md. -->
+    <string name="notification_access_disclosure">Sync it needs Notification Access to see and control what\'s playing in Netflix or JioHotstar: whether it\'s playing or paused and where you are in the movie. That\'s how it keeps everyone in your room in sync.\n\nAndroid only gives this ability to apps with Notification Access. Sync it never reads your notifications, messages or their content, and never records your screen, video or audio.</string>
+</resources>

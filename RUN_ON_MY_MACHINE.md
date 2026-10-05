@@ -1,0 +1,210 @@
+# Run on my machine
+
+Nothing in this project has been built, run, or connected to Firebase. It was written on a
+machine where executing anything was not allowed. Everything that needs running is below,
+grouped by phase. Run it on your personal machine and send back any errors; they get routed
+to the owning agent and re-reviewed.
+
+Commands are for a bash-like shell from the project root (`sync-it/`). On Windows PowerShell,
+use `.\gradlew.bat` instead of `./gradlew`.
+
+---
+
+## One-time setup
+
+### Tools
+- Android Studio (latest stable), which bundles a JDK 17+ and the Android SDK.
+- In SDK Manager, install the Android SDK Platform for API 36 (or whatever `compileSdk` is
+  in `app/build.gradle.kts`) and Platform-Tools (for `adb`).
+
+### Gradle wrapper
+The wrapper JAR is a binary file and couldn't be authored, so generate it once:
+
+```bash
+# Option A: from Android Studio: File > Open > sync-it, then let it sync (it offers to create the wrapper).
+# Option B: with a local Gradle install:
+gradle wrapper --gradle-version 8.13
+```
+
+### Dependency versions
+`gradle/libs.versions.toml` was written offline. If sync fails with "could not resolve",
+bump that entry to the current stable version (AGP, Kotlin, Compose BOM, Firebase BOM).
+Kotlin 2.x needs the matching `org.jetbrains.kotlin.plugin.compose` version (same as `kotlin`).
+
+### Firebase setup (console only)
+1. https://console.firebase.google.com → **Add project** (e.g. `sync-it`). Analytics: optional, not used.
+2. **Build → Authentication → Get started → Sign-in method → Anonymous → Enable.**
+3. **Build → Realtime Database → Create database.** Location: **Singapore (asia-southeast1)**,
+   the closest to India. Start in **locked mode**.
+4. **Realtime Database → Rules**: paste the contents of
+   `data-firebase/firebase/database.rules.json` and **Publish**.
+5. **Project settings → Your apps → Add app → Android.** Package name: `com.syncit.app`.
+   (SHA-1 not needed for anonymous auth.) Download `google-services.json`.
+6. Put it at **`app/google-services.json`** (it's in `.gitignore`). See `app/google-services.json.README.md`.
+7. Copy the database URL from the Realtime Database page (looks like
+   `https://<project>-default-rtdb.asia-southeast1.firebasedatabase.app`) into
+   `FirebaseConfig.DATABASE_URL` in
+   `data-firebase/src/main/kotlin/com/syncit/firebase/FirebaseConfig.kt`.
+   (Needed because non-US databases aren't always in `google-services.json`.)
+
+---
+
+## Phase 0: diagnostics screen
+
+### Build & install
+```bash
+./gradlew :app:assembleDebug
+adb devices                                  # phone must show as "device" (enable USB debugging)
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Use the diagnostics screen
+1. Open Sync it. On the onboarding screen, tap **Open settings** under Notification Access and
+   turn on **Sync it media control**. Come back. Step 1 shows ✓. Enter a name, **Continue**.
+2. On Home tap **Media diagnostics**.
+3. Open Netflix, start any title, let it play ~10 s, switch back to Sync it.
+4. A card for `com.netflix.mediaclient` should be listed. Write down:
+   - `state` while playing and while paused,
+   - whether `position (reported)` changes when you pause at different points
+     (0 or never changing → timeline sync will be turned off for that app),
+   - whether `position (live)` tracks the movie while playing,
+   - `actions`: especially **PLAY, PAUSE, PLAY_PAUSE, SEEK_TO**.
+5. Tap the Netflix card to select it, then **Pause**, **Play**, **Seek +30s**. Switch to Netflix
+   to confirm each one took effect.
+6. Repeat 3–5 with **JioHotstar**. The card's package name is the JioHotstar package (see below).
+
+### Cross-check with adb
+```bash
+adb shell dumpsys media_session
+# Look for blocks like:
+#   <tag> <package>/<...> (userId=0)
+#     package=<package name>
+#     active=true
+#     state=PlaybackState {state=3, position=123456, buffered position=..., speed=1.0,
+#                          updated=<elapsedRealtime>, actions=<decimal bitmask>, ...}
+adb logcat -s SyncItDiag      # our own log of every session change, while the app is open
+```
+`actions` in dumpsys is decimal. Decode bits: PLAY=4, PAUSE=2, PLAY_PAUSE=512, SEEK_TO=256,
+STOP=1, SKIP_TO_NEXT=32, SKIP_TO_PREVIOUS=16.
+
+### Phase 0: find the JioHotstar package name
+1. With JioHotstar playing, read the package from the diagnostics card or
+   `adb shell dumpsys media_session | grep package=`.
+2. Cross-check: `adb shell pm list packages | grep -i hotstar`.
+3. Put it in `core/src/main/kotlin/com/syncit/core/config/StreamingConfig.kt`:
+   `const val JIOHOTSTAR_PACKAGE = "<the package>"`, and delete the TODO.
+4. Report back for both apps: package, actions bitmask, whether position updates on pause,
+   whether play/pause/seek from the diagnostics screen worked.
+
+---
+
+## Phase 1: onboarding, rooms and presence
+
+Requires the Firebase setup above (Anonymous auth on, rules published, `google-services.json` in place).
+
+```bash
+./gradlew :app:assembleDebug
+adb -s <PHONE_A_SERIAL> install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s <PHONE_B_SERIAL> install -r app/build/outputs/apk/debug/app-debug.apk
+```
+(`adb devices` lists serials. With one phone on USB at a time, drop `-s`.)
+
+Check:
+1. Fresh install → onboarding. Each step turns ✓ after granting in settings and coming back.
+   Battery step: after "Don't optimize", it turns ✓.
+2. Phone A: **Create a room** → 6-character code shown. **Share invite** → send to phone B.
+3. Phone B: tap the `syncit://join/CODE` link (or type the code) → **Join room**.
+4. Both phones list both people with green dots; host tagged on A.
+5. Turn on airplane mode on B → within ~1 min A shows B grey/"offline" (server-side onDisconnect).
+   Turn it off → B goes green again.
+6. Wrong code → "No room with that code".
+7. Firebase console → Realtime Database → Data: `rooms/<CODE>/members/<uid>` has `online` flipping.
+
+If room creation fails with "Permission denied", the rules weren't published or Anonymous
+auth is off. If every write fails, check `FirebaseConfig.DATABASE_URL`.
+
+---
+
+## Phases 2–5: build, lint, unit tests
+
+From the project root, in this order:
+
+```bash
+# 1. Pure-Kotlin sync engine unit tests (fake clock; no device needed)
+./gradlew :sync-engine:test
+#    Report: sync-engine/build/reports/tests/test/index.html
+
+# 2. Compile everything
+./gradlew assembleDebug
+
+# 3. Android lint
+./gradlew lint
+#    Reports: app/build/reports/lint-results-debug.html (and per module)
+
+# 4. All JVM unit tests across modules
+./gradlew test
+```
+
+Send back the first error of any step that fails (plus the failing test names for step 1).
+
+Known places to look if something fails:
+- `state` writes rejected by rules → the `seq` rule (`newData.val() > data.val()`) may not see
+  the resolved `ServerValue.increment`. Relax it to `newData.isNumber()` and re-publish.
+- Lint `MissingPermission` on `SyncForegroundService.notifyIfAllowed`: intentionally
+  suppressed (guarded by `areNotificationsEnabled()`).
+- Lint "ForegroundServiceType"/Play policy warnings about `mediaPlayback`: see
+  PLAY_STORE_READINESS.md.
+
+## Install on two phones
+
+```bash
+./gradlew :app:assembleDebug
+adb devices
+adb -s <PHONE_A_SERIAL> install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s <PHONE_B_SERIAL> install -r app/build/outputs/apk/debug/app-debug.apk
+```
+Both phones: complete onboarding (Notification Access, notifications, battery: Don't optimize).
+Netflix on both, with a plan that allows 2 simultaneous screens (or two accounts).
+Emulators usually can't run Netflix; use physical phones.
+
+Useful while testing:
+```bash
+adb -s <SERIAL> logcat -s SyncItDiag SyncItCoordinator SyncItGateway
+adb -s <SERIAL> shell dumpsys media_session
+```
+
+---
+
+## Manual test checklist (two physical phones)
+
+Setup for every test: A creates a room, B joins. Host sets the title (Netflix share link: in
+Netflix tap Share on a title → copy link) → both tap **Open movie**, confirm the same title,
+let it start. Status card on both shows **Syncing**. Turn on **Drift (debug)** on one phone.
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| 1 | Play/pause A → B | A pauses in Netflix | B pauses within ~1 s at about the same frame; no bouncing (each pauses once) |
+| 2 | Play/pause B → A | B plays | A plays within ~1 s |
+| 3 | Rapid toggles | A taps pause/play 5× quickly | Both end in the same state; no endless toggling |
+| 4 | Scrub forward A | A drags the timeline +5 min | B jumps to the same spot within ~2 s |
+| 5 | Scrub back B | B rewinds 2 min | A follows |
+| 6 | Small skip | A uses Netflix's 10 s skip | B follows (10 s > 3 s threshold) |
+| 7 | Drift | Let it play 10 min | Drift overlay stays within ±1.5 s; no visible stutter from constant corrections |
+| 8 | Join mid-movie | Room playing 10 min in; C (or B after leaving) joins and opens the title | C seeks to the room position, then plays |
+| 9 | Join while paused | Pause room; C joins | C ends paused at the room position |
+| 10 | Kill & reopen Netflix | On B: swipe Netflix away from recents | B status: "Session not found". Reopen the title on B → it seeks to the room position and matches play/pause; A unaffected |
+| 11 | Netflix autoplay | B reopens Netflix and it autoplays from its resume point | B is pulled to the room, A is NOT moved |
+| 12 | Network loss 30 s | Airplane mode on B for 30 s while playing; A pauses meanwhile | A shows B offline. When B reconnects, B pauses to match A |
+| 13 | Network loss, local action | Airplane on B, B pauses, wait 30 s, airplane off | After reconnect the room follows the last write; both end in the same state |
+| 14 | Screen off | B turns screen off for 2 min while A keeps playing, then on | B still in sync (or corrects within ~5 s); sync notification still present |
+| 15 | Stop from notification | B taps **Stop syncing** in the notification | B stops following; status "Not in a room" + **Resume syncing** works |
+| 16 | No session | Close Netflix on B entirely | B status "Netflix not open"; countdown card available |
+| 17 | Countdown | A taps **3, 2, 1 countdown** | Both phones show Get ready → 3 → 2 → 1 → PLAY NOW within ~0.3 s of each other |
+| 18 | Leave | B taps Leave room | A shows B removed; B back on Home |
+| 19 | Chat & reactions | Send messages and reactions both ways | Appear on the other phone within ~1 s |
+| 20 | Bubble | Grant "Display over other apps", tap **Chat bubble over the movie**, open Netflix | Bubble floats over Netflix, draggable, tap to expand, send works, doesn't block Netflix touches when collapsed |
+| 21 | JioHotstar | After filling in `JIOHOTSTAR_PACKAGE`, repeat 1, 2, 4, 8 with JioHotstar | Same as Netflix, or the fallback notice matching its capabilities |
+| 22 | Fallback notices | If an app lacks SEEK_TO or doesn't report position | Status card shows the matching notice; play/pause still syncs |
+
+Report for each failed row: phone models + Android versions, what happened, and
+`adb logcat -s SyncItDiag SyncItCoordinator SyncItGateway` around the time.

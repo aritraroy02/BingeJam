@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash",
+      "PowerShell",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}
