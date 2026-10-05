@@ -27,7 +27,16 @@ The Gradle wrapper (8.13) is committed; use `./gradlew` / `.\gradlew.bat`.
 `gradle/libs.versions.toml` resolves and builds as-is. Bumping is optional. Kotlin 2.x needs
 the matching `org.jetbrains.kotlin.plugin.compose` version (same as `kotlin`).
 
-### Firebase setup (console only)
+### Firebase setup
+**Done (2026-10-06):** project `syncit-watchparty`, Realtime Database in Singapore, Anonymous
+auth, Android app `com.syncit.app`, `google-services.json`, `DATABASE_URL`. Rules are published
+from the repo root with the Firebase CLI (`npm i -g firebase-tools`, `firebase login`):
+
+```bash
+firebase deploy --only database     # uses firebase.json + .firebaserc
+```
+
+Re-run it whenever `database.rules.json` changes. The steps below are for setting up a new project.
 1. https://console.firebase.google.com → **Add project** (e.g. `sync-it`). Analytics: optional, not used.
 2. **Build → Authentication → Get started → Sign-in method → Anonymous → Enable.**
 3. **Build → Realtime Database → Create database.** Location: **Singapore (asia-southeast1)**,
