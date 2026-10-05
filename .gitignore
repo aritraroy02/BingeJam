@@ -9,3 +9,5 @@ captures/
 .cxx/
 # Firebase config is per-developer; see RUN_ON_MY_MACHINE.md
 app/google-services.json
+# IDE (VS Code Java / Eclipse) build output
+bin/

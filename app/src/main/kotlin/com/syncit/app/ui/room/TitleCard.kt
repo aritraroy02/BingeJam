@@ -3,7 +3,6 @@ package com.syncit.app.ui.room
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.syncit.core.model.RoomTitle
 import com.syncit.core.model.StreamingService
 
@@ -145,7 +145,7 @@ internal object TitleLinks {
 
     fun check(service: StreamingService, link: String): Check {
         if (link.isBlank()) return Check(false, null)
-        val uri = runCatching { Uri.parse(link) }.getOrNull()
+        val uri = runCatching { link.toUri() }.getOrNull()
         val scheme = uri?.scheme?.lowercase()
         if (uri == null || (scheme != "https" && scheme != "http") || uri.host.isNullOrBlank()) {
             return Check(false, "Paste the full link starting with https://")
@@ -163,7 +163,7 @@ internal object TitleLinks {
  * App Links, else the browser.
  */
 internal fun openTitle(context: Context, title: RoomTitle): Boolean {
-    val view = Intent(Intent.ACTION_VIEW, Uri.parse(title.deepLink)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val view = Intent(Intent.ACTION_VIEW, title.deepLink.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     if (title.service.isConfigured) {
         try {
             context.startActivity(Intent(view).setPackage(title.service.packageName))

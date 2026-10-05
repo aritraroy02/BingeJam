@@ -70,21 +70,25 @@ internal object RoomParser {
         )
     }
 
-    fun chat(s: DataSnapshot): ChatMessage? = ChatMessage(
-        id = s.key ?: return null,
-        uid = s.child("uid").string() ?: return null,
-        name = s.child("name").string().orEmpty(),
-        text = s.child("text").string() ?: return null,
-        sentAt = s.child("sentAt").long() ?: 0L,
-    )
+    fun chat(s: DataSnapshot): ChatMessage? {
+        return ChatMessage(
+            id = s.key ?: return null,
+            uid = s.child("uid").string() ?: return null,
+            name = s.child("name").string().orEmpty(),
+            text = s.child("text").string() ?: return null,
+            sentAt = s.child("sentAt").long() ?: 0L,
+        )
+    }
 
-    fun reaction(s: DataSnapshot): Reaction? = Reaction(
-        id = s.key ?: return null,
-        uid = s.child("uid").string() ?: return null,
-        name = s.child("name").string().orEmpty(),
-        emoji = s.child("emoji").string() ?: return null,
-        sentAt = s.child("sentAt").long() ?: 0L,
-    )
+    fun reaction(s: DataSnapshot): Reaction? {
+        return Reaction(
+            id = s.key ?: return null,
+            uid = s.child("uid").string() ?: return null,
+            name = s.child("name").string().orEmpty(),
+            emoji = s.child("emoji").string() ?: return null,
+            sentAt = s.child("sentAt").long() ?: 0L,
+        )
+    }
 
     private fun DataSnapshot.string(): String? = value as? String
     private fun DataSnapshot.long(): Long? = (value as? Number)?.toLong()

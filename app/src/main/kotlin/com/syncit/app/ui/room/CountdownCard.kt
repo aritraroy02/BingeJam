@@ -46,7 +46,7 @@ fun CountdownCard(countdown: Countdown?, serverNow: Long, prominent: Boolean, on
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (active && remainingMs != null) {
+            if (active) {
                 val label = when {
                     remainingMs <= 0 -> "PLAY NOW"
                     remainingMs > 3_000 -> "Get ready…"

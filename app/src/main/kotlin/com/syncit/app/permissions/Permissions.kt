@@ -5,11 +5,11 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.syncit.media.MediaListenerService
 
 /** Settings deep links and permission checks. No permission is requested without explanation first. */
@@ -51,13 +51,13 @@ object Permissions {
 
     fun openOverlaySettings(context: Context) {
         context.startFirst(
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri()),
             appDetails(context),
         )
     }
 
     private fun appDetails(context: Context) =
-        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())
 
     private fun Context.startFirst(vararg intents: Intent?) {
         for (intent in intents.filterNotNull()) {

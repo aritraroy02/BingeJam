@@ -50,8 +50,31 @@ Nothing has been compiled or run. "PASS" below means "passes static review".
 - backend-agent: chats/reactions trees + rules.
 - Fixed: `FlowRow` is experimental in some Compose versions (opt-in compile error) → replaced with plain text.
 
+## Build verification (2026-10-05)
+First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradle 8.13 wrapper
+(now committed). Placeholder `google-services.json` for compiling only.
+- `./gradlew assembleDebug lint test`: **BUILD SUCCESSFUL**, 0 lint issues in every module,
+  47/47 sync-engine tests pass (PlayPause 12, Timeline 16, Fallback 9, PositionMath 10).
+- Fixed: `RoomParser.chat`/`reaction` used `return null` inside an expression body (compile
+  error) → block bodies.
+- Fixed: redundant null check in `CountdownCard` (compiler warning).
+- Fixed lint: `mipmap-anydpi-v26` → `mipmap-anydpi` + monochrome icon; backup-exclusion rules
+  (`data_extraction_rules.xml`, `backup_rules.xml`) to match `allowBackup="false"`;
+  `toUri()` / `SharedPreferences.edit {}` KTX.
+- Removed `core/bin/` and `sync-engine/bin/` (VS Code Java output committed in bcb8407,
+  identical to `src/`); `bin/` is now git-ignored.
+- **Rules emulator replay:** every `FirebaseSyncTransport` write shape run against
+  `database.rules.json` in the Firebase Local Emulator (offline `demo-` project), 28/28 as
+  expected: create room / taken code / bad code, join / join missing room, member vs outsider
+  read, state writes with `ServerValue.increment` (seq 1 → 2), forged `updatedBy` and stale seq
+  rejected, position report, host-only title, countdown, chat/reaction write + indexed read,
+  outsider chat denied, `hostUid` immutable, onDisconnect presence, leave, host deletes room.
+- Merged manifest permissions: INTERNET, POST_NOTIFICATIONS, SYSTEM_ALERT_WINDOW,
+  FOREGROUND_SERVICE(+_MEDIA_PLAYBACK), plus Firebase's ACCESS_NETWORK_STATE / READ_GSERVICES.
+
 ## Residual risks (verify on a real machine)
-1. Dependency versions in `libs.versions.toml` haven't been verified by a build.
-2. Rules `state.seq` validation vs `ServerValue.increment` (see RUN_ON_MY_MACHINE.md).
+1. ~~Dependency versions~~: resolved, they build.
+2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.
 3. Whether Netflix/JioHotstar honour `transportControls.seekTo` and report positions. That's what Phase 0 diagnostics will tell us.
 4. `mediaPlayback` FGS type acceptance on Play (PLAY_STORE_READINESS.md §2).
+5. Nothing has run on a device or against a real Firebase project yet.

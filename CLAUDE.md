@@ -4,8 +4,10 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status:** Phases 0–5 are written but have **never been compiled, run or tested**. Assume
-compile errors exist until the user reports a clean build.
+**Status:** Phases 0–5 are written. `./gradlew assembleDebug lint test` passes (0 lint issues,
+47/47 engine tests), and the database rules pass an emulator replay of every transport write
+(see REVIEW_LOG.md, "Build verification"). **Nothing has run on a real phone yet**, and the
+app has never talked to a real Firebase project.
 
 Read these before changing anything:
 - `PLAN.md`: architecture, module ownership, sync rules, Firebase data model.
@@ -51,17 +53,17 @@ contract, update every implementation and the tests.
 |---|---|---|
 | **JioHotstar package name** | `core/src/main/kotlin/com/syncit/core/config/StreamingConfig.kt` → `JIOHOTSTAR_PACKAGE = ""` | From the Phase 0 diagnostics screen or `adb shell dumpsys media_session` on a real phone. **Never guess it.** While blank, JioHotstar shows "isn't configured yet". |
 | **Firebase database URL** | `data-firebase/src/main/kotlin/com/syncit/firebase/FirebaseConfig.kt` → `DATABASE_URL = ""` | Realtime Database URL from the Firebase console (asia-southeast1 region). Blank = take it from `google-services.json`. |
-| **`google-services.json`** | `app/google-services.json` (git-ignored; see `app/google-services.json.README.md`) | Download from the Firebase console. The build fails without it. |
-| **Gradle wrapper** | only `gradle/wrapper/gradle-wrapper.properties` exists; no `gradlew`, `gradlew.bat` or wrapper JAR | Run `gradle wrapper --gradle-version 8.13`, or let Android Studio create it. Commit the result. |
+| **`google-services.json`** | `app/google-services.json` (git-ignored; see `app/google-services.json.README.md`) | Download from the Firebase console. The build fails without it. The dev machine may hold a **placeholder** (`project_id: syncit-placeholder`) that compiles but can't reach Firebase; replace it. |
 | JioHotstar link hosts | `core/.../model/StreamingService.kt` → `listOf("hotstar.com", "jiohotstar.com")` | Unverified guess; only used for a soft warning. Check against a real share link. |
 | Invite link | `core/.../config/RoomLinks.kt` → `syncit://join/CODE` | Custom scheme, not clickable in many messengers. Replace with an https App Link once there's a domain. |
 | Launcher icon | `app/src/main/res/drawable/ic_launcher_foreground.xml` | Placeholder vector art. |
 
 ## Unverified / likely to need changes
 
-1. **Dependency versions** in `gradle/libs.versions.toml` haven't been verified by a build yet; bump any that don't resolve.
-2. **Firebase rule for `state.seq`** (`newData.val() > data.val()`) may reject `ServerValue.increment`.
-   If state writes fail with "Permission denied", relax it to `newData.isNumber()`.
+1. **Dependency versions** in `gradle/libs.versions.toml` resolve and build (AGP 8.11.1, Kotlin 2.2.0,
+   Gradle 8.13, JDK 21). They're dated mid-2025; bumping is optional.
+2. **Firebase rule for `state.seq`**: verified in the emulator. `ServerValue.increment(1)` passes,
+   a stale literal seq is rejected. No change needed.
 3. **Real app behaviour is unknown:** whether Netflix/JioHotstar expose a session, report
    positions, and honour `seekTo`. The engine picks a fallback mode at runtime, but thresholds in
    `SyncConfig.kt` may need tuning after the two-phone tests.
@@ -73,5 +75,7 @@ contract, update every implementation and the tests.
      sync resumes but presence isn't restarted until the room screen is opened.
    - A host leaving doesn't hand over host or delete the room.
    - `RoomViewModel` is reused if the same room is left and re-entered; `enter()` handles that.
-7. **Tests:** ~40 engine tests in `sync-engine/src/test`, traced by hand but never run. If one
-   fails, check whether the test's expectation or the engine is wrong before changing either.
+7. **Tests:** 47 engine tests in `sync-engine/src/test`, all passing. If one fails after a
+   change, check whether the test's expectation or the engine is wrong before changing either.
+8. **Windows build quirk:** `gradlew clean` can fail with "Unable to delete ... lint-cache" while
+   a daemon holds the jars. Run `gradlew --stop` first.

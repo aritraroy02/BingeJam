@@ -12,23 +12,20 @@ use `.\gradlew.bat` instead of `./gradlew`.
 ## One-time setup
 
 ### Tools
-- Android Studio (latest stable), which bundles a JDK 17+ and the Android SDK.
-- In SDK Manager, install the Android SDK Platform for API 36 (or whatever `compileSdk` is
-  in `app/build.gradle.kts`) and Platform-Tools (for `adb`).
+Already installed on the main dev machine (Windows, no admin needed, user env vars set):
+- JDK 21 (Temurin): `%LOCALAPPDATA%\Programs\devtools\jdk-21.0.12.1+1` (`JAVA_HOME`)
+- Android SDK: `%LOCALAPPDATA%\Android\Sdk` (`ANDROID_HOME`) with platform 36, build-tools
+  35/36, platform-tools (`adb` on PATH). Android Studio, if installed later, finds the same SDK.
+- `local.properties` (git-ignored) points `sdk.dir` there.
 
-### Gradle wrapper
-The wrapper scripts and JAR aren't in the repo yet. Generate them once and commit them:
+On a new machine: install Android Studio (it bundles a JDK and the SDK), or a JDK 17+ plus the
+Android command-line tools, then `sdkmanager "platform-tools" "platforms;android-36"`.
 
-```bash
-# Option A: from Android Studio: File > Open > sync-it, then let it sync (it offers to create the wrapper).
-# Option B: with a local Gradle install:
-gradle wrapper --gradle-version 8.13
-```
+The Gradle wrapper (8.13) is committed; use `./gradlew` / `.\gradlew.bat`.
 
 ### Dependency versions
-`gradle/libs.versions.toml` hasn't been verified by a build yet. If sync fails with "could not resolve",
-bump that entry to the current stable version (AGP, Kotlin, Compose BOM, Firebase BOM).
-Kotlin 2.x needs the matching `org.jetbrains.kotlin.plugin.compose` version (same as `kotlin`).
+`gradle/libs.versions.toml` resolves and builds as-is. Bumping is optional. Kotlin 2.x needs
+the matching `org.jetbrains.kotlin.plugin.compose` version (same as `kotlin`).
 
 ### Firebase setup (console only)
 1. https://console.firebase.google.com → **Add project** (e.g. `sync-it`). Analytics: optional, not used.
@@ -147,8 +144,10 @@ From the project root, in this order:
 Send back the first error of any step that fails (plus the failing test names for step 1).
 
 Known places to look if something fails:
-- `state` writes rejected by rules → the `seq` rule (`newData.val() > data.val()`) may not see
-  the resolved `ServerValue.increment`. Relax it to `newData.isNumber()` and re-publish.
+- `state` writes rejected by rules → the `seq` rule was verified against `ServerValue.increment`
+  in the emulator, so check that the published rules match `database.rules.json` and that
+  the writer is in `members`.
+- `gradlew clean` fails with "Unable to delete ... lint-cache" (Windows) → `gradlew --stop`, retry.
 - Lint `MissingPermission` on `SyncForegroundService.notifyIfAllowed`: intentionally
   suppressed (guarded by `areNotificationsEnabled()`).
 - Lint "ForegroundServiceType"/Play policy warnings about `mediaPlayback`: see
