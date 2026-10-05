@@ -17,13 +17,8 @@ use `.\gradlew.bat` instead of `./gradlew`.
   in `app/build.gradle.kts`) and Platform-Tools (for `adb`).
 
 ### Gradle wrapper
-The wrapper scripts and JAR aren't in the repo yet. Generate them once and commit them:
-
-```bash
-# Option A: from Android Studio: File > Open > sync-it, then let it sync (it offers to create the wrapper).
-# Option B: with a local Gradle install:
-gradle wrapper --gradle-version 8.13
-```
+`gradlew`, `gradlew.bat` and the wrapper JAR are committed (Gradle 8.13). On macOS/Linux, if
+`./gradlew` says "permission denied", run `chmod +x gradlew` once.
 
 ### Dependency versions
 `gradle/libs.versions.toml` hasn't been verified by a build yet. If sync fails with "could not resolve",
@@ -90,8 +85,9 @@ STOP=1, SKIP_TO_NEXT=32, SKIP_TO_PREVIOUS=16.
 1. With JioHotstar playing, read the package from the diagnostics card or
    `adb shell dumpsys media_session | grep package=`.
 2. Cross-check: `adb shell pm list packages | grep -i hotstar`.
-3. Put it in `core/src/main/kotlin/com/syncit/core/config/StreamingConfig.kt`:
-   `const val JIOHOTSTAR_PACKAGE = "<the package>"`, and delete the TODO.
+3. `core/src/main/kotlin/com/syncit/core/config/StreamingConfig.kt` already has
+   `JIOHOTSTAR_PACKAGE = "in.startv.hotstar"` (the Play Store ID). If the phone shows a
+   different package, replace it.
 4. Report back for both apps: package, actions bitmask, whether position updates on pause,
    whether play/pause/seek from the diagnostics screen worked.
 

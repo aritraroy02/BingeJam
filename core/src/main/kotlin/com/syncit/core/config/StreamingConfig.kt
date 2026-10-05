@@ -6,10 +6,8 @@ package com.syncit.core.config
 object StreamingConfig {
     const val NETFLIX_PACKAGE = "com.netflix.mediaclient"
 
-    // TODO(JIOHOTSTAR_PACKAGE): fill this in after running the Phase 0 diagnostics screen
-    //  (or `adb shell dumpsys media_session`) on a real phone with JioHotstar playing.
-    //  Left blank on purpose: do NOT guess it. While blank, JioHotstar rooms show
-    //  "JioHotstar isn't configured yet" and sync stays off for that service.
-    //  See RUN_ON_MY_MACHINE.md, "Phase 0: find the JioHotstar package name".
-    const val JIOHOTSTAR_PACKAGE = ""
+    // JioHotstar's Play Store application ID (Hotstar kept it after the JioHotstar rebrand).
+    //  Not yet confirmed on a device: check it once with the Phase 0 diagnostics screen or
+    //  `adb shell dumpsys media_session | grep package=` while JioHotstar is playing.
+    const val JIOHOTSTAR_PACKAGE = "in.startv.hotstar"
 }
