@@ -1,4 +1,4 @@
-# Versions were chosen offline (no network on the authoring machine). If Gradle sync
+# Versions haven't been verified by a build yet. If Gradle sync
 # reports a missing version, bump it here to the latest stable; nothing else depends on
 # the exact numbers. See RUN_ON_MY_MACHINE.md, Phase 0.
 [versions]

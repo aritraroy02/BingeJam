@@ -1,10 +1,9 @@
 # Review log
 
-**Caveat:** in the build session, every agent type available could execute shell commands,
-which the spec forbids for subagents. So the Orchestrator did each role's work in-session,
-keeping to module ownership, and ran the review gate as a static self-review (reading + grep).
-That's weaker than an independent pass. Re-run `reviewer-agent` (defined in
-`.claude/agents/`) from a session opened in this folder for a second opinion.
+**Caveat:** the initial build was a single session. The Orchestrator did each role's work
+itself, keeping to module ownership, and ran the review gate as a static self-review
+(reading + grep). That's weaker than an independent pass. Re-run `reviewer-agent` (defined in
+`.claude/agents/`) for a second opinion; it can now also run the build and tests.
 
 Nothing has been compiled or run. "PASS" below means "passes static review".
 
@@ -52,7 +51,7 @@ Nothing has been compiled or run. "PASS" below means "passes static review".
 - Fixed: `FlowRow` is experimental in some Compose versions (opt-in compile error) → replaced with plain text.
 
 ## Residual risks (verify on a real machine)
-1. Dependency versions in `libs.versions.toml` were chosen offline.
+1. Dependency versions in `libs.versions.toml` haven't been verified by a build.
 2. Rules `state.seq` validation vs `ServerValue.increment` (see RUN_ON_MY_MACHINE.md).
 3. Whether Netflix/JioHotstar honour `transportControls.seekTo` and report positions. That's what Phase 0 diagnostics will tell us.
 4. `mediaPlayback` FGS type acceptance on Play (PLAY_STORE_READINESS.md §2).

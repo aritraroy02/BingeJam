@@ -1,9 +1,8 @@
-# Run on my machine
+# Setup, build and test
 
-Nothing in this project has been built, run, or connected to Firebase. It was written on a
-machine where executing anything was not allowed. Everything that needs running is below,
-grouped by phase. Run it on your personal machine and send back any errors; they get routed
-to the owning agent and re-reviewed.
+Everything needed to set up Firebase, build, install and test Sync it, grouped by phase.
+The app hasn't been built or run yet. Report errors back and they get routed to the owning
+module and re-reviewed.
 
 Commands are for a bash-like shell from the project root (`sync-it/`). On Windows PowerShell,
 use `.\gradlew.bat` instead of `./gradlew`.
@@ -18,7 +17,7 @@ use `.\gradlew.bat` instead of `./gradlew`.
   in `app/build.gradle.kts`) and Platform-Tools (for `adb`).
 
 ### Gradle wrapper
-The wrapper JAR is a binary file and couldn't be authored, so generate it once:
+The wrapper scripts and JAR aren't in the repo yet. Generate them once and commit them:
 
 ```bash
 # Option A: from Android Studio: File > Open > sync-it, then let it sync (it offers to create the wrapper).
@@ -27,7 +26,7 @@ gradle wrapper --gradle-version 8.13
 ```
 
 ### Dependency versions
-`gradle/libs.versions.toml` was written offline. If sync fails with "could not resolve",
+`gradle/libs.versions.toml` hasn't been verified by a build yet. If sync fails with "could not resolve",
 bump that entry to the current stable version (AGP, Kotlin, Compose BOM, Firebase BOM).
 Kotlin 2.x needs the matching `org.jetbrains.kotlin.plugin.compose` version (same as `kotlin`).
 

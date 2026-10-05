@@ -26,9 +26,10 @@ Read these before changing anything:
 - If a streaming app lacks a capability, degrade gracefully through the existing fallback modes
   (`SyncMode`); don't hack around it.
 - Ask the user before adding a major dependency or deviating from the spec.
-- **Machine:** the user's work laptop must not run anything for this project (no Gradle, adb,
-  scripts or network) unless the user explicitly says otherwise for that task. Put commands to
-  run in `RUN_ON_MY_MACHINE.md`. Builds happen on the user's personal machine.
+- Verify changes with `./gradlew assembleDebug lint test`. Steps that need a real phone or the
+  Firebase console go in `RUN_ON_MY_MACHINE.md`.
+- **Production repo:** never commit `google-services.json`, keystores or other secrets. Don't
+  deploy Firebase rules or touch the production Firebase project without the user's go-ahead.
 - Commits: short message (subject + a line or two), no `Co-Authored-By` trailer.
 
 ## Modules
@@ -58,7 +59,7 @@ contract, update every implementation and the tests.
 
 ## Unverified / likely to need changes
 
-1. **Dependency versions** in `gradle/libs.versions.toml` were picked offline; bump any that don't resolve.
+1. **Dependency versions** in `gradle/libs.versions.toml` haven't been verified by a build yet; bump any that don't resolve.
 2. **Firebase rule for `state.seq`** (`newData.val() > data.val()`) may reject `ServerValue.increment`.
    If state writes fail with "Permission denied", relax it to `newData.isNumber()`.
 3. **Real app behaviour is unknown:** whether Netflix/JioHotstar expose a session, report
