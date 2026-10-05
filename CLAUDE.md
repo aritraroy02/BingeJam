@@ -51,7 +51,6 @@ contract, update every implementation and the tests.
 
 | What | Where | How to fill |
 |---|---|---|
-| **JioHotstar package name** | `core/src/main/kotlin/com/syncit/core/config/StreamingConfig.kt` → `JIOHOTSTAR_PACKAGE = ""` | From the Phase 0 diagnostics screen or `adb shell dumpsys media_session` on a real phone. **Never guess it.** While blank, JioHotstar shows "isn't configured yet". |
 | **`google-services.json`** | `app/google-services.json` (git-ignored; see `app/google-services.json.README.md`) | Present on the main dev machine (project `syncit-watchparty`). Elsewhere: `firebase apps:sdkconfig ANDROID 1:289263837364:android:627d7a1647f21ad28d77e1 -o app/google-services.json`. The build fails without it. |
 
 Firebase project: **`syncit-watchparty`** (owner aritraditya.roy@gmail.com), Realtime Database
@@ -62,6 +61,10 @@ CLI at `data-firebase/firebase/database.rules.json`; publish with `firebase depl
 | JioHotstar link hosts | `core/.../model/StreamingService.kt` → `listOf("hotstar.com", "jiohotstar.com")` | Unverified guess; only used for a soft warning. Check against a real share link. |
 | Invite link | `core/.../config/RoomLinks.kt` → `syncit://join/CODE` | Custom scheme, not clickable in many messengers. Replace with an https App Link once there's a domain. |
 | Launcher icon | `app/src/main/res/drawable/ic_launcher_foreground.xml` | Placeholder vector art. |
+
+## Planned next (user request, 2026-10-06)
+See PLAN.md → "Next session: planned features": (A) invite link that installs the app and
+auto-joins the room, (B) invitee sees the movie name + platform. Not started.
 
 ## Unverified / likely to need changes
 

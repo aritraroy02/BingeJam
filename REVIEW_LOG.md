@@ -72,6 +72,25 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
 - Merged manifest permissions: INTERNET, POST_NOTIFICATIONS, SYSTEM_ALERT_WINDOW,
   FOREGROUND_SERVICE(+_MEDIA_PLAYBACK), plus Firebase's ACCESS_NETWORK_STATE / READ_GSERVICES.
 
+## First on-device run (2026-10-06, OPPO CPH2607, Android 16)
+- Install + launch: no crashes. Onboarding: Notification Access, notifications, battery
+  exemption all detected (✓); name saved.
+- Diagnostics screen lists sessions live; actions decode matches `dumpsys media_session`.
+- **Netflix** (`com.netflix.mediaclient`): actions `0x36b` playing / `0x36d` paused (PAUSE↔PLAY
+  swap; PLAY_PAUSE, SEEK_TO always). Position reported and frozen while paused. Keeps playing
+  in PiP when Sync it is opened. Diagnostics **Pause, Play, Seek +30s all took effect** →
+  expect `FULL` mode.
+- **JioHotstar** = `in.startv.hotstar` (v26.09.14.1), read from the live session and set in
+  `StreamingConfig`. Actions include PAUSE, PLAY_PAUSE, SEEK_TO, SET_SPEED; position reported.
+  Responds to media-key play/pause (`cmd media_session dispatch`). Goes to state NONE when
+  backgrounded (no PiP), so the diagnostics buttons can't reach it while Sync it is in front;
+  **transportControls play/pause/seek on JioHotstar still to verify in a real room**. NONE
+  maps to no room status, so going idle doesn't pause the room.
+- Watch in the room test: JioHotstar reports PAUSED when it's brought back to the front, and
+  probably also when the user leaves it to open Sync it. That would broadcast a pause to everyone.
+  The chat bubble avoids leaving the app; consider ignoring a pause right before the app goes to NONE.
+- Rooms not tested yet: rules not deployed (auto-mode blocks `firebase deploy`).
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.

@@ -111,3 +111,39 @@ member node; joining = writing your own member node (denied if the room doesn't 
 5. Chat, reactions, floating bubble, status UI
 
 Review reports per phase: `REVIEW_LOG.md`.
+
+## Next session: planned features (noted 2026-10-06, not started)
+
+Requested by the user after the first on-device run. Discuss open questions before coding.
+
+### A. Invite link installs the app and auto-joins the room
+Today: `syncit://join/CODE` (custom scheme). Many messengers don't make it clickable, and it
+does nothing if Sync it isn't installed.
+Wanted: one link that opens Sync it and joins the room if installed, otherwise sends the
+person to install it and then **joins automatically after install + onboarding**.
+- Link: https App Link on a domain we control, e.g. Firebase Hosting
+  `https://syncit-watchparty.web.app/join/CODE`, with `/.well-known/assetlinks.json`
+  (needs the signing cert SHA-256) and `autoVerify` intent filter for that path.
+- Not installed: the web page shows the room code and an install button (Play Store URL
+  with `&referrer=room%3DCODE`, or an APK download until there's a Play listing).
+- Auto-join after install: Firebase Dynamic Links is shut down, so use the **Play Install
+  Referrer API** (`com.android.installreferrer`, a new dependency, so ask first) to read the code
+  on first launch. Before a Play listing this can't work, so fall back to "paste the
+  code" with the code copied from the page.
+- App side: keep the pending room code through onboarding (permissions + name), then join
+  automatically. Keep `syncit://` working.
+
+### B. Invitee sees what's playing and on which platform
+Show the movie name + platform (Netflix / JioHotstar) on the invite page and on the join
+screen before joining, and keep it visible in the room.
+- Today `title` stores only `service` + `deepLink` (no human-readable name), and rooms are
+  readable only by members, so a non-member can't preview anything.
+- Name source options: host types it; or the streaming app's own MediaSession metadata
+  (`MediaController.getMetadata()` → `METADATA_KEY_TITLE`). That is session metadata,
+  not notification content, so it fits the hard rules, but **update the privacy policy
+  points** in PLAY_STORE_READINESS.md. Check on the device what Netflix/JioHotstar actually
+  expose.
+- Preview data: a small public-to-signed-in node, e.g. `invites/{code}: {service, titleName,
+  hostName}`, written by the host, readable by any authenticated user (the code itself is
+  the secret). Rules + emulator test needed. The web page would need it readable without
+  auth, so decide what is OK to show publicly.
