@@ -129,8 +129,11 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
   with a pause icon; on disk it's `/sdcard/Download/.pending-…-sync-it.apk` (all bytes there, never
   finalized). No "Download anyway" prompt visible. GitHub serves it correctly (200, 2,733,125 B,
   `application/vnd.android.package-archive`, `Content-Disposition: attachment`), so not a hosting problem.
-- Likely causes: Chrome's APK safety check hanging, or OPPO battery saver freezing Chrome's download
-  service. Not yet confirmed on another phone.
+- Friend's phone gets stuck too. Same APK from a different host (jsDelivr CDN) also ends as
+  `.pending-…-sync-it.apk` → **host-independent: Chrome itself holds the file.** Matches the
+  acknowledged Chrome 150+ Android bug (P0) where APK downloads finish then hang/vanish, suspected
+  to be the expanded Safe Browsing APK checks (piunikaweb, 2026-07-09). Changing hosts won't help;
+  the fix is to avoid Chrome's download path (share the APK in chat, other browsers, a store).
 - Invite site now: detects in-app browsers (Instagram/Facebook/Snapchat WebViews) → "Open in Chrome";
   after Download shows install steps + the stuck-at-2.7 MB fix (tap it in Downloads, remove, turn off
   battery saver, retry, or use another browser) + "Download again"; self-hosted Inter (no serif fallback).
