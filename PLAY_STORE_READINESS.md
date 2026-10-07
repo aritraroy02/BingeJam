@@ -66,6 +66,9 @@ permission), so no policy declaration is needed.
   artwork thumbnail) is readable by any signed-in Sync it user who has the code, but can't be
   listed or searched. No ads, no analytics SDKs.
 - The invite web page (syncit-watchparty.web.app) loads no third-party scripts, fonts or
-  trackers. It serves the APK and the App Links file.
+  trackers. The APK is downloaded from GitHub (public releases repo).
+- **Update check:** once per launch the app asks the public GitHub API for the latest release
+  version. No account or personal data is sent; GitHub sees the request (IP address).
+  A Play Store build should drop this in favour of Play updates.
 - Retention: open question. Rooms, chats and reactions currently persist until deleted.
   Add a scheduled cleanup (e.g. delete rooms idle for 24 h) before launch.

@@ -86,4 +86,6 @@ dependencies {
 
     // Real backdrop blur for the liquid-glass UI (Android 12+; translucent scrim below).
     implementation(libs.haze)
+
+    testImplementation(libs.junit)
 }

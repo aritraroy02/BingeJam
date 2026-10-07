@@ -2,6 +2,7 @@ package com.syncit.app.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.syncit.app.data.UpdateChecker
 import com.syncit.app.di.AppContainer
 import com.syncit.core.config.RoomLinks
 import kotlinx.coroutines.CancellationException
@@ -26,6 +27,15 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
     val name: String get() = container.prefs.displayName
+
+    private val _update = MutableStateFlow<UpdateChecker.Update?>(null)
+
+    /** A newer release on GitHub, if any (APK installs don't update themselves). */
+    val update: StateFlow<UpdateChecker.Update?> = _update.asStateFlow()
+
+    init {
+        viewModelScope.launch { _update.value = UpdateChecker.check() }
+    }
 
     /** Upper-cases and drops characters that can't appear in a code. */
     fun onCodeChange(value: String) = _ui.update {

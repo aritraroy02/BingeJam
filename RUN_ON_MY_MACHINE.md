@@ -63,13 +63,15 @@ Re-run it whenever `database.rules.json` changes. The steps below are for settin
 - Invite site = `web/` on Firebase Hosting (`https://syncit-watchparty.web.app`): `/join/CODE` page
   and `/.well-known/assetlinks.json` (release + this machine's debug key).
 - The APK is **not** on Firebase (the free Spark plan rejects executables). It's a release asset of
-  the public repo `github.com/aritraroy02/sync-it-releases` (main branch); the site links to
-  `.../raw/main/sync-it.apk`, so the file name must stay `sync-it.apk`.
-- New app version:
+  the public repo `github.com/aritraroy02/sync-it-releases` (GitHub releases); the site links to
+  `.../releases/latest/download/sync-it.apk`, so the file name must stay `sync-it.apk`.
+- New app version (one command; needs `gh auth login` once):
   ```bash
-  bash scripts/build-release-apk.sh         # signed release APK → dist/sync-it.apk
-  # then commit dist/sync-it.apk as sync-it.apk to the main branch of sync-it-releases
+  bash scripts/release.sh 0.3.0 "What changed"
   ```
+  Bumps versionName/versionCode, runs tests, builds the signed APK, commits + tags `v0.3.0`
+  here, and creates GitHub release `v0.3.0` in `sync-it-releases` with `sync-it.apk` attached.
+  Installed apps show an "update available" banner on Home (UpdateChecker, GitHub API).
 - Rules or site changes: `firebase deploy --only database,hosting`
 - Check App Links on a phone: `adb shell pm verify-app-links --re-verify com.syncit.app`, then
   `adb shell pm get-app-links com.syncit.app` should show `syncit-watchparty.web.app: verified`.

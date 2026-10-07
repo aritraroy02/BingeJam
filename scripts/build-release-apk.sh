@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the signed release APK as dist/sync-it.apk for the public releases repo
 # (github.com/aritraroy02/sync-it-releases). Firebase's free plan can't host APKs, so the invite
-# site links to .../raw/main/sync-it.apk instead.
+# site links to .../releases/latest/download/sync-it.apk instead. Prefer scripts/release.sh.
 # Needs keystore.properties (release signing); see RUN_ON_MY_MACHINE.md.
 # Windows: run it with `bash scripts/prepare-invite-site.sh` (PowerShell can't run .sh files).
 set -euo pipefail

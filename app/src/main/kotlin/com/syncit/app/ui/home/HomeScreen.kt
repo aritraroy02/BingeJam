@@ -1,5 +1,6 @@
 package com.syncit.app.ui.home
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,13 +28,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.syncit.app.data.UpdateChecker
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassIconButton
@@ -53,6 +57,8 @@ fun HomeScreen(
 ) {
     val p = Glass.palette
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val update by viewModel.update.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     LaunchedEffect(Unit) { viewModel.refreshLastRoom() }
 
     GlassScreen {
@@ -80,6 +86,23 @@ fun HomeScreen(
                     color = p.textSecondary,
                 )
                 Spacer(Modifier.height(10.dp))
+
+                update?.let { available ->
+                    GlassPanel {
+                        Text("Sync it ${available.version} is available", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+                        available.notes?.lineSequence()?.firstOrNull { it.isNotBlank() }?.let {
+                            Text(it.trimStart('-', '*', ' '), style = MaterialTheme.typography.bodyMedium, color = p.textSecondary)
+                        }
+                        GlassButton(
+                            text = "Download update",
+                            icon = Icons.Filled.Refresh,
+                            onClick = {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, UpdateChecker.DOWNLOAD_URL.toUri()))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
 
                 GlassPanel {
                     Text("Start a watch party", style = MaterialTheme.typography.titleLarge, color = p.textPrimary)
