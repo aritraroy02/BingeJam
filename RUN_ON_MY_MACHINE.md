@@ -63,12 +63,12 @@ Re-run it whenever `database.rules.json` changes. The steps below are for settin
 - Invite site = `web/` on Firebase Hosting (`https://syncit-watchparty.web.app`): `/join/CODE` page
   and `/.well-known/assetlinks.json` (release + this machine's debug key).
 - The APK is **not** on Firebase (the free Spark plan rejects executables). It's a release asset of
-  the public repo `github.com/aritraroy02/sync-it-releases`; the site links to
-  `.../releases/latest/download/sync-it.apk`, so the file name must stay `sync-it.apk`.
+  the public repo `github.com/aritraroy02/sync-it-releases` (main branch); the site links to
+  `.../raw/main/sync-it.apk`, so the file name must stay `sync-it.apk`.
 - New app version:
   ```bash
   bash scripts/build-release-apk.sh         # signed release APK → dist/sync-it.apk
-  # then: GitHub → sync-it-releases → Releases → new release, attach dist/sync-it.apk
+  # then commit dist/sync-it.apk as sync-it.apk to the main branch of sync-it-releases
   ```
 - Rules or site changes: `firebase deploy --only database,hosting`
 - Check App Links on a phone: `adb shell pm verify-app-links --re-verify com.syncit.app`, then
