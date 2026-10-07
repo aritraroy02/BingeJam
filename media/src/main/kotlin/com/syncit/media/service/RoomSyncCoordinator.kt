@@ -13,13 +13,17 @@ import com.syncit.core.session.SyncSessionState
 import com.syncit.core.sync.SyncClock
 import com.syncit.core.sync.SyncEngine
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.isActive
@@ -83,17 +87,21 @@ internal class RoomSyncCoordinator(
                 }
             }
 
+            // The target app follows the room's title once it's set (Phase 4).
+            val targetFlow = roomFlow.map { it?.title?.service }.distinctUntilChanged()
+
             launch {
-                // The target app follows the room's title once it's set (Phase 4).
-                val targetFlow = roomFlow.map { it?.title?.service }.distinctUntilChanged()
                 combine(deps.gateway.sessions, targetFlow) { sessions, target -> pickSession(sessions, target) }
-                    .distinctUntilChanged()
+                    // Metadata (title/artwork) changes aren't playback changes; the engine ignores them.
+                    .distinctUntilChanged { a, b -> a?.sessionKey == b?.sessionKey && a?.snapshot == b?.snapshot }
                     .collect { picked ->
                         session = picked
                         execute(code, engine.onLocalSnapshot(picked?.snapshot))
                         publishState(engine)
                     }
             }
+
+            launch { publishNowPlaying(code, uid, roomFlow, targetFlow) }
 
             launch {
                 while (isActive) {
@@ -103,6 +111,34 @@ internal class RoomSyncCoordinator(
                 }
             }
         }
+    }
+
+    /**
+     * Host only: mirrors what the host's streaming app says is playing (title, artwork) into the
+     * room preview, so members and invitees see it. Debounced: apps often publish metadata in
+     * several steps (title first, artwork a moment later).
+     */
+    @OptIn(FlowPreview::class)
+    private suspend fun publishNowPlaying(
+        code: String,
+        uid: String,
+        roomFlow: Flow<Room?>,
+        targetFlow: Flow<StreamingService?>,
+    ) {
+        val isHost = roomFlow.map { it?.hostUid == uid }.distinctUntilChanged()
+        combine(isHost, deps.gateway.sessions, targetFlow) { host, sessions, target ->
+            if (!host) return@combine null
+            val picked = pickSession(sessions, target) ?: return@combine null
+            val service = StreamingService.forPackage(picked.packageName) ?: return@combine null
+            val metadata = picked.metadata?.takeUnless { it.isEmpty } ?: return@combine null
+            service to metadata
+        }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .debounce(NOW_PLAYING_DEBOUNCE_MS)
+            .collect { (service, metadata) ->
+                safely("setNowPlaying") { deps.transport.setNowPlaying(code, service, metadata) }
+            }
     }
 
     fun stop() {
@@ -178,5 +214,6 @@ internal class RoomSyncCoordinator(
     private companion object {
         const val TAG = "SyncItCoordinator"
         const val TICK_MS = 1_000L
+        const val NOW_PLAYING_DEBOUNCE_MS = 1_500L
     }
 }

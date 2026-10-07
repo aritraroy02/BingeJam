@@ -1,0 +1,114 @@
+/* Liquid-glass look matching the app (ui/theme/Theme.kt). No external fonts or scripts. */
+:root {
+  --base: #06070B;
+  --text: #F5F7FA;
+  --text-2: rgba(255, 255, 255, .68);
+  --text-3: rgba(255, 255, 255, .45);
+  --glass: rgba(255, 255, 255, .08);
+  --stroke-top: rgba(255, 255, 255, .30);
+  --stroke-bottom: rgba(255, 255, 255, .05);
+  --accent: #7C6CFF;
+  --accent-2: #3FB7FF;
+  --blob-1: rgba(109, 93, 252, .55);
+  --blob-2: rgba(31, 182, 255, .45);
+  --blob-3: rgba(255, 77, 141, .45);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --base: #EEF1F8;
+    --text: #0B0D12;
+    --text-2: rgba(11, 13, 18, .62);
+    --text-3: rgba(11, 13, 18, .42);
+    --glass: rgba(255, 255, 255, .55);
+    --stroke-top: rgba(255, 255, 255, .95);
+    --stroke-bottom: rgba(255, 255, 255, .30);
+    --accent: #5B4BFF;
+    --accent-2: #1E9BFF;
+    --blob-1: rgba(185, 174, 255, .8);
+    --blob-2: rgba(155, 227, 255, .8);
+    --blob-3: rgba(255, 194, 218, .8);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(60vmax 60vmax at 10% 5%, var(--blob-1), transparent 60%),
+    radial-gradient(55vmax 55vmax at 95% 45%, var(--blob-2), transparent 60%),
+    radial-gradient(60vmax 60vmax at 30% 100%, var(--blob-3), transparent 60%),
+    var(--base);
+  background-attachment: fixed;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  padding: 28px 22px;
+  border-radius: 28px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-shadow: inset 0 1px 0 var(--stroke-top), inset 0 -1px 0 var(--stroke-bottom);
+}
+
+.eyebrow { margin: 0 0 6px; color: var(--text-2); font-weight: 600; font-size: 14px; }
+.brand {
+  margin: 0 0 10px;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.lead { margin: 0 0 20px; color: var(--text-2); line-height: 1.5; font-size: 16px; }
+
+.code-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+  background: var(--glass);
+  box-shadow: inset 0 1px 0 var(--stroke-top);
+}
+.code-box span { color: var(--text-2); font-size: 14px; }
+.code-box strong { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 24px; letter-spacing: 4px; }
+
+.btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 16px 20px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+  color: var(--text);
+  background: var(--glass);
+  box-shadow: inset 0 1px 0 var(--stroke-top), inset 0 -1px 0 var(--stroke-bottom);
+}
+.btn.primary {
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .22), transparent 60%),
+    linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+.btn:active { transform: scale(.98); }
+
+.steps { margin: 18px 0 8px; padding-left: 20px; color: var(--text-2); line-height: 1.55; font-size: 15px; }
+.steps li { margin-bottom: 8px; }
+.steps b { color: var(--text); }
+.fine { margin: 14px 0 0; color: var(--text-3); font-size: 13px; line-height: 1.45; }

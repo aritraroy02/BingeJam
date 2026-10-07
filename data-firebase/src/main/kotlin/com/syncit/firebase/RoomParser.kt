@@ -1,5 +1,6 @@
 package com.syncit.firebase
 
+import android.util.Base64
 import com.google.firebase.database.DataSnapshot
 import com.syncit.core.model.ChatMessage
 import com.syncit.core.model.Countdown
@@ -7,6 +8,7 @@ import com.syncit.core.model.Member
 import com.syncit.core.model.PlaybackStatus
 import com.syncit.core.model.Reaction
 import com.syncit.core.model.Room
+import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.RoomState
 import com.syncit.core.model.RoomTitle
 import com.syncit.core.model.StreamingService
@@ -87,6 +89,19 @@ internal object RoomParser {
             name = s.child("name").string().orEmpty(),
             emoji = s.child("emoji").string() ?: return null,
             sentAt = s.child("sentAt").long() ?: 0L,
+        )
+    }
+
+    fun preview(code: String, s: DataSnapshot): RoomPreview? {
+        if (!s.exists()) return null
+        return RoomPreview(
+            code = code,
+            hostName = s.child("hostName").string() ?: return null,
+            service = StreamingService.fromId(s.child("service").string()),
+            title = s.child("title").string(),
+            subtitle = s.child("subtitle").string(),
+            artworkJpeg = s.child("artwork").string()?.let { runCatching { Base64.decode(it, Base64.DEFAULT) }.getOrNull() },
+            updatedAt = s.child("updatedAt").long() ?: 0L,
         )
     }
 

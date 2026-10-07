@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.syncit.app",
+      "sha256_cert_fingerprints": [
+        "E8:89:BE:C7:7C:C0:92:BE:B7:28:98:F4:6D:6B:5F:C8:CE:14:7C:AF:85:5C:63:F4:BF:B6:E5:2A:E2:31:33:5F",
+        "6E:B4:69:4C:FF:3F:75:BE:B6:84:CE:0E:45:5D:D4:25:93:BA:FF:09:37:D1:DE:0A:0C:4B:61:27:1D:65:10:31"
+      ]
+    }
+  }
+]

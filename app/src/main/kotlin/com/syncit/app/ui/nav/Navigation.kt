@@ -14,18 +14,23 @@ import com.syncit.app.ui.diagnostics.DiagnosticsScreen
 import com.syncit.app.ui.diagnostics.DiagnosticsViewModel
 import com.syncit.app.ui.home.HomeScreen
 import com.syncit.app.ui.home.HomeViewModel
+import com.syncit.app.ui.join.JoinPreviewScreen
+import com.syncit.app.ui.join.JoinPreviewViewModel
 import com.syncit.app.ui.onboarding.OnboardingScreen
 import com.syncit.app.ui.room.RoomScreen
 import com.syncit.app.ui.room.RoomViewModel
+import com.syncit.app.ui.settings.SettingsScreen
 
 sealed interface Screen {
     data object Onboarding : Screen
     data object Home : Screen
+    data object Settings : Screen
     data object Diagnostics : Screen
+    data class JoinPreview(val code: String) : Screen
     data class Room(val code: String) : Screen
 }
 
-/** A tiny back stack. Five screens don't justify a navigation library. */
+/** A tiny back stack. A handful of screens don't justify a navigation library. */
 class NavViewModel(start: Screen) : ViewModel() {
     val backStack = mutableStateListOf(start)
 
@@ -39,26 +44,40 @@ class NavViewModel(start: Screen) : ViewModel() {
         if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
     }
 
-    fun reset(screen: Screen) {
+    fun reset(vararg screens: Screen) {
         backStack.clear()
-        backStack.add(screen)
+        backStack.addAll(screens)
     }
 }
 
+/**
+ * [pendingJoinCode] is set by MainActivity from an invite link. It's parked in prefs until
+ * onboarding is done, then opens the join preview.
+ */
 @Composable
 fun SyncItApp(container: AppContainer, pendingJoinCode: MutableState<String?>) {
+    val prefs = container.prefs
     val nav: NavViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { NavViewModel(if (container.prefs.onboardingDone) Screen.Home else Screen.Onboarding) }
+            initializer {
+                val pending = prefs.pendingJoinCode
+                when {
+                    !prefs.onboardingDone -> NavViewModel(Screen.Onboarding)
+                    pending != null -> NavViewModel(Screen.Home).also { it.push(Screen.JoinPreview(pending)) }
+                    else -> NavViewModel(Screen.Home)
+                }
+            }
         },
     )
 
     BackHandler(enabled = nav.backStack.size > 1) { nav.pop() }
 
-    // A join link while onboarded jumps to Home, where the code is pre-filled.
     LaunchedEffect(pendingJoinCode.value) {
-        if (pendingJoinCode.value != null && container.prefs.onboardingDone && nav.current !is Screen.Home) {
-            nav.reset(Screen.Home)
+        val code = pendingJoinCode.value ?: return@LaunchedEffect
+        pendingJoinCode.value = null
+        prefs.pendingJoinCode = code
+        if (prefs.onboardingDone && (nav.current as? Screen.JoinPreview)?.code != code) {
+            nav.reset(Screen.Home, Screen.JoinPreview(code))
         }
     }
 
@@ -66,8 +85,13 @@ fun SyncItApp(container: AppContainer, pendingJoinCode: MutableState<String?>) {
         Screen.Onboarding -> OnboardingScreen(
             container = container,
             onDone = {
-                container.prefs.onboardingDone = true
-                nav.reset(Screen.Home)
+                prefs.onboardingDone = true
+                val pending = prefs.pendingJoinCode
+                when {
+                    pending != null -> nav.reset(Screen.Home, Screen.JoinPreview(pending))
+                    nav.backStack.size > 1 -> nav.pop() // opened from Settings
+                    else -> nav.reset(Screen.Home)
+                }
             },
         )
 
@@ -75,17 +99,35 @@ fun SyncItApp(container: AppContainer, pendingJoinCode: MutableState<String?>) {
             val vm: HomeViewModel = viewModel(factory = viewModelFactory { initializer { HomeViewModel(container) } })
             HomeScreen(
                 viewModel = vm,
-                pendingJoinCode = pendingJoinCode,
                 onEnterRoom = { code -> nav.push(Screen.Room(code)) },
-                onOpenDiagnostics = { nav.push(Screen.Diagnostics) },
-                onOpenSetup = { nav.push(Screen.Onboarding) },
+                onJoinCode = { code -> nav.push(Screen.JoinPreview(code)) },
+                onOpenSettings = { nav.push(Screen.Settings) },
             )
         }
+
+        Screen.Settings -> SettingsScreen(
+            prefs = prefs,
+            onBack = nav::pop,
+            onOpenSetup = { nav.push(Screen.Onboarding) },
+            onOpenDiagnostics = { nav.push(Screen.Diagnostics) },
+        )
 
         Screen.Diagnostics -> {
             val vm: DiagnosticsViewModel =
                 viewModel(factory = viewModelFactory { initializer { DiagnosticsViewModel(container.gateway) } })
             DiagnosticsScreen(viewModel = vm, onBack = nav::pop)
+        }
+
+        is Screen.JoinPreview -> {
+            val vm: JoinPreviewViewModel = viewModel(
+                key = "join-${screen.code}",
+                factory = viewModelFactory { initializer { JoinPreviewViewModel(screen.code, container) } },
+            )
+            JoinPreviewScreen(
+                viewModel = vm,
+                onJoined = { code -> nav.reset(Screen.Home, Screen.Room(code)) },
+                onBack = nav::pop,
+            )
         }
 
         is Screen.Room -> {
@@ -95,6 +137,7 @@ fun SyncItApp(container: AppContainer, pendingJoinCode: MutableState<String?>) {
             )
             RoomScreen(
                 viewModel = vm,
+                onBack = nav::pop,
                 onLeft = { nav.reset(Screen.Home) },
             )
         }

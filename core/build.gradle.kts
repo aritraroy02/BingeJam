@@ -17,4 +17,5 @@ kotlin {
 dependencies {
     // Flow / StateFlow appear in the contracts.
     api(libs.kotlinx.coroutines.core)
+    testImplementation(libs.junit)
 }

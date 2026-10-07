@@ -1,6 +1,7 @@
 package com.syncit.media
 
 import android.content.Context
+import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
@@ -10,6 +11,7 @@ import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import com.syncit.core.media.MediaControllerGateway
 import com.syncit.core.model.MediaSessionInfo
+import com.syncit.core.model.NowPlayingMetadata
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +33,11 @@ class AndroidMediaControllerGateway(context: Context) : MediaControllerGateway {
     private val _sessions = MutableStateFlow<List<MediaSessionInfo>>(emptyList())
     override val sessions: StateFlow<List<MediaSessionInfo>> = _sessions.asStateFlow()
 
-    private class Tracked(val controller: MediaController, val callback: MediaController.Callback)
+    private class Tracked(val controller: MediaController, val callback: MediaController.Callback) {
+        /** Last mapped metadata, so the artwork is only re-encoded when the app changes it. */
+        var metadataSource: MediaMetadata? = null
+        var metadata: NowPlayingMetadata? = null
+    }
 
     /** sessionKey -> controller, in MediaSessionManager's priority order. */
     private val tracked = LinkedHashMap<String, Tracked>()
@@ -108,6 +114,8 @@ class AndroidMediaControllerGateway(context: Context) : MediaControllerGateway {
         val callback = object : MediaController.Callback() {
             override fun onPlaybackStateChanged(state: PlaybackState?) = publish()
 
+            override fun onMetadataChanged(metadata: MediaMetadata?) = publish()
+
             override fun onSessionDestroyed() {
                 tracked.remove(key)?.let { it.controller.unregisterCallback(it.callback) }
                 publish()
@@ -123,10 +131,21 @@ class AndroidMediaControllerGateway(context: Context) : MediaControllerGateway {
                 sessionKey = key,
                 packageName = t.controller.packageName,
                 snapshot = t.controller.playbackState?.let(PlaybackStateMapper::toSnapshot),
+                metadata = metadataOf(t),
             )
         }
         _sessions.value = list
         DiagnosticsLog.logSessions(list)
+    }
+
+    private fun metadataOf(t: Tracked): NowPlayingMetadata? {
+        val current = t.controller.metadata
+        // MediaMetadata is immutable; apps publish a new instance on every change.
+        if (current !== t.metadataSource) {
+            t.metadataSource = current
+            t.metadata = MetadataMapper.toNowPlaying(current)
+        }
+        return t.metadata
     }
 
     override fun play(sessionKey: String): Boolean =

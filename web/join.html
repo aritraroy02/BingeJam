@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Join the watch party · Sync it</title>
+<meta name="description" content="You're invited to a Sync it watch party. Watch Netflix or JioHotstar together, in sync.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="card">
+  <p class="eyebrow">You're invited to a watch party</p>
+  <h1 class="brand">Sync it</h1>
+  <p class="lead">Watch Netflix or JioHotstar together, each on your own phone. When anyone plays, pauses or skips, everyone follows.</p>
+
+  <section id="ok" hidden>
+    <div class="code-box">
+      <span>Room code</span>
+      <strong id="code"></strong>
+    </div>
+
+    <a class="btn primary" id="download" href="/download/sync-it.apk">Download Sync it</a>
+    <a class="btn" id="open" href="#">I already have Sync it</a>
+
+    <ol class="steps">
+      <li>Tap <b>Download</b>, then open the file to install it. If Android asks, allow your browser to install apps.</li>
+      <li>Open <b>Sync it</b> and finish the quick setup. You'll land in this room automatically.</li>
+      <li>Didn't happen? On the Home screen, enter the room code above.</li>
+    </ol>
+    <p class="fine" id="copied" hidden>Invite copied so Sync it can find the room after installing.</p>
+  </section>
+
+  <section id="bad" hidden>
+    <p class="lead">This invite link looks incomplete. Ask your friend for the 6-character room code, then enter it in Sync it.</p>
+    <a class="btn primary" href="/download/sync-it.apk">Download Sync it</a>
+  </section>
+
+  <p class="fine">Android only. Sync it shares play, pause and position with the room, never your video, audio or notifications.</p>
+</main>
+
+<script>
+  // /join/ABC123 → ABC123. Same alphabet as the app (no 0/O, 1/I).
+  const match = location.pathname.match(/\/join\/([A-Za-z0-9]{6})\/?$/);
+  const code = match && /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(match[1].toUpperCase())
+    ? match[1].toUpperCase() : null;
+
+  if (!code) {
+    document.getElementById('bad').hidden = false;
+  } else {
+    document.getElementById('ok').hidden = false;
+    document.getElementById('code').textContent = code;
+    const link = 'https://syncit-watchparty.web.app/join/' + code;
+
+    // Installed: opens the app on this room. Not installed: comes back here.
+    document.getElementById('open').href =
+      'intent://join/' + code + '#Intent;scheme=syncit;package=com.syncit.app;S.browser_fallback_url=' +
+      encodeURIComponent(link) + ';end';
+
+    // An APK install can't carry the link, so leave it on the clipboard. Sync it reads it once on
+    // its first launch and opens this room.
+    document.getElementById('download').addEventListener('click', () => {
+      const shown = () => { document.getElementById('copied').hidden = false; };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(shown, () => fallbackCopy(link) && shown());
+      } else if (fallbackCopy(link)) {
+        shown();
+      }
+    });
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(area);
+    return ok;
+  }
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@ import com.syncit.app.di.AppContainer
 import com.syncit.core.model.ChatMessage
 import com.syncit.core.model.Reaction
 import com.syncit.core.model.Room
+import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.session.SyncSessionState
 import kotlinx.coroutines.CancellationException
@@ -28,6 +29,11 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
     val myUid: StateFlow<String?> = transport.currentUid
 
     val room: StateFlow<Room?> = transport.observeRoom(code)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Host name + what the host is playing (title, artwork); the room's hero. */
+    val preview: StateFlow<RoomPreview?> = transport.observePreview(code)
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 

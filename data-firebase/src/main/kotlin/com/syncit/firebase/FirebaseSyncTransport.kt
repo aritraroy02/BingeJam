@@ -1,5 +1,7 @@
 package com.syncit.firebase
 
+import android.util.Base64
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.ChildEventListener
 import com.google.firebase.database.DataSnapshot
@@ -10,13 +12,16 @@ import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.syncit.core.config.RoomLinks
 import com.syncit.core.model.ChatMessage
+import com.syncit.core.model.NowPlayingMetadata
 import com.syncit.core.model.Reaction
 import com.syncit.core.model.Room
+import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StateBroadcast
 import com.syncit.core.model.StreamingService
 import com.syncit.core.sync.ServerClock
 import com.syncit.core.transport.RoomNotFoundException
 import com.syncit.core.transport.SyncTransport
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +42,7 @@ class FirebaseSyncTransport(
     private val rooms: DatabaseReference = db.getReference("rooms")
     private val chats: DatabaseReference = db.getReference("chats")
     private val reactions: DatabaseReference = db.getReference("reactions")
+    private val previews: DatabaseReference = db.getReference("previews")
 
     override val serverClock: ServerClock = FirebaseServerClock(db)
 
@@ -86,6 +92,7 @@ class FirebaseSyncTransport(
                 // comes back as "permission denied" and we try another.
                 rooms.child(code).setValue(room).await()
                 startPresence(code, uid)
+                writeInitialPreview(code, displayName)
                 return code
             } catch (e: Exception) {
                 if (!e.isPermissionDenied()) throw e
@@ -156,6 +163,55 @@ class FirebaseSyncTransport(
             mapOf(
                 "positionMs" to positionMs.coerceAtLeast(0L),
                 "reportedAt" to ServerValue.TIMESTAMP,
+            ),
+        ).await()
+    }
+
+    // ---- Preview / now playing ----
+
+    /** Rules need the room to exist first (only its host may write the preview). */
+    private suspend fun writeInitialPreview(code: String, displayName: String) {
+        try {
+            previews.child(code).setValue(
+                mapOf("hostName" to cleanName(displayName), "updatedAt" to ServerValue.TIMESTAMP),
+            ).await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The room works without a preview; invitees just see the bare code.
+            Log.w(TAG, "Couldn't write the room preview", e)
+        }
+    }
+
+    override fun observePreview(code: String): Flow<RoomPreview?> = callbackFlow {
+        ensureSignedIn()
+        val ref = previews.child(code)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                trySend(RoomParser.preview(code, snapshot))
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                trySend(null)
+                close(error.toException())
+            }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    override suspend fun setNowPlaying(code: String, service: StreamingService, metadata: NowPlayingMetadata) {
+        ensureSignedIn()
+        // updateChildren with null deletes a field, so an app that drops its artwork clears ours too.
+        previews.child(code).updateChildren(
+            mapOf(
+                "service" to service.name,
+                "title" to metadata.title?.take(MAX_META_LENGTH),
+                "subtitle" to metadata.subtitle?.take(MAX_META_LENGTH),
+                "artwork" to metadata.artworkJpeg
+                    ?.takeIf { it.size <= MAX_ARTWORK_BYTES }
+                    ?.let { Base64.encodeToString(it, Base64.NO_WRAP) },
+                "updatedAt" to ServerValue.TIMESTAMP,
             ),
         ).await()
     }
@@ -278,8 +334,10 @@ class FirebaseSyncTransport(
 
     // ---- Helpers ----
 
+    private fun cleanName(displayName: String): String = displayName.trim().take(MAX_NAME_LENGTH).ifEmpty { "Guest" }
+
     private fun memberFields(displayName: String): Map<String, Any> = mapOf(
-        "name" to displayName.trim().take(MAX_NAME_LENGTH).ifEmpty { "Guest" },
+        "name" to cleanName(displayName),
         "online" to true,
         "joinedAt" to ServerValue.TIMESTAMP,
         "lastSeen" to ServerValue.TIMESTAMP,
@@ -295,6 +353,11 @@ class FirebaseSyncTransport(
         private const val MAX_CODE_ATTEMPTS = 5
         private const val MAX_NAME_LENGTH = 40
         private const val MAX_CHAT_LENGTH = 500
+        private const val MAX_META_LENGTH = 200
+
+        /** Base64 grows 4/3, so this stays under the rules' 70,000-character limit. */
+        private const val MAX_ARTWORK_BYTES = 52_000
+        private const val TAG = "SyncItFirebase"
 
         fun create(): FirebaseSyncTransport {
             val db = if (FirebaseConfig.DATABASE_URL.isBlank()) {

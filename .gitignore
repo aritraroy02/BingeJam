@@ -11,3 +11,10 @@ captures/
 app/google-services.json
 # IDE (VS Code Java / Eclipse) build output
 bin/
+
+# Release signing: never commit
+keystore.properties
+*.jks
+*.keystore
+# Built APK copied into the invite site at deploy time
+web/download/

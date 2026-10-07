@@ -69,10 +69,14 @@ data class PlaybackSnapshot(
     }
 }
 
-/** An active media session on this device. [snapshot] is null if the app hasn't published a state yet. */
+/**
+ * An active media session on this device. [snapshot] is null if the app hasn't published a
+ * state yet; [metadata] is null if it hasn't published any metadata.
+ */
 data class MediaSessionInfo(
     /** Stable for the lifetime of the session; used to address commands. */
     val sessionKey: String,
     val packageName: String,
     val snapshot: PlaybackSnapshot?,
+    val metadata: NowPlayingMetadata? = null,
 )

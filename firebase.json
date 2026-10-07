@@ -1,5 +1,43 @@
 {
   "database": {
     "rules": "data-firebase/firebase/database.rules.json"
+  },
+  "hosting": {
+    "public": "web",
+    "ignore": [
+      "**/.DS_Store",
+      "**/*.md"
+    ],
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/join/**",
+        "destination": "/join.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/.well-known/assetlinks.json",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      {
+        "source": "/download/**",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.android.package-archive"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
   }
 }

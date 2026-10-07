@@ -1,8 +1,10 @@
 package com.syncit.core.transport
 
 import com.syncit.core.model.ChatMessage
+import com.syncit.core.model.NowPlayingMetadata
 import com.syncit.core.model.Reaction
 import com.syncit.core.model.Room
+import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StateBroadcast
 import com.syncit.core.model.StreamingService
 import com.syncit.core.sync.ServerClock
@@ -23,7 +25,10 @@ interface SyncTransport {
     /** Signs in anonymously if needed and returns our uid. */
     suspend fun ensureSignedIn(): String
 
-    /** Creates a room with us as host and member; returns the 6-character code. */
+    /**
+     * Creates a room with us as host and member, plus its preview (host name); returns the
+     * 6-character code.
+     */
     suspend fun createRoom(displayName: String): String
 
     /** Adds us as a member and starts presence. Throws [RoomNotFoundException]. */
@@ -41,6 +46,16 @@ interface SyncTransport {
     suspend fun reportPosition(code: String, positionMs: Long)
 
     suspend fun setTitle(code: String, service: StreamingService, deepLink: String)
+
+    /**
+     * The room's preview: host name and what the host is playing. Readable by any signed-in
+     * user who knows the code (no membership needed), so invitees can see it before joining.
+     * Emits null if there's no preview for [code].
+     */
+    fun observePreview(code: String): Flow<RoomPreview?>
+
+    /** Host only: publishes what the host's streaming app says is playing. */
+    suspend fun setNowPlaying(code: String, service: StreamingService, metadata: NowPlayingMetadata)
 
     suspend fun startCountdown(code: String, leadMs: Long)
 

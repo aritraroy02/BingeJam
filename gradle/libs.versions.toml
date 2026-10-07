@@ -12,6 +12,8 @@ composeBom = "2025.06.00"
 firebaseBom = "33.15.0"
 googleServices = "4.4.3"
 junit = "4.13.2"
+# Haze 1.6.x matches Compose 1.8 / Kotlin 2.x. Haze 2.x needs AGP 9 + compileSdk 37.
+haze = "1.6.10"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -35,6 +37,8 @@ firebase-database = { module = "com.google.firebase:firebase-database" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
+
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
