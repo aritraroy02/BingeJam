@@ -37,6 +37,7 @@ internal object MetadataMapper {
             subtitle = tidySubtitle(subtitle, title),
             artworkJpeg = bitmap?.let(::thumbnail),
             mediaId = metadata.text(MediaMetadata.METADATA_KEY_MEDIA_ID),
+            durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 },
             allFields = describeAll(metadata),
         )
             .takeUnless { it.isEmpty && subtitle == null }

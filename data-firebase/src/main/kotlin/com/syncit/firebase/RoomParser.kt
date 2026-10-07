@@ -102,6 +102,7 @@ internal object RoomParser {
             subtitle = s.child("subtitle").string(),
             artworkJpeg = s.child("artwork").string()?.let { runCatching { Base64.decode(it, Base64.DEFAULT) }.getOrNull() },
             updatedAt = s.child("updatedAt").long() ?: 0L,
+            durationMs = s.child("durationMs").long(),
         )
     }
 

@@ -8,6 +8,13 @@
     <!-- Optional floating chat bubble over the movie. Special access, user-granted in settings. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- Package visibility (Android 11+) for the room's "Play in …" button. Keep in sync with
+         StreamingConfig (Netflix, JioHotstar). -->
+    <queries>
+        <package android:name="com.netflix.mediaclient" />
+        <package android:name="in.startv.hotstar" />
+    </queries>
+
     <application
         android:name=".SyncItApplication"
         android:allowBackup="false"

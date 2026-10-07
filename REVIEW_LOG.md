@@ -140,6 +140,20 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
 - If friends still get stuck: options not chosen yet are sending the APK in chat from the app, Firebase
   App Distribution, or Play internal testing.
 
+## Play button + episode matching (2026-10-07)
+- Netflix MediaSession has no content ID: exactly TITLE, DISPLAY_TITLE, DISPLAY_SUBTITLE, DURATION,
+  ALBUM_ART. So "Play" opens Netflix (or the host's link) and says which episode to start; matching is
+  title + duration (±10 s), see `RoomPreview.matches` (7 tests).
+- Coordinator gate: a member whose app plays a different title/episode (or another app) is hidden from
+  the engine (status OTHER_TITLE): nothing broadcast, no commands. Switching to the right episode =
+  attach → late-join align to the room.
+- Device test with a scripted host in room PLAYZ2 (playing from 10:00): member hero showed
+  "▶ Play in Netflix" + "Start S2:E2 · Kaer Morhen and Sync it jumps you to 0:10:41"; Play opened
+  Netflix; starting a *different* episode (S2:E4) was left alone at 5:16; host switched preview to
+  S2:E4 → within 4 s Netflix jumped to 11:47.6 (room's exact expected position) and kept playing.
+  Room state stayed seq 1 by the host: the member never broadcast. Rules: `previews.durationMs`
+  (emulator 42/42), deployed before the release.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.

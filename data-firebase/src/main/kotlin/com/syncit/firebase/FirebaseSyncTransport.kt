@@ -208,6 +208,7 @@ class FirebaseSyncTransport(
                 "service" to service.name,
                 "title" to metadata.title?.take(MAX_META_LENGTH),
                 "subtitle" to metadata.subtitle?.take(MAX_META_LENGTH),
+                "durationMs" to metadata.durationMs,
                 "artwork" to metadata.artworkJpeg
                     ?.takeIf { it.size <= MAX_ARTWORK_BYTES }
                     ?.let { Base64.encodeToString(it, Base64.NO_WRAP) },

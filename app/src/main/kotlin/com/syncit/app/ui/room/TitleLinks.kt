@@ -48,3 +48,19 @@ internal fun openTitle(context: Context, title: RoomTitle): Boolean {
         false
     }
 }
+
+/**
+ * The room's Play button: the host's link if it's for this service (opens the show page),
+ * otherwise just the streaming app. False if the app isn't installed.
+ */
+internal fun openForPlay(context: Context, service: StreamingService, title: RoomTitle?): Boolean {
+    if (title != null && title.service == service && openTitle(context, title)) return true
+    // Needs <queries> for the package (manifest) on Android 11+.
+    val launch = context.packageManager.getLaunchIntentForPackage(service.packageName) ?: return false
+    return try {
+        context.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
+}

@@ -70,6 +70,7 @@
         "title": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "subtitle": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "artwork": { ".validate": "newData.isString() && newData.val().length <= 70000" },
+        "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "updatedAt": { ".validate": "newData.val() === now" },
         "$other": { ".validate": false }
       }

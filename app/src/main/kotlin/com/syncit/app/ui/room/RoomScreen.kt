@@ -1,6 +1,7 @@
 package com.syncit.app.ui.room
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.overlay.ChatBubbleService
 import com.syncit.app.ui.common.ArtworkCard
 import com.syncit.app.ui.common.rememberArtwork
+import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSegmented
@@ -66,8 +69,10 @@ import com.syncit.core.config.RoomLinks
 import com.syncit.core.config.SyncStatusLabels
 import com.syncit.core.model.Room
 import com.syncit.core.model.RoomPreview
+import com.syncit.core.model.StreamingService
 import com.syncit.core.model.SyncStatus
 import com.syncit.core.session.SyncSessionState
+import com.syncit.sync.PositionMath
 
 /** How long "PLAY NOW" stays up after the target time. */
 private const val PLAY_NOW_VISIBLE_MS = 2_000L
@@ -116,6 +121,13 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                     preview = preview,
                     room = currentRoom,
                     sync = sync,
+                    isHost = currentRoom != null && currentRoom.hostUid == myUid,
+                    serverNow = serverNow,
+                    onPlay = { service ->
+                        if (!openForPlay(context, service, currentRoom?.title)) {
+                            Toast.makeText(context, "${service.displayName} isn't installed", Toast.LENGTH_LONG).show()
+                        }
+                    },
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -202,6 +214,9 @@ private fun RoomHero(
     preview: RoomPreview?,
     room: Room?,
     sync: SyncSessionState,
+    isHost: Boolean,
+    serverNow: Long,
+    onPlay: (StreamingService) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val p = Glass.palette
@@ -254,8 +269,31 @@ private fun RoomHero(
                 modifier = Modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 7.dp),
             )
         }
+        // Members who aren't watching the host's title yet get one tap into it. Netflix doesn't
+        // share an episode ID, so we open the app (or the host's link) and say which episode to
+        // start; once it matches, the coordinator joins it to the room's position.
+        if (!isHost && service != null && sync.status in PLAY_PROMPT_STATUSES) {
+            val episode = listOfNotNull(preview?.subtitle, preview?.title).joinToString(" · ")
+            val at = room?.state?.let { formatClock(PositionMath.roomExpectedPositionMs(it, serverNow)) }
+            GlassButton(
+                text = "Play in ${service.displayName}",
+                icon = Icons.Filled.PlayArrow,
+                onClick = { onPlay(service) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val start = if (episode.isNotEmpty()) "Start $episode" else "Start what the host is watching"
+            val jump = if (at != null) " and Sync it jumps you to $at." else ", and Sync it lines you up with the room."
+            Text(
+                (if (sync.status == SyncStatus.OTHER_TITLE) "You're on a different episode. " else "") + start + jump,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (sync.status == SyncStatus.OTHER_TITLE) p.warning else p.textSecondary,
+            )
+        }
     }
 }
+
+/** States where a member isn't on the host's title yet. */
+private val PLAY_PROMPT_STATUSES = setOf(SyncStatus.APP_NOT_OPEN, SyncStatus.SESSION_LOST, SyncStatus.OTHER_TITLE)
 
 @Composable
 internal fun SyncStatus.color(): Color {

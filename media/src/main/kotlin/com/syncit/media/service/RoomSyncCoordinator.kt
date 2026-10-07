@@ -5,6 +5,7 @@ import android.util.Log
 import com.syncit.core.model.EngineOutput
 import com.syncit.core.model.MediaSessionInfo
 import com.syncit.core.model.Room
+import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.model.SyncCommand
 import com.syncit.core.model.SyncStatus
@@ -44,6 +45,7 @@ internal class RoomSyncCoordinator(
     private var engine: SyncEngine? = null
     private var room: Room? = null
     private var session: MediaSessionInfo? = null
+    private var onOtherTitle = false
     private var state = SyncSessionState()
 
     fun start(code: String) {
@@ -90,13 +92,29 @@ internal class RoomSyncCoordinator(
             // The target app follows the room's title once it's set (Phase 4).
             val targetFlow = roomFlow.map { it?.title?.service }.distinctUntilChanged()
 
+            // What the host is playing. Members only sync when they're on the same title/episode.
+            val previewFlow = transport.observePreview(code)
+                .catch { emit(null) }
+                .shareIn(this, SharingStarted.Eagerly, replay = 1)
+            val isHostFlow = roomFlow.map { it?.hostUid == uid }.distinctUntilChanged()
+
             launch {
-                combine(deps.gateway.sessions, targetFlow) { sessions, target -> pickSession(sessions, target) }
+                combine(deps.gateway.sessions, targetFlow, previewFlow, isHostFlow) { sessions, target, preview, isHost ->
+                    val picked = pickSession(sessions, target)
+                    picked to isOtherTitle(picked, preview, isHost)
+                }
                     // Metadata (title/artwork) changes aren't playback changes; the engine ignores them.
-                    .distinctUntilChanged { a, b -> a?.sessionKey == b?.sessionKey && a?.snapshot == b?.snapshot }
-                    .collect { picked ->
-                        session = picked
-                        execute(code, engine.onLocalSnapshot(picked?.snapshot))
+                    .distinctUntilChanged { a, b ->
+                        a.first?.sessionKey == b.first?.sessionKey && a.first?.snapshot == b.first?.snapshot && a.second == b.second
+                    }
+                    .collect { (picked, otherTitle) ->
+                        // On a different episode the app is invisible to the engine: none of its
+                        // play/pause/seek is broadcast and no commands are sent to it. Switching to
+                        // the right episode then looks like opening the app, which the engine
+                        // handles as a late join: it jumps to the room's position.
+                        onOtherTitle = otherTitle
+                        session = if (otherTitle) null else picked
+                        execute(code, engine.onLocalSnapshot(session?.snapshot))
                         publishState(engine)
                     }
             }
@@ -148,6 +166,7 @@ internal class RoomSyncCoordinator(
         engine = null
         room = null
         session = null
+        onOtherTitle = false
         state = SyncSessionState()
         publish(state)
     }
@@ -161,6 +180,17 @@ internal class RoomSyncCoordinator(
             .filter { it.isConfigured }
             .map { it.packageName }
         return sessions.firstOrNull { it.packageName in packages }
+    }
+
+    /**
+     * True when we're a member (not the host) and our app is playing something other than the
+     * host's title: a different streaming app, or a different title/episode. Unknown (no title on
+     * either side) never blocks syncing.
+     */
+    private fun isOtherTitle(picked: MediaSessionInfo?, preview: RoomPreview?, isHost: Boolean): Boolean {
+        if (isHost || picked == null || preview?.title == null || preview.service == null) return false
+        if (StreamingService.forPackage(picked.packageName) != preview.service) return true
+        return preview.matches(picked.metadata) == false
     }
 
     /** Applies commands locally and sends broadcasts/reports to the room. */
@@ -190,6 +220,7 @@ internal class RoomSyncCoordinator(
             !deps.gateway.notificationAccessGranted.value -> SyncStatus.NO_NOTIFICATION_ACCESS
             target != null && !target.isConfigured -> SyncStatus.NOT_CONFIGURED
             room == null -> SyncStatus.WAITING_FOR_ROOM
+            onOtherTitle -> SyncStatus.OTHER_TITLE
             else -> engine.status
         }
         val next = state.copy(status = status, mode = engine.mode, driftMs = engine.lastDriftMs, service = target)

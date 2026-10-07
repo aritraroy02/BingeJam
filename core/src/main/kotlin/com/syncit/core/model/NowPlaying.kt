@@ -12,6 +12,8 @@ class NowPlayingMetadata(
     val artworkJpeg: ByteArray?,
     /** The app's own ID for what's playing (MediaMetadata METADATA_KEY_MEDIA_ID), if it publishes one. */
     val mediaId: String? = null,
+    /** Length of what's playing (METADATA_KEY_DURATION), if known. Tells episodes with similar titles apart. */
+    val durationMs: Long? = null,
     /** Every key the app published, as "key = value" (bitmaps as their size). Diagnostics only. */
     val allFields: List<String> = emptyList(),
 ) {
@@ -19,10 +21,10 @@ class NowPlayingMetadata(
 
     override fun equals(other: Any?): Boolean =
         other is NowPlayingMetadata && title == other.title && subtitle == other.subtitle &&
-            mediaId == other.mediaId && artworkJpeg.contentEquals(other.artworkJpeg)
+            mediaId == other.mediaId && durationMs == other.durationMs && artworkJpeg.contentEquals(other.artworkJpeg)
 
     override fun hashCode(): Int =
-        ((title.hashCode() * 31 + subtitle.hashCode()) * 31 + mediaId.hashCode()) * 31 + artworkJpeg.contentHashCode()
+        listOf(title, subtitle, mediaId, durationMs).hashCode() * 31 + artworkJpeg.contentHashCode()
 
     override fun toString(): String =
         "NowPlayingMetadata(title=$title, subtitle=$subtitle, mediaId=$mediaId, artwork=${artworkJpeg?.size ?: 0} B)"
@@ -41,12 +43,36 @@ class RoomPreview(
     val subtitle: String?,
     val artworkJpeg: ByteArray?,
     val updatedAt: Long,
+    val durationMs: Long? = null,
 ) {
+    /**
+     * Is [local] the same title/episode the host is playing? Streaming apps don't publish a shared
+     * content ID, so compare what they do publish: the title (ignoring case and spacing) and, when
+     * both sides know it, the length (within [DURATION_TOLERANCE_MS]). Null = can't tell (no title
+     * on one side), which callers treat as "don't block syncing".
+     */
+    fun matches(local: NowPlayingMetadata?): Boolean? {
+        val expected = title?.normalized()?.takeIf { it.isNotEmpty() } ?: return null
+        val actual = local?.title?.normalized()?.takeIf { it.isNotEmpty() } ?: return null
+        if (expected != actual) return false
+        val a = durationMs?.takeIf { it > 0 } ?: return true
+        val b = local.durationMs?.takeIf { it > 0 } ?: return true
+        return kotlin.math.abs(a - b) <= DURATION_TOLERANCE_MS
+    }
+
+    private fun String.normalized(): String = trim().lowercase().replace(WHITESPACE, " ")
+
+    companion object {
+        const val DURATION_TOLERANCE_MS = 10_000L
+        private val WHITESPACE = Regex("""\s+""")
+    }
+
     override fun equals(other: Any?): Boolean =
         other is RoomPreview && code == other.code && hostName == other.hostName && service == other.service &&
             title == other.title && subtitle == other.subtitle && updatedAt == other.updatedAt &&
+            durationMs == other.durationMs &&
             artworkJpeg.contentEquals(other.artworkJpeg)
 
     override fun hashCode(): Int =
-        listOf(code, hostName, service, title, subtitle, updatedAt).hashCode() * 31 + artworkJpeg.contentHashCode()
+        listOf(code, hostName, service, title, subtitle, updatedAt, durationMs).hashCode() * 31 + artworkJpeg.contentHashCode()
 }

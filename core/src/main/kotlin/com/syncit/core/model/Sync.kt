@@ -41,6 +41,9 @@ enum class SyncStatus {
     NOT_CONFIGURED,
     APP_NOT_OPEN,
     SESSION_LOST,
+
+    /** Not the host, and the app is playing something other than the host's title/episode. */
+    OTHER_TITLE,
     SYNCING,
     CORRECTING,
     CATCHING_UP,
