@@ -91,6 +91,24 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
   The chat bubble avoids leaving the app; consider ignoring a pause right before the app goes to NONE.
 - Rooms not tested yet: rules not deployed (auto-mode blocks `firebase deploy`).
 
+## Glass UI, now-playing preview, invite links (2026-10-07)
+- Build: `assembleDebug lint test` green, 0 lint issues, 56 tests (47 engine + 9 `RoomLinksTest`).
+  Release build: R8 + resource shrinking, 2.7 MB, signed with the release key.
+- Rules: emulator replay 39/39 (11 new for `previews`: host-only write, any signed-in read by
+  code, no listing, size/field limits, null clears artwork). Deployed to production.
+- On the OPPO (Android 16): glass Home / Settings / Join preview / Room render correctly in dark
+  and light; the theme switch is instant and status-bar icons follow it. Creating a room wrote
+  `previews/SRWBAA {hostName}` live. The clipboard handoff picked up an old invite on first launch.
+- Invite site live at https://syncit-watchparty.web.app (`/join/CODE`, assetlinks.json). APK served
+  from `github.com/aritraroy02/sync-it-releases/raw/main/sync-it.apk` (Firebase Spark rejects
+  executables); the download is byte-identical to the signed build.
+- App Links: `pm get-app-links` → `syncit-watchparty.web.app: verified`; opening
+  `https://syncit-watchparty.web.app/join/SRWBAA` went straight to the app's Join preview.
+- Fixed on device: OPPO maps `FontFamily.Monospace` to a serif font → codes use Inter.
+- Not yet verified: what title/artwork Netflix and JioHotstar publish (needs a title playing);
+  the room hero with real artwork; the full fresh-install path (download → install → auto-join)
+  on a second phone; the chat bubble overlay still has the old look.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.
