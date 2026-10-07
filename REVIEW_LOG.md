@@ -154,6 +154,16 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
   Room state stayed seq 1 by the host: the member never broadcast. Rules: `previews.durationMs`
   (emulator 42/42), deployed before the release.
 
+## JioHotstar metadata (2026-10-07, v26.09.14.1)
+- 6 keys: TITLE "S1 E2 Aastha" (episode label + name, no show name), DURATION 3,139,320 ms,
+  MEDIA_ID **empty**, DISPLAY_TITLE/DISPLAY_DESCRIPTION empty, MEDIA_URI = its internal CDN stream URL
+  (`hses9-vod-cf.cdn.hotstar.com/.../1271699229/1271707331/...`). **No artwork.**
+- No published content ID → the Play button works like Netflix (open the app + title/duration match).
+  Deliberately NOT parsing IDs out of MEDIA_URI: that's Hotstar's private stream address (hard rule:
+  no private app internals), undocumented and likely to change, and it shouldn't leave the device.
+- Room hero for JioHotstar has no poster (falls back to the aurora backdrop + JioHotstar badge).
+- JioHotstar kept playing while Sync it was in front this time.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.
