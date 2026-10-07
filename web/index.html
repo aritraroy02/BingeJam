@@ -11,12 +11,36 @@
 <main class="card">
   <h1 class="brand">Sync it</h1>
   <p class="lead">Watch Netflix or JioHotstar together, each on your own phone. When anyone plays, pauses or skips, everyone's movie follows.</p>
-  <a class="btn primary" href="https://github.com/aritraroy02/sync-it-releases/releases/latest/download/sync-it.apk">Download for Android</a>
-  <ol class="steps">
-    <li>Open the downloaded file to install it. If Android asks, allow your browser to install apps.</li>
-    <li>Create a room and share the invite link with friends.</li>
-  </ol>
-  <p class="fine">Sync it shares play, pause and position with your room, never your video, audio or notifications.</p>
+
+  <div class="notice" id="in-app" hidden>
+    <b>This in-app browser can't install apps.</b> Open this page in Chrome to download Sync it.
+    <a class="btn primary" id="open-chrome" href="#">Open in Chrome</a>
+  </div>
+  <div class="notice" id="not-android" hidden>
+    <b>Sync it is for Android phones.</b> Open this page on your Android phone.
+  </div>
+
+  <a class="btn primary" id="download" href="#">Download for Android</a>
+
+  <section class="help" id="after-download" hidden>
+    <h2>Installing Sync it</h2>
+    <ol class="steps">
+      <li>If Chrome says the file <b>might be harmful</b>, tap <b>Download anyway</b>. Sync it is safe; it's only new to Google's scanner.</li>
+      <li>When it finishes, tap <b>Open</b>. No button? Open Chrome's menu <b>⋮ → Downloads</b> and tap <b>sync-it.apk</b>.</li>
+      <li>If Android asks, allow Chrome to install apps (<b>Allow from this source</b>), go back, then tap <b>Install</b>.</li>
+    </ol>
+    <div class="notice">
+      <b>Stuck at 2.7 MB / 2.7 MB with a pause icon?</b> Chrome hasn't finished checking the file.
+      In <b>⋮ → Downloads</b>, tap <b>sync-it.apk</b> once; if it stays stuck, remove it with ✕,
+      turn off <b>Battery saver</b> (it can freeze Chrome's downloads), and download again.
+      Another browser such as Firefox or Samsung Internet also works.
+      <a class="btn" id="download-again" href="#">Download again</a>
+    </div>
+  </section>
+
+  <p class="fine">Create a room in the app and share its invite link. Sync it shares play, pause, position and what's playing with your room, never your video, audio or notifications.</p>
 </main>
+<script src="/download.js"></script>
+<script>SyncItDownload.setup(document.getElementById('download'));</script>
 </body>
 </html>

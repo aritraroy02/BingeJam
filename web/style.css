@@ -30,10 +30,18 @@
   }
 }
 
+/* Self-hosted Inter (SIL OFL, fonts/Inter-OFL.txt): phones like OPPO map system-ui to a serif. */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body {
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Inter", Roboto, "Segoe UI", Arial, sans-serif;
   color: var(--text);
   background:
     radial-gradient(60vmax 60vmax at 10% 5%, var(--blob-1), transparent 60%),
@@ -85,7 +93,7 @@ body {
   box-shadow: inset 0 1px 0 var(--stroke-top);
 }
 .code-box span { color: var(--text-2); font-size: 14px; }
-.code-box strong { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 24px; letter-spacing: 4px; }
+.code-box strong { font-size: 24px; font-weight: 700; letter-spacing: 4px; font-variant-numeric: tabular-nums; }
 
 .btn {
   display: block;
@@ -112,3 +120,19 @@ body {
 .steps li { margin-bottom: 8px; }
 .steps b { color: var(--text); }
 .fine { margin: 14px 0 0; color: var(--text-3); font-size: 13px; line-height: 1.45; }
+
+.notice {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--glass);
+  box-shadow: inset 0 1px 0 var(--stroke-top);
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.notice b { color: var(--text); }
+.notice .btn { margin: 12px 0 0; }
+.help { margin-top: 18px; }
+.help h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+[hidden] { display: none !important; }

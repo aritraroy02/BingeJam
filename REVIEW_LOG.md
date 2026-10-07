@@ -124,6 +124,19 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
   broadcasting a pause that arrives within ~1 s of a resume and re-aligning to the room instead.
 - Small UI follow-up: show the subtitle as just "S2:E4" when it repeats the title.
 
+## APK download stuck "in progress" (2026-10-07)
+- Reproduced on the OPPO (Chrome 154, battery 4%): Chrome Downloads shows "sync-it.apk 2.73 MB/2.73 MB"
+  with a pause icon; on disk it's `/sdcard/Download/.pending-…-sync-it.apk` (all bytes there, never
+  finalized). No "Download anyway" prompt visible. GitHub serves it correctly (200, 2,733,125 B,
+  `application/vnd.android.package-archive`, `Content-Disposition: attachment`), so not a hosting problem.
+- Likely causes: Chrome's APK safety check hanging, or OPPO battery saver freezing Chrome's download
+  service. Not yet confirmed on another phone.
+- Invite site now: detects in-app browsers (Instagram/Facebook/Snapchat WebViews) → "Open in Chrome";
+  after Download shows install steps + the stuck-at-2.7 MB fix (tap it in Downloads, remove, turn off
+  battery saver, retry, or use another browser) + "Download again"; self-hosted Inter (no serif fallback).
+- If friends still get stuck: options not chosen yet are sending the APK in chat from the app, Firebase
+  App Distribution, or Play internal testing.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.
