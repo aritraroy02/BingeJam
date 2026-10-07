@@ -18,3 +18,5 @@ keystore.properties
 *.keystore
 # Release APK staged for upload to the public releases repo
 dist/
+# Firebase CLI deploy cache
+.firebase/
