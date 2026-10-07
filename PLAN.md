@@ -112,9 +112,14 @@ member node; joining = writing your own member node (denied if the room doesn't 
 
 Review reports per phase: `REVIEW_LOG.md`.
 
-## Next session: planned features (noted 2026-10-06, not started)
+## Invite + now-playing features (noted 2026-10-06, built 2026-10-07)
 
-Requested by the user after the first on-device run. Discuss open questions before coding.
+Built 2026-10-07 with the user's choices: APK download from the invite page (no Play listing
+yet), clipboard handoff for auto-join (no Install Referrer dependency), title + artwork read
+from the player's MediaSession, preview visible **only inside the app** (the web page shows
+just the code). Data: `previews/{code}` {hostName, service, title, subtitle, artwork (base64
+JPEG, at most 52 KB), updatedAt}, written by the host's RoomSyncCoordinator, readable by any
+signed-in user. The original notes below are kept for context.
 
 ### A. Invite link installs the app and auto-joins the room
 Today: `syncit://join/CODE` (custom scheme). Many messengers don't make it clickable, and it

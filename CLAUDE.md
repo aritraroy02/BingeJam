@@ -4,10 +4,10 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status:** Phases 0–5 are written. `./gradlew assembleDebug lint test` passes (0 lint issues,
-47/47 engine tests), and the database rules pass an emulator replay of every transport write
-(see REVIEW_LOG.md, "Build verification"). **Nothing has run on a real phone yet**, and the
-app has never talked to a real Firebase project.
+**Status:** Phases 0–5 plus the liquid-glass redesign, now-playing preview and https invite
+links are built. `./gradlew assembleDebug lint test` passes (0 lint issues, 56 tests), the
+rules pass an emulator replay (39 checks), and the app runs on the user's OPPO (Android 16)
+against the live Firebase project. See REVIEW_LOG.md for what's been verified on the device.
 
 Read these before changing anything:
 - `PLAN.md`: architecture, module ownership, sync rules, Firebase data model.
@@ -59,12 +59,15 @@ auth on. `DATABASE_URL` in `FirebaseConfig.kt` is set. `firebase.json`/`.firebas
 CLI at `data-firebase/firebase/database.rules.json`; publish with `firebase deploy --only database`
 (the user runs it, or explicitly approves).
 | JioHotstar link hosts | `core/.../model/StreamingService.kt` → `listOf("hotstar.com", "jiohotstar.com")` | Unverified guess; only used for a soft warning. Check against a real share link. |
-| Invite link | `core/.../config/RoomLinks.kt` → `syncit://join/CODE` | Custom scheme, not clickable in many messengers. Replace with an https App Link once there's a domain. |
+| Invite site | `web/` + `firebase.json` hosting; `RoomLinks.WEB_HOST` | `https://syncit-watchparty.web.app/join/CODE`. Publish with `scripts/prepare-invite-site.sh`, then `firebase deploy --only hosting` (the user runs deploys). |
+| Release signing | `keystore.properties` (git-ignored) → `C:/Users/aritr/.syncit/syncit-release.jks` | Never commit. Its fingerprint is in `web/.well-known/assetlinks.json`. |
 | Launcher icon | `app/src/main/res/drawable/ic_launcher_foreground.xml` | Placeholder vector art. |
 
-## Planned next (user request, 2026-10-06)
-See PLAN.md → "Next session: planned features": (A) invite link that installs the app and
-auto-joins the room, (B) invitee sees the movie name + platform. Not started.
+## UI
+Liquid glass (user's choice): `ui/theme/Theme.kt` (palettes, Inter font), `ui/glass/Glass.kt`
+(GlassScreen backdrop + Haze blur, `Modifier.glass`, buttons, fields, segmented control). Haze is
+pinned to 1.6.x: 2.x needs AGP 9 + compileSdk 37. Theme mode (System/Light/Dark) is in Settings.
+Don't use `FontFamily.Monospace`: OPPO maps it to a serif font; use `Inter`.
 
 ## Unverified / likely to need changes
 
