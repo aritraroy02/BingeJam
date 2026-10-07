@@ -20,7 +20,7 @@
       <strong id="code"></strong>
     </div>
 
-    <a class="btn primary" id="download" href="/download/sync-it.apk">Download Sync it</a>
+    <a class="btn primary" id="download" href="https://github.com/aritraroy02/sync-it-releases/releases/latest/download/sync-it.apk">Download Sync it</a>
     <a class="btn" id="open" href="#">I already have Sync it</a>
 
     <ol class="steps">
@@ -33,7 +33,7 @@
 
   <section id="bad" hidden>
     <p class="lead">This invite link looks incomplete. Ask your friend for the 6-character room code, then enter it in Sync it.</p>
-    <a class="btn primary" href="/download/sync-it.apk">Download Sync it</a>
+    <a class="btn primary" href="https://github.com/aritraroy02/sync-it-releases/releases/latest/download/sync-it.apk">Download Sync it</a>
   </section>
 
   <p class="fine">Android only. Sync it shares play, pause and position with the room, never your video, audio or notifications.</p>
@@ -59,13 +59,19 @@
 
     // An APK install can't carry the link, so leave it on the clipboard. Sync it reads it once on
     // its first launch and opens this room.
-    document.getElementById('download').addEventListener('click', () => {
-      const shown = () => { document.getElementById('copied').hidden = false; };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(link).then(shown, () => fallbackCopy(link) && shown());
-      } else if (fallbackCopy(link)) {
-        shown();
+    const download = document.getElementById('download');
+    download.addEventListener('click', async (event) => {
+      // Copy first, then start the download, so leaving the page can't cut the copy short.
+      event.preventDefault();
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(link);
+        copied = true;
+      } catch (e) {
+        copied = fallbackCopy(link);
       }
+      if (copied) document.getElementById('copied').hidden = false;
+      location.href = download.href;
     });
   }
 

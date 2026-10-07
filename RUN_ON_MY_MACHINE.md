@@ -60,13 +60,17 @@ Re-run it whenever `database.rules.json` changes. The steps below are for settin
   **Back both files up somewhere safe.** Losing them means installed copies can't be updated, and the
   App Links fingerprint in `web/.well-known/assetlinks.json` changes.
   SHA-256: `E8:89:BE:C7:7C:C0:92:BE:B7:28:98:F4:6D:6B:5F:C8:CE:14:7C:AF:85:5C:63:F4:BF:B6:E5:2A:E2:31:33:5F`
-- Invite site = `web/` on Firebase Hosting (`https://syncit-watchparty.web.app`): `/join/CODE` page,
-  `/download/sync-it.apk`, `/.well-known/assetlinks.json` (release + this machine's debug key).
-- Publish (after rules or app changes):
+- Invite site = `web/` on Firebase Hosting (`https://syncit-watchparty.web.app`): `/join/CODE` page
+  and `/.well-known/assetlinks.json` (release + this machine's debug key).
+- The APK is **not** on Firebase (the free Spark plan rejects executables). It's a release asset of
+  the public repo `github.com/aritraroy02/sync-it-releases`; the site links to
+  `.../releases/latest/download/sync-it.apk`, so the file name must stay `sync-it.apk`.
+- New app version:
   ```bash
-  ./scripts/prepare-invite-site.sh          # builds the signed release APK into web/download/
-  firebase deploy --only database,hosting   # rules + site
+  bash scripts/build-release-apk.sh         # signed release APK → dist/sync-it.apk
+  # then: GitHub → sync-it-releases → Releases → new release, attach dist/sync-it.apk
   ```
+- Rules or site changes: `firebase deploy --only database,hosting`
 - Check App Links on a phone: `adb shell pm verify-app-links --re-verify com.syncit.app`, then
   `adb shell pm get-app-links com.syncit.app` should show `syncit-watchparty.web.app: verified`.
 

@@ -16,5 +16,5 @@ bin/
 keystore.properties
 *.jks
 *.keystore
-# Built APK copied into the invite site at deploy time
-web/download/
+# Release APK staged for upload to the public releases repo
+dist/

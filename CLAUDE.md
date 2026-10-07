@@ -59,7 +59,7 @@ auth on. `DATABASE_URL` in `FirebaseConfig.kt` is set. `firebase.json`/`.firebas
 CLI at `data-firebase/firebase/database.rules.json`; publish with `firebase deploy --only database`
 (the user runs it, or explicitly approves).
 | JioHotstar link hosts | `core/.../model/StreamingService.kt` → `listOf("hotstar.com", "jiohotstar.com")` | Unverified guess; only used for a soft warning. Check against a real share link. |
-| Invite site | `web/` + `firebase.json` hosting; `RoomLinks.WEB_HOST` | `https://syncit-watchparty.web.app/join/CODE`. Publish with `scripts/prepare-invite-site.sh`, then `firebase deploy --only hosting` (the user runs deploys). |
+| Invite site | `web/` + `firebase.json` hosting; `RoomLinks.WEB_HOST` | `https://syncit-watchparty.web.app/join/CODE` (`firebase deploy --only hosting`, the user runs deploys). APK = release asset `sync-it.apk` in public repo `aritraroy02/sync-it-releases` (Spark plan can't host APKs); build with `bash scripts/build-release-apk.sh`. |
 | Release signing | `keystore.properties` (git-ignored) → `C:/Users/aritr/.syncit/syncit-release.jks` | Never commit. Its fingerprint is in `web/.well-known/assetlinks.json`. |
 | Launcher icon | `app/src/main/res/drawable/ic_launcher_foreground.xml` | Placeholder vector art. |
 
