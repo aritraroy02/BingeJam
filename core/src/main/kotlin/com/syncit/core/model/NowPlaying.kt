@@ -10,16 +10,22 @@ class NowPlayingMetadata(
     val title: String?,
     val subtitle: String?,
     val artworkJpeg: ByteArray?,
+    /** The app's own ID for what's playing (MediaMetadata METADATA_KEY_MEDIA_ID), if it publishes one. */
+    val mediaId: String? = null,
+    /** Every key the app published, as "key = value" (bitmaps as their size). Diagnostics only. */
+    val allFields: List<String> = emptyList(),
 ) {
     val isEmpty: Boolean get() = title.isNullOrBlank() && artworkJpeg == null
 
     override fun equals(other: Any?): Boolean =
         other is NowPlayingMetadata && title == other.title && subtitle == other.subtitle &&
-            artworkJpeg.contentEquals(other.artworkJpeg)
+            mediaId == other.mediaId && artworkJpeg.contentEquals(other.artworkJpeg)
 
-    override fun hashCode(): Int = (title.hashCode() * 31 + subtitle.hashCode()) * 31 + artworkJpeg.contentHashCode()
+    override fun hashCode(): Int =
+        ((title.hashCode() * 31 + subtitle.hashCode()) * 31 + mediaId.hashCode()) * 31 + artworkJpeg.contentHashCode()
 
-    override fun toString(): String = "NowPlayingMetadata(title=$title, subtitle=$subtitle, artwork=${artworkJpeg?.size ?: 0} B)"
+    override fun toString(): String =
+        "NowPlayingMetadata(title=$title, subtitle=$subtitle, mediaId=$mediaId, artwork=${artworkJpeg?.size ?: 0} B)"
 }
 
 /**

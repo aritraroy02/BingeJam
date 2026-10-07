@@ -160,8 +160,10 @@ private fun SessionCard(session: MediaSessionInfo, nowElapsed: Long, selected: B
                 Field("title", meta?.title ?: "(none)")
                 Field("subtitle", meta?.subtitle ?: "(none)")
                 Field("artwork", meta?.artworkJpeg?.let { "${artwork?.width ?: "?"}×${artwork?.height ?: "?"}, ${it.size / 1024} KB" } ?: "(none)")
+                Field("media id", meta?.mediaId ?: "(none)")
             }
         }
+        session.metadata?.allFields?.forEach { Field("meta", it) }
         Spacer(Modifier.width(4.dp))
         val s = session.snapshot
         if (s == null) {

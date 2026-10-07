@@ -32,8 +32,41 @@ internal object MetadataMapper {
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
             ?: description?.iconBitmap
-        return NowPlayingMetadata(title = title, subtitle = subtitle, artworkJpeg = bitmap?.let(::thumbnail))
+        return NowPlayingMetadata(
+            title = title,
+            subtitle = tidySubtitle(subtitle, title),
+            artworkJpeg = bitmap?.let(::thumbnail),
+            mediaId = metadata.text(MediaMetadata.METADATA_KEY_MEDIA_ID),
+            allFields = describeAll(metadata),
+        )
             .takeUnless { it.isEmpty && subtitle == null }
+    }
+
+    /**
+     * Netflix sends title "Redanian Intelligence" with subtitle "S2:E4 - Redanian Intelligence";
+     * drop the repeated title so the room shows "S2:E4". A subtitle equal to the title is dropped.
+     */
+    fun tidySubtitle(subtitle: String?, title: String?): String? {
+        if (subtitle == null || title.isNullOrBlank()) return subtitle
+        if (subtitle.equals(title, ignoreCase = true)) return null
+        for (separator in listOf(" - ", " – ", " — ", ": ")) {
+            val suffix = separator + title
+            if (subtitle.endsWith(suffix, ignoreCase = true) && subtitle.length > suffix.length) {
+                return subtitle.dropLast(suffix.length).trim()
+            }
+        }
+        return subtitle
+    }
+
+    /** Every published key with its value, for the diagnostics screen. */
+    private fun describeAll(metadata: MediaMetadata): List<String> = metadata.keySet().sorted().map { key ->
+        val bitmap = runCatching { metadata.getBitmap(key) }.getOrNull()
+        val value = when {
+            bitmap != null -> "bitmap ${bitmap.width}×${bitmap.height}"
+            metadata.getText(key) != null -> metadata.getText(key).toString()
+            else -> metadata.getLong(key).toString()
+        }
+        "${key.removePrefix("android.media.metadata.")} = ${value.take(120)}"
     }
 
     private fun MediaMetadata.text(key: String): String? =
