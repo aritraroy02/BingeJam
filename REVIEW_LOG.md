@@ -109,6 +109,21 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
   the room hero with real artwork; the full fresh-install path (download → install → auto-join)
   on a second phone; the chat bubble overlay still has the old look.
 
+## Release 0.2.1 on the phone + first real sync test (2026-10-07, battery 2%)
+- Netflix MediaSession metadata: title = episode name ("Redanian Intelligence"), subtitle
+  "S2:E4 - Redanian Intelligence" (repeats the title), artwork = 343×480 portrait poster
+  (26 KB thumbnail, 35,844 base64 chars in `previews/8Z7ZPZ`). The room hero showed the poster,
+  NETFLIX badge and episode title, read back from Firebase. The phone seeded the room state
+  (paused at 2.984 s, matching Netflix).
+- Bot test in room 8Z7ZPZ (Netflix in front): room seek+play → Netflix jumped to 63 s and played ✅;
+  pause pressed on the phone → room paused at 72.5 s ✅; **resume after pause (from the room, or a media
+  key on the phone) → Netflix played 0.2–0.3 s then paused itself**, and that pause was broadcast.
+  Audio focus history shows no other app took focus; not our engine (the pause was broadcast as a
+  user action, so not an echo of our own command). Same resume worked on 2026-10-06 at 13% battery →
+  suspect OPPO extreme power saving at 2%. **Retest on a charged phone.** If it persists, consider not
+  broadcasting a pause that arrives within ~1 s of a resume and re-aligning to the room instead.
+- Small UI follow-up: show the subtitle as just "S2:E4" when it repeats the title.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.
