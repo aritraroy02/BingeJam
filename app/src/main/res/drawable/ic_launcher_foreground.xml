@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder launcher art: a white play triangle inside two sync arrows. -->
+<!-- Launcher glyph: a white play triangle inside two sync arrows (store icon uses the same paths). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"

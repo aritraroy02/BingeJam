@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy Policy · Sync it</title>
+<meta name="description" content="How Sync it handles your data.">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .card.doc { max-width: 720px; }
+  .doc h2 { font-size: 19px; margin: 26px 0 8px; }
+  .doc p, .doc li { color: var(--text-2); line-height: 1.6; font-size: 15px; }
+  .doc ul { padding-left: 20px; }
+  .doc b { color: var(--text); }
+  .doc a { color: var(--accent-2); }
+  body { align-items: flex-start; }
+</style>
+</head>
+<body>
+<main class="card doc">
+  <h1 class="brand">Sync it</h1>
+  <p class="eyebrow">Privacy Policy · Last updated 8 October 2026</p>
+
+  <p>Sync it lets friends watch Netflix or JioHotstar together, each on their own Android phone, by keeping
+  play, pause and position in sync. This policy explains what the app reads, what it stores and why.
+  Sync it is not affiliated with Netflix or JioHotstar.</p>
+
+  <h2>What Sync it reads on your phone</h2>
+  <ul>
+    <li><b>Media session of the streaming app you choose</b> (Netflix or JioHotstar): whether it's playing or
+      paused, the playback position and speed, which controls it supports, and the title, subtitle, length and
+      artwork it publishes for Android's media controls. Sync it sends that app play, pause and seek commands.
+      Android only allows this for apps with <b>Notification Access</b>, which is why Sync it asks for it.</li>
+    <li>Sync it <b>never reads your notifications</b>, messages or their content, and never records or
+      transmits your screen, video or audio.</li>
+    <li><b>Clipboard, once:</b> on its very first launch the app checks the clipboard one time for a Sync it
+      invite link (the invite web page puts it there so a fresh install can open your friend's room).
+      Anything else on the clipboard is ignored; nothing from it is stored or sent. Android shows its own
+      "pasted from clipboard" notice when this happens.</li>
+  </ul>
+
+  <h2>What is stored, and where</h2>
+  <p>Rooms are stored in Google Firebase (Realtime Database, Singapore region) using an anonymous sign-in.
+  No account, email or phone number is needed. For each room we store:</p>
+  <ul>
+    <li>an anonymous user ID and the <b>display name</b> you enter;</li>
+    <li>room membership, online status and when you were last seen;</li>
+    <li>the room's play/pause state and position, and your periodically reported position (used for syncing);</li>
+    <li>if you host: the title, subtitle, length and a <b>small artwork thumbnail</b> of what you're playing,
+      and any share link you choose to add;</li>
+    <li><b>chat messages and reactions</b> you send in the room.</li>
+  </ul>
+  <p>A room's contents are readable only by its members. A room's preview (host name, platform, title, length
+  and artwork thumbnail) can be read by any Sync it user who has the room code, so invitees can see what's
+  playing before joining; previews can't be listed or searched.</p>
+
+  <h2>Other network requests</h2>
+  <ul>
+    <li><b>Update check:</b> once per launch the app asks GitHub's public API whether a newer version exists.
+      No personal data is sent; GitHub sees the request (IP address) as with any web request.</li>
+    <li>The invite web page (syncit-watchparty.web.app) uses no trackers, ads, analytics or third-party scripts.</li>
+  </ul>
+  <p>Sync it contains <b>no ads and no analytics SDKs</b>, and never sells or shares your data.</p>
+
+  <h2>Optional permissions</h2>
+  <ul>
+    <li><b>Notifications:</b> one quiet notification while you're in a room, so Android keeps syncing running.</li>
+    <li><b>Display over other apps:</b> only if you turn on the floating chat bubble.</li>
+    <li><b>Battery optimisation exemption:</b> only if you allow it, so syncing isn't stopped mid-movie.</li>
+  </ul>
+
+  <h2>Your choices and deletion</h2>
+  <ul>
+    <li>Leaving a room removes your membership from it. You can stop syncing at any time from the app or its notification.</li>
+    <li>Uninstalling the app removes everything stored on your phone, including your anonymous ID.</li>
+    <li>To have room data (chat, name, positions) deleted from our database, contact us at the address below
+      with the room code.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>Sync it is intended for users aged 18 and over and is not directed at children.</p>
+
+  <h2>Contact</h2>
+  <p>Questions or deletion requests: <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a></p>
+</main>
+</body>
+</html>

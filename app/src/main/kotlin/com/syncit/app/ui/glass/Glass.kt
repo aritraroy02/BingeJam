@@ -388,15 +388,20 @@ fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
     }
 }
 
-/** NETFLIX / JioHotstar brand chip. */
+/** NETFLIX / JioHotstar / Prime Video chip. */
 @Composable
 fun PlatformBadge(service: StreamingService, modifier: Modifier = Modifier) {
     val bg = when (service) {
         StreamingService.NETFLIX -> Brush.horizontalGradient(listOf(PlatformColors.Netflix, PlatformColors.Netflix))
         StreamingService.JIOHOTSTAR -> Brush.horizontalGradient(listOf(PlatformColors.JioHotstarStart, PlatformColors.JioHotstarEnd))
+        StreamingService.PRIME_VIDEO -> Brush.horizontalGradient(listOf(PlatformColors.PrimeVideo, PlatformColors.PrimeVideo))
     }
     Text(
-        text = if (service == StreamingService.NETFLIX) "NETFLIX" else "JioHotstar",
+        text = when (service) {
+            StreamingService.NETFLIX -> "NETFLIX"
+            StreamingService.JIOHOTSTAR -> "JioHotstar"
+            StreamingService.PRIME_VIDEO -> "prime video"
+        },
         color = Color.White,
         fontSize = 11.sp,
         fontWeight = FontWeight.ExtraBold,

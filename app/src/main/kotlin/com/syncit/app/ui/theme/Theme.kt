@@ -165,4 +165,5 @@ object PlatformColors {
     val Netflix = Color(0xFFE50914)
     val JioHotstarStart = Color(0xFF0F3BD8)
     val JioHotstarEnd = Color(0xFF1FA2FF)
+    val PrimeVideo = Color(0xFF00A8E1)
 }

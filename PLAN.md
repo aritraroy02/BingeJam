@@ -112,6 +112,61 @@ member node; joining = writing your own member node (denied if the room doesn't 
 
 Review reports per phase: `REVIEW_LOG.md`.
 
+## v2: social restructure ("Vyro", started 2026-10-15)
+
+Working name **Vyro — Your world. In sync.** (`core/config/Brand.kt`; trademarked elsewhere, will
+be renamed again, so the name lives only there, in `app_name` and in web/). Package stays
+`com.syncit.app`. Distribution: an app store (Indus/Play), since Play Protect blocks sideloaded
+apps with notification-listener access in India.
+
+### User's decisions (2026-10-15)
+- Sign-in: **Google** (Credential Manager → Firebase) or **passwordless email link**. No anonymous
+  users any more; everything requires an account.
+- Every user has a **unique, editable username** (suggestions offered). Internal unique code = uid.
+- **Friends**: requests by username; once friends they can **chat** (DMs).
+- **Activity**: a setup page explains friends will see what you play and lets you pick apps
+  (e.g. Netflix yes, Spotify no). Changeable in Settings, plus "invisible".
+- Apps: Netflix, JioHotstar, **Prime Video** (synced watch party: "Ask to join" / "Invite");
+  Spotify, YouTube Music, Amazon Music, YouTube (**see + open only**, no sync).
+- **In-app only** notifications for now (no Cloud Functions / Blaze plan).
+
+### Contracts (`:core`)
+- `auth/AuthService`, `social/ProfileRepository`, `social/FriendsRepository` + `DirectMessages`,
+  `social/Presence.kt` (`PresenceRepository`, `ActivityTracker`, `WatchInvites`).
+- Models: `model/Social.kt`, `model/ActivityApp.kt` (`MediaKind`), `StreamingService.PRIME_VIDEO`.
+
+### Data model (Realtime Database)
+```
+users/{uid}:              { username, displayName, photoUrl?, bio?, createdAt }      signed-in read, owner write
+users_private/{uid}:      { email?, provider, createdAt }                             owner only
+usernames/{username}:     uid                                                         create-if-absent, owner delete
+friendRequests/{to}/{from}: { fromUsername, fromDisplayName, toUsername, toDisplayName, sentAt }
+friends/{uid}/{friendUid}: { since }                                                 written pairwise on accept
+blocked/{uid}/{otherUid}: true                                                        owner only
+dms/{dmId}/{msgId}:       { from, text, sentAt }     dmId = sorted uids "a_b"; only the two, only friends
+dmReads/{uid}/{friendUid}: lastReadAt                                                owner only
+presence/{uid}:           { online, lastSeen, activity? { app, title, subtitle, artwork, playing,
+                            durationMs, startedAt, roomCode? } }                      friends read, owner write
+joinRequests/{host}/{from}: { fromUsername, fromDisplayName, app, title, status, roomCode?, sentAt }
+invites/{to}/{from}:      { fromUsername, fromDisplayName, roomCode, app?, title?, sentAt }
+rooms/…, previews/…, chats/…, reactions/… (v1, unchanged; previews.service also allows PRIME_VIDEO)
+```
+
+### Flows
+- First run: sign in → pick username (suggestions) → **Activity setup** page → permissions → Home.
+- Home: friends list with live activity ("Watching S2:E4 on Netflix", "Listening to … on Spotify"),
+  requests, chats, plus create/join room as before.
+- Movie activity: friend taps **Ask to join** → host gets an in-app prompt → Accept creates/uses
+  the host's room and returns the code → requester lands in the room (existing sync + Play button).
+  Host can also **Invite** a friend from the room.
+- Music/YouTube activity: **Open in Spotify/YouTube…** (search for the title in that app).
+
+### Agents
+- backend-agent (`:data-firebase` + rules + emulator tests), media-agent (`:media`: ActivityTracker,
+  Prime Video + music/YouTube session checks on the phone), ui-agent (`:app`: auth, username,
+  activity setup, friends, DMs, activity feed, join/invite, rename), reviewer-agent at the end.
+  The Orchestrator owns `:core`, docs, Firebase console/deploys, releases.
+
 ## Invite + now-playing features (noted 2026-10-06, built 2026-10-07)
 
 Built 2026-10-07 with the user's choices: APK download from the invite page (no Play listing

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher background: same violet→cyan gradient + pink glow as the store icon (store/indus/src/icon.html). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108">
+                <item android:offset="0" android:color="#FF6D5DFC" />
+                <item android:offset="0.55" android:color="#FF4E8BFF" />
+                <item android:offset="1" android:color="#FF1FB6FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="88"
+                android:centerY="93"
+                android:gradientRadius="60">
+                <item android:offset="0" android:color="#BFFF4D8D" />
+                <item android:offset="1" android:color="#00FF4D8D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Frosted disc behind the glyph. -->
+    <path
+        android:fillColor="#24FFFFFF"
+        android:strokeColor="#73FFFFFF"
+        android:strokeWidth="0.6"
+        android:pathData="M54,54m-26,0a26,26 0,1 1,52 0a26,26 0,1 1,-52 0" />
+</vector>

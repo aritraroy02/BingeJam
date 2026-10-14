@@ -15,7 +15,7 @@
         "title": {
           ".write": "auth != null && root.child('rooms').child($code).child('hostUid').val() === auth.uid",
           ".validate": "newData.hasChildren(['service', 'deepLink', 'setBy', 'setAt'])",
-          "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR'" },
+          "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO'" },
           "deepLink": { ".validate": "newData.isString() && newData.val().length <= 500 && newData.val().matches(/^https?:\\/\\//)" },
           "setBy": { ".validate": "newData.val() === auth.uid" },
           "setAt": { ".validate": "newData.val() === now" },
@@ -66,7 +66,7 @@
         ".write": "auth != null && root.child('rooms').child($code).child('hostUid').val() === auth.uid",
         ".validate": "newData.hasChildren(['hostName', 'updatedAt'])",
         "hostName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
-        "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR'" },
+        "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO'" },
         "title": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "subtitle": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "artwork": { ".validate": "newData.isString() && newData.val().length <= 70000" },

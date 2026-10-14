@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  html,body{margin:0;width:512px;height:512px;overflow:hidden;background:transparent}
+</style></head><body>
+<!-- Sync it store icon, 512×512. Same glyph as app/src/main/res/drawable/ic_launcher_foreground.xml. -->
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6D5DFC"/>
+      <stop offset="0.55" stop-color="#4E8BFF"/>
+      <stop offset="1" stop-color="#1FB6FF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.86" r="0.55">
+      <stop offset="0" stop-color="#FF4D8D" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#FF4D8D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.32"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#1b1060" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <!-- frosted disc -->
+  <circle cx="256" cy="256" r="168" fill="#fff" fill-opacity="0.14" stroke="#fff" stroke-opacity="0.45" stroke-width="3"/>
+  <rect width="512" height="512" fill="url(#gloss)"/>
+  <!-- glyph: 48×48 viewport scaled ×6.2, centred -->
+  <g transform="translate(107.2 107.2) scale(6.2)" fill="#fff" filter="url(#shadow)">
+    <path d="M24,8V2L16,10l8,8V12c6.62,0 12,5.38 12,12 0,2.02 -0.5,3.94 -1.4,5.6l2.92,2.92C39.08,30.06 40,27.14 40,24c0,-8.84 -7.16,-16 -16,-16zM24,36c-6.62,0 -12,-5.38 -12,-12 0,-2.02 0.5,-3.94 1.4,-5.6L10.48,15.48C8.92,17.94 8,20.86 8,24c0,8.84 7.16,16 16,16v6l8,-8 -8,-8v6z"/>
+    <path d="M20,17L30,24 20,31z"/>
+  </g>
+</svg>
+</body></html>
