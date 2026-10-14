@@ -22,11 +22,15 @@ class MainActivity : ComponentActivity() {
     /** Room code from an invite link (https or syncit://), consumed by navigation. */
     private val pendingJoinCode = mutableStateOf<String?>(null)
 
+    /** Passwordless sign-in link from the email (see the manifest's /__/auth/ filter). */
+    private val pendingEmailLink = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val container = (application as SyncItApplication).container
-        pendingJoinCode.value = RoomLinks.codeFromLink(intent?.data?.toString())
+        // Only the launching intent: after rotation/recreation it was already handled.
+        if (savedInstanceState == null) handleLink(intent)
         // Opened from the link itself, so the clipboard fallback isn't needed.
         if (pendingJoinCode.value != null) container.prefs.inviteClipboardChecked = true
         setContent {
@@ -43,14 +47,25 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
             SyncItTheme(dark = dark) {
-                SyncItApp(container = container, pendingJoinCode = pendingJoinCode)
+                SyncItApp(container = container, pendingJoinCode = pendingJoinCode, pendingEmailLink = pendingEmailLink)
             }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        RoomLinks.codeFromLink(intent.data?.toString())?.let { pendingJoinCode.value = it }
+        handleLink(intent)
+    }
+
+    /** VIEW intents: an email sign-in link (AuthService decides) or a room invite link. */
+    private fun handleLink(intent: Intent?) {
+        val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data?.toString() ?: return
+        val auth = (application as SyncItApplication).container.social.auth
+        if (auth.isEmailSignInLink(link)) {
+            pendingEmailLink.value = link
+        } else {
+            RoomLinks.codeFromLink(link)?.let { pendingJoinCode.value = it }
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

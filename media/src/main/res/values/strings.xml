@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="media_listener_label">Sync it media control</string>
     <string name="sync_channel_name">Watch party sync</string>
-    <string name="sync_channel_description">Shown while Sync it keeps your movie in sync with your room.</string>
+    <!-- %1$s = Brand.NAME (core/config/Brand.kt). -->
+    <string name="sync_channel_description">Shown while %1$s keeps your movie in sync with your room.</string>
+    <!-- %1$s = Brand.NAME, %2$s = room code. -->
+    <string name="sync_notification_title">%1$s · room %2$s</string>
     <string name="sync_notification_stop">Stop syncing</string>
 </resources>

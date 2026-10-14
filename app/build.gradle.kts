@@ -87,5 +87,10 @@ dependencies {
     // Real backdrop blur for the liquid-glass UI (Android 12+; translucent scrim below).
     implementation(libs.haze)
 
+    // Google sign-in: Credential Manager returns a Google ID token that AuthService exchanges.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
     testImplementation(libs.junit)
 }

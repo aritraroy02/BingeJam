@@ -1,0 +1,25 @@
+package com.syncit.app.di
+
+import com.syncit.core.auth.AuthService
+import com.syncit.core.social.ActivityTracker
+import com.syncit.core.social.DirectMessages
+import com.syncit.core.social.FriendsRepository
+import com.syncit.core.social.PresenceRepository
+import com.syncit.core.social.ProfileRepository
+import com.syncit.core.social.WatchInvites
+
+/**
+ * The v2 account/social services the UI uses, all :core interfaces. AppContainer picks either the
+ * in-memory fakes ([FakeSocial]) or the real :data-firebase / :media implementations.
+ */
+class SocialServices(
+    val auth: AuthService,
+    val profiles: ProfileRepository,
+    val friends: FriendsRepository,
+    val dms: DirectMessages,
+    val presence: PresenceRepository,
+    val watchInvites: WatchInvites,
+    val activityTracker: ActivityTracker,
+    /** True for [FakeSocial]: "Continue with Google" skips Credential Manager and signs in directly. */
+    val isFake: Boolean = false,
+)

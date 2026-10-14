@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GoogleSignIn.serverClientId looks this string up by name, so the resource shrinker can't see
+     the reference. It exists once the Google provider is enabled in Firebase. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/default_web_client_id" />

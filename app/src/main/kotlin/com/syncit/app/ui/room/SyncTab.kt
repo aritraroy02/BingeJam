@@ -35,6 +35,7 @@ import com.syncit.app.ui.glass.GlassSegmented
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.theme.Glass
+import com.syncit.core.config.Brand
 import com.syncit.core.config.SyncStatusLabels
 import com.syncit.core.model.Room
 import com.syncit.core.model.RoomTitle
@@ -74,12 +75,12 @@ fun SyncTab(
 private fun StatusPanel(state: SyncSessionState, onResume: () -> Unit) {
     val context = LocalContext.current
     val p = Glass.palette
-    val appName = state.service?.displayName ?: "Netflix or JioHotstar"
+    val appName = state.service?.displayName ?: "your streaming app"
     GlassPanel {
         Text(SyncStatusLabels.label(state.status, appName), style = MaterialTheme.typography.titleMedium, color = state.status.color())
         when (state.status) {
             SyncStatus.APP_NOT_OPEN, SyncStatus.SESSION_LOST ->
-                Text("Open the movie in $appName and start it. Sync it picks it up automatically.", color = p.textSecondary, style = MaterialTheme.typography.bodyMedium)
+                Text("Open the movie in $appName and start it. ${Brand.NAME} picks it up automatically.", color = p.textSecondary, style = MaterialTheme.typography.bodyMedium)
             SyncStatus.NO_NOTIFICATION_ACCESS ->
                 GlassButton("Turn on Notification Access", onClick = { Permissions.openNotificationAccessSettings(context) }, icon = Icons.Filled.Notifications, modifier = Modifier.fillMaxWidth())
             SyncStatus.NOT_CONFIGURED ->
@@ -216,7 +217,7 @@ private fun BubblePanel(roomCode: String) {
         Text("Chat bubble over the movie", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
         Text(
             "Chat and react without leaving the movie." +
-                if (!Permissions.canDrawOverlays(context)) " Needs \"Display over other apps\" for Sync it." else "",
+                if (!Permissions.canDrawOverlays(context)) " Needs \"Display over other apps\" for ${Brand.NAME}." else "",
             style = MaterialTheme.typography.bodySmall,
             color = p.textSecondary,
         )

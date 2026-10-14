@@ -21,7 +21,7 @@ object RoomLinks {
     fun shareLink(code: String): String = "https://$WEB_HOST/join/$code"
 
     fun shareText(code: String): String =
-        "Join my Sync it watch party! Room code: $code\n${shareLink(code)}"
+        "Join my ${Brand.NAME} watch party! Room code: $code\n${shareLink(code)}"
 
     private val linkPattern = Regex(
         """(?:${Regex.escape(SCHEME)}://${Regex.escape(HOST)}/|https?://${Regex.escape(WEB_HOST)}/join/)([A-Za-z0-9]{$CODE_LENGTH})(?![A-Za-z0-9])""",

@@ -85,7 +85,7 @@ fun ChatTab(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                items(chat, key = { it.id }) { msg -> ChatBubble(msg, isMine = msg.uid == myUid) }
+                items(chat, key = { it.id }) { msg -> MessageBubble(msg.text, senderName = msg.name, isMine = msg.uid == myUid) }
             }
             FloatingReactions(reactions, Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp))
         }
@@ -101,12 +101,13 @@ fun ChatTab(
                 ) { Text(emoji, fontSize = 22.sp) }
             }
         }
-        ChatInputBar(onSend, Modifier.padding(bottom = 8.dp))
+        ChatInputBar(onSend, "Message the room", Modifier.padding(bottom = 8.dp))
     }
 }
 
+/** Speech bubble shared by room chat and direct messages. [senderName] null hides avatar and name (DMs). */
 @Composable
-private fun ChatBubble(message: ChatMessage, isMine: Boolean) {
+internal fun MessageBubble(text: String, senderName: String?, isMine: Boolean) {
     val p = Glass.palette
     // The corner nearest the sender is tighter, like a speech bubble's tail.
     val shape = if (isMine) RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp) else RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp)
@@ -115,8 +116,8 @@ private fun ChatBubble(message: ChatMessage, isMine: Boolean) {
         horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom,
     ) {
-        if (!isMine) {
-            Avatar(message.name, size = 28.dp)
+        if (!isMine && senderName != null) {
+            Avatar(senderName, size = 28.dp)
             Spacer(Modifier.width(8.dp))
         }
         val bubble = if (isMine) {
@@ -125,14 +126,14 @@ private fun ChatBubble(message: ChatMessage, isMine: Boolean) {
             Modifier.glass(shape)
         }
         Column(bubble.widthIn(max = 280.dp).padding(horizontal = 14.dp, vertical = 9.dp)) {
-            if (!isMine) Text(message.name, style = MaterialTheme.typography.labelMedium, color = p.accent2)
-            Text(message.text, style = MaterialTheme.typography.bodyMedium, color = if (isMine) p.onAccent else p.textPrimary)
+            if (!isMine && senderName != null) Text(senderName, style = MaterialTheme.typography.labelMedium, color = p.accent2)
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = if (isMine) p.onAccent else p.textPrimary)
         }
     }
 }
 
 @Composable
-private fun ChatInputBar(onSend: (String) -> Unit, modifier: Modifier = Modifier) {
+internal fun ChatInputBar(onSend: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
     val p = Glass.palette
     var text by rememberSaveable { mutableStateOf("") }
     val send = {
@@ -144,7 +145,7 @@ private fun ChatInputBar(onSend: (String) -> Unit, modifier: Modifier = Modifier
     GlassTextField(
         value = text,
         onValueChange = { text = it.take(500) },
-        placeholder = "Message the room",
+        placeholder = placeholder,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
         keyboardActions = KeyboardActions(onSend = { send() }),
         modifier = modifier.fillMaxWidth(),

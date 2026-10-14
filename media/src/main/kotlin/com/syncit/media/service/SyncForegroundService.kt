@@ -14,6 +14,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import com.syncit.core.config.Brand
 import com.syncit.core.config.SyncStatusLabels
 import com.syncit.core.session.SyncDependenciesProvider
 import com.syncit.core.session.SyncSessionState
@@ -107,7 +108,7 @@ class SyncForegroundService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_sync_notification)
-            .setContentTitle("Sync it · room ${roomCode.orEmpty()}")
+            .setContentTitle(getString(R.string.sync_notification_title, Brand.NAME, roomCode.orEmpty()))
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -121,7 +122,7 @@ class SyncForegroundService : Service() {
 
     private fun createChannel() {
         val channel = NotificationChannel(CHANNEL_ID, getString(R.string.sync_channel_name), NotificationManager.IMPORTANCE_LOW)
-            .apply { description = getString(R.string.sync_channel_description) }
+            .apply { description = getString(R.string.sync_channel_description, Brand.NAME) }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 

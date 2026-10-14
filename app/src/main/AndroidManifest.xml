@@ -8,11 +8,16 @@
     <!-- Optional floating chat bubble over the movie. Special access, user-granted in settings. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Package visibility (Android 11+) for the room's "Play in …" button. Keep in sync with
-         StreamingConfig (Netflix, JioHotstar). -->
+    <!-- Package visibility (Android 11+) for the room's "Play in …" button and friends' "Open in …"
+         buttons. Keep in sync with StreamingConfig / ActivityApp. -->
     <queries>
         <package android:name="com.netflix.mediaclient" />
         <package android:name="in.startv.hotstar" />
+        <package android:name="com.amazon.avod.thirdpartyclient" />
+        <package android:name="com.spotify.music" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.amazon.mp3" />
     </queries>
 
     <application
@@ -42,7 +47,19 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="syncit-watchparty.web.app" android:pathPrefix="/join/" />
             </intent-filter>
-            <!-- Older invites and the "Open in Sync it" button on the invite page: syncit://join/ABC123 -->
+            <!-- Passwordless email sign-in. THE ONE PLACE the email-link host/path live in the app.
+                 Firebase's default handler: https://syncit-watchparty.firebaseapp.com/__/auth/action?mode=signIn&oobCode=…
+                 (web.app can't be an email-link domain: INVALID_HOSTING_LINK_DOMAIN). Must match
+                 FirebaseAuthService.EMAIL_LINK_DOMAIN / EMAIL_LINK_PATH_PREFIX in :data-firebase. That
+                 host serves its own assetlinks.json. MainActivity hands the whole URL to
+                 AuthService.isEmailSignInLink / completeEmailLinkSignIn. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="syncit-watchparty.firebaseapp.com" android:pathPrefix="/__/auth/" />
+            </intent-filter>
+            <!-- Older invites and the "Open in app" button on the invite page: syncit://join/ABC123 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

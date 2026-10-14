@@ -3,7 +3,9 @@ package com.syncit.app.ui.room
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
+import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.ChatMessage
+import com.syncit.core.model.Friend
 import com.syncit.core.model.Reaction
 import com.syncit.core.model.Room
 import com.syncit.core.model.RoomPreview
@@ -58,6 +60,34 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    /** Friends, for "Invite friends". */
+    val friends: StateFlow<List<Friend>> = container.social.friends.observeFriends()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _invited = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Friends invited from this screen (cleared when the room screen is recreated). */
+    val invited: StateFlow<Set<String>> = _invited.asStateFlow()
+
+    /** Sends a room invite with what the host is playing, if known. */
+    fun inviteFriend(uid: String) {
+        if (uid in _invited.value) return
+        _invited.update { it + uid }
+        val service = preview.value?.service ?: room.value?.title?.service ?: sync.value.service
+        val app = service?.let { s -> ActivityApp.entries.firstOrNull { it.syncService == s } }
+        viewModelScope.launch {
+            try {
+                container.social.watchInvites.inviteToRoom(uid, code, app, preview.value?.title)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _invited.update { it - uid }
+                _message.value = "Invite not sent: ${e.message ?: e.javaClass.simpleName}"
+            }
+        }
+    }
 
     private var reactionsJob: Job? = null
 

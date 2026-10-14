@@ -173,7 +173,9 @@ internal class RoomSyncCoordinator(
 
     /**
      * The session to sync: the room's chosen service if set, otherwise whichever configured
-     * service (Netflix, or JioHotstar once its package is filled in) has an active session.
+     * [StreamingService] (Netflix, JioHotstar, Prime Video, ...) has an active session, in the
+     * gateway's order (most recently active first). No per-app special casing: an app that
+     * doesn't report position or accept seekTo is handled by the engine's fallback modes.
      */
     private fun pickSession(sessions: List<MediaSessionInfo>, target: StreamingService?): MediaSessionInfo? {
         val packages = (if (target != null) listOf(target) else StreamingService.entries)

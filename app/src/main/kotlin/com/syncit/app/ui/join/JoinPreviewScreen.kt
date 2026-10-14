@@ -22,6 +22,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +51,7 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
     val join by viewModel.join.collectAsStateWithLifecycle()
     val preview = (state as? JoinPreviewViewModel.PreviewState.Loaded)?.preview
     val artwork = rememberArtwork(preview?.artworkJpeg)
+    LaunchedEffect(join.joined) { if (join.joined) onJoined(viewModel.code) }
 
     GlassScreen(artwork = artwork) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -130,7 +132,7 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
                     text = "Join watch party",
                     icon = Icons.Filled.PlayArrow,
                     loading = join.busy,
-                    onClick = { viewModel.join(onJoined) },
+                    onClick = viewModel::join,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 GlassButton(

@@ -14,6 +14,11 @@ googleServices = "4.4.3"
 junit = "4.13.2"
 # Haze 1.6.x matches Compose 1.8 / Kotlin 2.x. Haze 2.x needs AGP 9 + compileSdk 37.
 haze = "1.6.10"
+# Google sign-in via Credential Manager (v2 accounts). credentials 1.6.0 needs compileSdk 35+ and
+# AGP 8.6+ (aar-metadata). googleid pinned to 1.2.0: 1.2.1 is compiled with Kotlin 2.4 metadata,
+# which Kotlin 2.2 can't read (same story as Haze). Checked 2026-10-15.
+credentials = "1.6.0"
+googleid = "1.2.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -39,6 +44,10 @@ firebase-auth = { module = "com.google.firebase:firebase-auth" }
 junit = { module = "junit:junit", version.ref = "junit" }
 
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
+googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

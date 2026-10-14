@@ -1,0 +1,74 @@
+package com.syncit.app.ui.social
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Text
+import com.syncit.app.ui.common.rememberArtwork
+import com.syncit.app.ui.glass.PlatformBadge
+import com.syncit.app.ui.theme.Glass
+import com.syncit.app.ui.theme.PlatformColors
+import com.syncit.core.model.Activity
+import com.syncit.core.model.ActivityApp
+
+/** Brand colour for an activity app's chip and artwork placeholder. */
+fun ActivityApp.color(): Color = when (this) {
+    ActivityApp.NETFLIX -> PlatformColors.Netflix
+    ActivityApp.JIOHOTSTAR -> PlatformColors.JioHotstarStart
+    ActivityApp.PRIME_VIDEO -> PlatformColors.PrimeVideo
+    ActivityApp.SPOTIFY -> PlatformColors.Spotify
+    ActivityApp.YOUTUBE_MUSIC, ActivityApp.YOUTUBE -> PlatformColors.YouTube
+    ActivityApp.AMAZON_MUSIC -> PlatformColors.AmazonMusic
+}
+
+/** The streaming badge for video apps we sync, a plain coloured chip for the rest. */
+@Composable
+fun ActivityAppBadge(app: ActivityApp, modifier: Modifier = Modifier) {
+    val service = app.syncService
+    if (service != null) {
+        PlatformBadge(service, modifier)
+    } else {
+        Text(
+            app.displayName,
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = modifier.clip(RoundedCornerShape(6.dp)).background(app.color()).padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
+}
+
+/** Square artwork thumbnail; a gradient tile with the app's initial when there's no artwork. */
+@Composable
+fun ActivityThumb(activity: Activity, modifier: Modifier = Modifier, size: Dp = 48.dp) {
+    val p = Glass.palette
+    val shape = RoundedCornerShape(12.dp)
+    val art = rememberArtwork(activity.artworkJpeg)
+    val edge = Modifier.border(1.dp, Brush.linearGradient(listOf(p.strokeTop, p.strokeBottom)), shape)
+    if (art != null) {
+        Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier.size(size).clip(shape).then(edge))
+    } else {
+        val c = activity.app.color()
+        Box(
+            modifier.size(size).clip(shape).background(Brush.linearGradient(listOf(c, c.copy(alpha = 0.55f)))).then(edge),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(activity.app.displayName.take(1), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = (size.value * 0.4f).sp)
+        }
+    }
+}

@@ -3,6 +3,263 @@
     ".read": false,
     ".write": false,
 
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['username', 'displayName', 'createdAt']) && newData.parent().parent().child('usernames').child(newData.child('username').val().replace('.', ',')).val() === $uid && (!data.child('username').exists() || data.child('username').val() === newData.child('username').val() || !newData.parent().parent().child('usernames').child(data.child('username').val().replace('.', ',')).exists())",
+        "username": {
+          ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_][a-z0-9_.]{1,18}[a-z0-9_]$/) && !newData.val().contains('..')"
+        },
+        "displayName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+        },
+        "photoUrl": {
+          ".validate": "newData.isString() && newData.val().length <= 500 && newData.val().beginsWith('https://')"
+        },
+        "bio": {
+          ".validate": "newData.isString() && newData.val().length <= 160"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "users_private": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['provider', 'createdAt'])",
+        "email": {
+          ".validate": "newData.isString() && newData.val().length <= 254"
+        },
+        "provider": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "usernames": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && query.orderByKey == true && query.limitToFirst <= 20",
+      "$name": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)) || (!newData.exists() && data.val() === auth.uid && newData.parent().parent().child('users').child(auth.uid).child('username').val().replace('.', ',') !== $name))",
+        ".validate": "newData.isString() && $name.matches(/^[a-z0-9_][a-z0-9_,]{1,18}[a-z0-9_]$/) && !$name.contains(',,') && !$name.matches(/^(admin|vyro|syncit|support|help|root|system|null|undefined)$/) && newData.parent().parent().child('users').child(auth.uid).child('username').val().replace('.', ',') === $name"
+      }
+    },
+    "friendRequests": {
+      "$to": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to",
+        "$from": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $from !== $to && ((!newData.exists() && (auth.uid === $from || auth.uid === $to)) || (auth.uid === $from && !data.exists() && !root.child('blocked').child($to).child($from).exists() && !root.child('blocked').child($from).child($to).exists() && !root.child('friends').child($from).child($to).exists()))",
+          ".validate": "newData.hasChildren(['fromUsername', 'fromDisplayName', 'toUsername', 'toDisplayName', 'sentAt'])",
+          "fromUsername": {
+            ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('username').val()"
+          },
+          "fromDisplayName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          },
+          "toUsername": {
+            ".validate": "newData.isString() && newData.val() === root.child('users').child($to).child('username').val()"
+          },
+          "toDisplayName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          },
+          "sentAt": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "sentFriendRequests": {
+      "$from": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
+        "$to": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!newData.exists() && (auth.uid === $from || auth.uid === $to)) || (auth.uid === $from && newData.parent().parent().parent().child('friendRequests').child($to).child($from).exists()))",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "friends": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "$other": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $uid !== $other && ((!newData.exists() && (auth.uid === $uid || auth.uid === $other)) || (!data.exists() && newData.parent().parent().child($other).child($uid).exists() && ((auth.uid === $uid && root.child('friendRequests').child($uid).child($other).exists()) || (auth.uid === $other && root.child('friendRequests').child($other).child($uid).exists()))))",
+          ".validate": "newData.hasChildren(['since'])",
+          "since": {
+            ".validate": "newData.val() === now"
+          },
+          "$x": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "blocked": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "$other": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && $other !== $uid",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "presence": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid === $uid || root.child('friends').child($uid).child(auth.uid).exists())",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "online": {
+          ".validate": "newData.isBoolean()"
+        },
+        "lastSeen": {
+          ".validate": "newData.isNumber()"
+        },
+        "activity": {
+          ".validate": "newData.hasChildren(['app', 'playing', 'startedAt'])",
+          "app": {
+            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo' || newData.val() === 'spotify' || newData.val() === 'ytmusic' || newData.val() === 'amazonmusic' || newData.val() === 'youtube')"
+          },
+          "title": {
+            ".validate": "newData.isString() && newData.val().length <= 200"
+          },
+          "subtitle": {
+            ".validate": "newData.isString() && newData.val().length <= 200"
+          },
+          "artwork": {
+            ".validate": "newData.isString() && newData.val().length <= 70000"
+          },
+          "playing": {
+            ".validate": "newData.isBoolean()"
+          },
+          "durationMs": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "startedAt": {
+            ".validate": "newData.isNumber() && newData.val() <= now"
+          },
+          "roomCode": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/)"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "dms": {
+      "$dmId": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists()",
+        ".indexOn": [
+          "sentAt"
+        ],
+        "$messageId": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists() && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['from', 'text', 'sentAt'])",
+          "from": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "text": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
+          },
+          "sentAt": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "dmReads": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "$friend": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+    "joinRequests": {
+      "$host": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $host",
+        "$from": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $host !== $from && ((!newData.exists() && (auth.uid === $from || auth.uid === $host)) || (auth.uid === $from && root.child('friends').child($host).child($from).exists()) || (auth.uid === $host && data.exists()))",
+          ".validate": "newData.hasChildren(['fromUsername', 'fromDisplayName', 'app', 'status', 'sentAt'])",
+          "fromUsername": {
+            ".validate": "auth.uid === $from ? newData.val() === root.child('users').child($from).child('username').val() : newData.val() === data.val()"
+          },
+          "fromDisplayName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40 && (auth.uid === $from || newData.val() === data.val())"
+          },
+          "app": {
+            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo') && (auth.uid === $from || newData.val() === data.val())"
+          },
+          "title": {
+            ".validate": "newData.isString() && newData.val().length <= 200 && (auth.uid === $from || newData.val() === data.val())"
+          },
+          "status": {
+            ".validate": "auth.uid === $from ? newData.val() === 'pending' : (newData.val() === 'accepted' || newData.val() === 'declined')"
+          },
+          "roomCode": {
+            ".validate": "auth.uid === $host && newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/) && root.child('rooms').child(newData.val()).child('members').child(auth.uid).exists()"
+          },
+          "sentAt": {
+            ".validate": "auth.uid === $from ? newData.val() === now : newData.val() === data.val()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "invites": {
+      "$to": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to",
+        "$from": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $to !== $from && ((!newData.exists() && (auth.uid === $to || auth.uid === $from)) || (auth.uid === $from && root.child('friends').child($to).child($from).exists()))",
+          ".validate": "newData.hasChildren(['fromUsername', 'fromDisplayName', 'roomCode', 'sentAt'])",
+          "fromUsername": {
+            ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('username').val()"
+          },
+          "fromDisplayName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          },
+          "roomCode": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/) && root.child('rooms').child(newData.val()).child('members').child($from).exists()"
+          },
+          "app": {
+            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo')"
+          },
+          "title": {
+            ".validate": "newData.isString() && newData.val().length <= 200"
+          },
+          "sentAt": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+
     "rooms": {
       "$code": {
         ".read": "auth != null && data.child('members').child(auth.uid).exists()",

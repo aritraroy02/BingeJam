@@ -166,4 +166,7 @@ object PlatformColors {
     val JioHotstarStart = Color(0xFF0F3BD8)
     val JioHotstarEnd = Color(0xFF1FA2FF)
     val PrimeVideo = Color(0xFF00A8E1)
+    val Spotify = Color(0xFF1DB954)
+    val YouTube = Color(0xFFFF0033)
+    val AmazonMusic = Color(0xFF25D1DA)
 }

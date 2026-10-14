@@ -139,18 +139,24 @@ apps with notification-listener access in India.
 ```
 users/{uid}:              { username, displayName, photoUrl?, bio?, createdAt }      signed-in read, owner write
 users_private/{uid}:      { email?, provider, createdAt }                             owner only
-usernames/{username}:     uid                                                         create-if-absent, owner delete
+usernames/{key}:          uid   key = username with '.' → ',' (RTDB keys can't hold '.'; same sort order)
+                                                                                      create-if-absent, owner delete
 friendRequests/{to}/{from}: { fromUsername, fromDisplayName, toUsername, toDisplayName, sentAt }
+sentFriendRequests/{from}/{to}: true   index for listing outgoing requests (RTDB can't query */{me});
+                                       written/deleted in the same multi-path update as the request
 friends/{uid}/{friendUid}: { since }                                                 written pairwise on accept
 blocked/{uid}/{otherUid}: true                                                        owner only
 dms/{dmId}/{msgId}:       { from, text, sentAt }     dmId = sorted uids "a_b"; only the two, only friends
 dmReads/{uid}/{friendUid}: lastReadAt                                                owner only
 presence/{uid}:           { online, lastSeen, activity? { app, title, subtitle, artwork, playing,
                             durationMs, startedAt, roomCode? } }                      friends read, owner write
+                          onDisconnect clears online AND activity (re-published on reconnect)
 joinRequests/{host}/{from}: { fromUsername, fromDisplayName, app, title, status, roomCode?, sentAt }
 invites/{to}/{from}:      { fromUsername, fromDisplayName, roomCode, app?, title?, sentAt }
 rooms/…, previews/…, chats/…, reactions/… (v1, unchanged; previews.service also allows PRIME_VIDEO)
 ```
+All v2 social paths require a real (non-anonymous) account; v1 room paths still accept anonymous
+users so v0.2.x installs keep working until they update (Anonymous provider stays enabled until then).
 
 ### Flows
 - First run: sign in → pick username (suggestions) → **Activity setup** page → permissions → Home.

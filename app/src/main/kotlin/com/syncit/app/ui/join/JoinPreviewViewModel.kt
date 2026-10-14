@@ -16,8 +16,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** What an invitee sees before joining: the room's preview, then Join. */
-class JoinPreviewViewModel(val code: String, private val container: AppContainer) : ViewModel() {
+/**
+ * What an invitee sees before joining: the room's preview, then Join. With [autoJoin] (a friend
+ * accepted our "Ask to join", or we tapped Join on their invite) it joins straight away.
+ */
+class JoinPreviewViewModel(
+    val code: String,
+    private val container: AppContainer,
+    autoJoin: Boolean = false,
+) : ViewModel() {
 
     sealed interface PreviewState {
         data object Loading : PreviewState
@@ -31,12 +38,17 @@ class JoinPreviewViewModel(val code: String, private val container: AppContainer
         .catch { emit(PreviewState.Loaded(null)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PreviewState.Loading)
 
-    data class JoinState(val busy: Boolean = false, val error: String? = null)
+    /** [joined] is set once we're a member; the screen then navigates to the room. */
+    data class JoinState(val busy: Boolean = false, val error: String? = null, val joined: Boolean = false)
 
     private val _join = MutableStateFlow(JoinState())
     val join: StateFlow<JoinState> = _join.asStateFlow()
 
-    fun join(onJoined: (String) -> Unit) {
+    init {
+        if (autoJoin) join()
+    }
+
+    fun join() {
         if (_join.value.busy) return
         viewModelScope.launch {
             _join.update { JoinState(busy = true) }
@@ -44,8 +56,7 @@ class JoinPreviewViewModel(val code: String, private val container: AppContainer
                 container.transport.joinRoom(code, container.prefs.displayName.ifBlank { "Guest" })
                 container.prefs.lastRoomCode = code
                 container.prefs.pendingJoinCode = null
-                _join.update { JoinState() }
-                onJoined(code)
+                _join.update { JoinState(joined = true) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: RoomNotFoundException) {

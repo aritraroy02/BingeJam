@@ -1,0 +1,56 @@
+package com.syncit.firebase
+
+import android.content.Context
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
+import com.syncit.core.auth.AuthService
+import com.syncit.core.social.DirectMessages
+import com.syncit.core.social.FriendsRepository
+import com.syncit.core.social.PresenceRepository
+import com.syncit.core.social.ProfileRepository
+import com.syncit.core.social.WatchInvites
+import com.syncit.core.transport.SyncTransport
+import com.syncit.firebase.social.FirebaseDirectMessages
+import com.syncit.firebase.social.FirebaseFriendsRepository
+import com.syncit.firebase.social.FirebasePresenceRepository
+import com.syncit.firebase.social.FirebaseProfileRepository
+import com.syncit.firebase.social.FirebaseWatchInvites
+
+/**
+ * Everything :data-firebase provides, wired once. :app creates one instance (AppContainer) and
+ * hands the pieces out. All of them share one auth session and one server clock.
+ *
+ * Signing out first marks us offline in presence (that write needs the account's token).
+ */
+class FirebaseServices private constructor(context: Context) {
+    private val db: FirebaseDatabase = database()
+    private val session = FirebaseSession(FirebaseAuth.getInstance())
+    private val clock = FirebaseServerClock(db)
+
+    private val presenceImpl = FirebasePresenceRepository(session, db, clock)
+
+    val auth: AuthService = FirebaseAuthService(context, session, db, beforeSignOut = presenceImpl::stop)
+    val profiles: ProfileRepository = FirebaseProfileRepository(session, db)
+    val friends: FriendsRepository = FirebaseFriendsRepository(session, db)
+    val dms: DirectMessages = FirebaseDirectMessages(session, db)
+    val presence: PresenceRepository = presenceImpl
+    val watchInvites: WatchInvites = FirebaseWatchInvites(session, db)
+    val transport: SyncTransport = FirebaseSyncTransport(session, db, clock)
+
+    companion object {
+        @Volatile private var instance: FirebaseServices? = null
+
+        /** Returns the process-wide instance (created on first call), so listeners aren't duplicated. */
+        fun create(context: Context): FirebaseServices =
+            instance ?: synchronized(this) {
+                instance ?: FirebaseServices(context.applicationContext).also { instance = it }
+            }
+
+        internal fun database(): FirebaseDatabase =
+            if (FirebaseConfig.DATABASE_URL.isBlank()) {
+                FirebaseDatabase.getInstance()
+            } else {
+                FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL)
+            }
+    }
+}

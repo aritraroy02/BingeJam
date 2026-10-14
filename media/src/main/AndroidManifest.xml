@@ -9,12 +9,12 @@
         <!--
             Exists only so the user can grant Notification Access, which is what Android requires
             before MediaSessionManager.getActiveSessions() will return other apps' sessions.
-            It never reads notification content.
+            It never reads notification content. No android:label, so Settings shows the app's own
+            name (app_name in :app; the brand lives in one place, see core/config/Brand.kt).
         -->
         <service
             android:name="com.syncit.media.MediaListenerService"
             android:exported="true"
-            android:label="@string/media_listener_label"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />

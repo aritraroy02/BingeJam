@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Sync it</string>
+    <!-- Product name (working name, will change): keep in sync with core/config/Brand.kt and web/. -->
+    <string name="app_name">Vyro</string>
 
-    <!-- Prominent disclosure for Notification Access (Play policy). Keep in sync with PLAY_STORE_READINESS.md. -->
-    <string name="notification_access_disclosure">Sync it needs Notification Access to see and control what\'s playing in Netflix or JioHotstar: whether it\'s playing or paused, where you are in the movie, and the title and artwork it shows in its media controls. That\'s how it keeps everyone in your room in sync and shows them what you\'re watching.\n\nAndroid only gives this ability to apps with Notification Access. Sync it never reads your notifications, messages or their content, and never records your screen, video or audio.</string>
+    <!-- Prominent disclosure for Notification Access (Play policy). %1$s = app_name.
+         Keep in sync with PLAY_STORE_READINESS.md. -->
+    <string name="notification_access_disclosure">%1$s needs Notification Access to see and control what\'s playing in Netflix, JioHotstar or Prime Video: whether it\'s playing or paused, where you are, and the title and artwork the app shows in its media controls. That\'s how it keeps everyone in your watch party in sync. For the apps you choose to share (for example Spotify or YouTube), it also shows your friends what you\'re watching or listening to.\n\nAndroid only gives this ability to apps with Notification Access. %1$s never reads your notifications, messages or their content, and never records your screen, video or audio.</string>
 </resources>

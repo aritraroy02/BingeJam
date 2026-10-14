@@ -31,12 +31,15 @@ import kotlinx.coroutines.flow.callbackFlow
 import java.security.SecureRandom
 
 /**
- * [SyncTransport] on Firebase Realtime Database + Anonymous Auth.
+ * [SyncTransport] on Firebase Realtime Database. Since v2 every user has an account (Google or
+ * e-mail link, see [FirebaseAuthService]); the transport never signs in by itself, and
+ * [ensureSignedIn] throws [NotSignedInException] when nobody is signed in.
  * Data model and rules: PLAN.md and data-firebase/firebase/database.rules.json.
  */
-class FirebaseSyncTransport(
-    private val auth: FirebaseAuth,
+class FirebaseSyncTransport internal constructor(
+    private val session: FirebaseSession,
     private val db: FirebaseDatabase,
+    override val serverClock: ServerClock = FirebaseServerClock(db),
 ) : SyncTransport {
 
     private val rooms: DatabaseReference = db.getReference("rooms")
@@ -44,10 +47,7 @@ class FirebaseSyncTransport(
     private val reactions: DatabaseReference = db.getReference("reactions")
     private val previews: DatabaseReference = db.getReference("previews")
 
-    override val serverClock: ServerClock = FirebaseServerClock(db)
-
-    private val _uid = MutableStateFlow(auth.currentUser?.uid)
-    override val currentUid: StateFlow<String?> = _uid.asStateFlow()
+    override val currentUid: StateFlow<String?> = session.uid
 
     private val _connected = MutableStateFlow(false)
     override val connected: StateFlow<Boolean> = _connected.asStateFlow()
@@ -56,7 +56,6 @@ class FirebaseSyncTransport(
     private var presence: Presence? = null
 
     init {
-        auth.addAuthStateListener { _uid.value = it.currentUser?.uid }
         db.getReference(".info/connected").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 _connected.value = snapshot.getValue(Boolean::class.java) == true
@@ -68,13 +67,8 @@ class FirebaseSyncTransport(
 
     // ---- Auth ----
 
-    override suspend fun ensureSignedIn(): String {
-        auth.currentUser?.let { return it.uid }
-        val result = auth.signInAnonymously().await()
-        val uid = result.user?.uid ?: error("Anonymous sign-in returned no user")
-        _uid.value = uid
-        return uid
-    }
+    /** Our account uid. No anonymous sign-in any more: throws [NotSignedInException] if signed out. */
+    override suspend fun ensureSignedIn(): String = session.requireUid()
 
     // ---- Rooms ----
 
@@ -99,8 +93,8 @@ class FirebaseSyncTransport(
             }
         }
         // 32^6 codes, so five collisions in a row almost never happen: repeated denials usually
-        // mean the rules aren't published or anonymous auth is off.
-        error("Couldn't create a room (permission denied). Check the database rules and anonymous sign-in.")
+        // mean the rules aren't published.
+        error("Couldn't create a room (permission denied). Check the database rules.")
     }
 
     override suspend fun joinRoom(code: String, displayName: String) {
@@ -116,7 +110,7 @@ class FirebaseSyncTransport(
     }
 
     override suspend fun leaveRoom(code: String) {
-        val uid = _uid.value ?: return
+        val uid = session.currentUid ?: return
         stopPresence()
         val memberRef = rooms.child(code).child("members").child(uid)
         memberRef.onDisconnect().cancel().await()
@@ -360,13 +354,12 @@ class FirebaseSyncTransport(
         private const val MAX_ARTWORK_BYTES = 52_000
         private const val TAG = "SyncItFirebase"
 
-        fun create(): FirebaseSyncTransport {
-            val db = if (FirebaseConfig.DATABASE_URL.isBlank()) {
-                FirebaseDatabase.getInstance()
-            } else {
-                FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL)
-            }
-            return FirebaseSyncTransport(FirebaseAuth.getInstance(), db)
-        }
+        /**
+         * Standalone transport, kept so older wiring compiles. New code should use
+         * FirebaseServices.create(context).transport, which shares the clock and auth session
+         * with the social repositories.
+         */
+        fun create(): FirebaseSyncTransport =
+            FirebaseSyncTransport(FirebaseSession(FirebaseAuth.getInstance()), FirebaseServices.database())
     }
 }

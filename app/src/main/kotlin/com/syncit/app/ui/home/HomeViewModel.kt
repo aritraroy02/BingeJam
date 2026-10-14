@@ -4,21 +4,51 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.data.UpdateChecker
 import com.syncit.app.di.AppContainer
+import com.syncit.app.social.ActivityText
 import com.syncit.core.config.RoomLinks
+import com.syncit.core.model.Activity
+import com.syncit.core.model.Friend
+import com.syncit.core.model.JoinRequest
+import com.syncit.core.model.JoinStatus
+import com.syncit.core.model.UserProfile
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** One friend in the Home list. */
+data class FriendRow(
+    val friend: Friend,
+    val online: Boolean,
+    /** "Watching S2:E4 · … on Netflix", "Online", "Last seen 5m ago". */
+    val status: String,
+    /** Shown only while they're online. */
+    val activity: Activity?,
+    val unread: Int,
+    /** We already asked to join what they're watching and they haven't answered. */
+    val joinRequested: Boolean,
+) {
+    val uid: String get() = friend.profile.uid
+}
+
 class HomeViewModel(private val container: AppContainer) : ViewModel() {
+    private val social = container.social
 
     data class UiState(
         val code: String = "",
+        val showCodeField: Boolean = false,
         val busy: Boolean = false,
-        val error: String? = null,
         val lastRoom: String? = null,
+        val message: String? = null,
     ) {
         val codeValid: Boolean get() = code.length == RoomLinks.CODE_LENGTH
     }
@@ -26,7 +56,31 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val _ui = MutableStateFlow(UiState(lastRoom = container.prefs.lastRoomCode))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
-    val name: String get() = container.prefs.displayName
+    val myProfile: StateFlow<UserProfile?> = social.profiles.observeMyProfile()
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Server time, refreshed every 30 s so "Last seen 5m ago" stays current. */
+    private val now = flow {
+        while (true) {
+            emit(container.transport.serverClock.serverNowMs())
+            delay(30_000)
+        }
+    }
+
+    val friends: StateFlow<List<FriendRow>?> = combine(
+        social.friends.observeFriends(),
+        social.dms.observeUnreadCounts().catch { emit(emptyMap()) },
+        social.watchInvites.observeMyJoinRequests().catch { emit(emptyList()) },
+        now,
+    ) { friends, unread, myRequests, nowMs -> buildRows(friends, unread, myRequests, nowMs) }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val incomingRequestCount: StateFlow<Int> = social.friends.observeIncomingRequests()
+        .map { it.size }
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     private val _update = MutableStateFlow<UpdateChecker.Update?>(null)
 
@@ -39,34 +93,82 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     /** Upper-cases and drops characters that can't appear in a code. */
     fun onCodeChange(value: String) = _ui.update {
-        it.copy(
-            code = value.uppercase().filter { c -> c in RoomLinks.CODE_ALPHABET }.take(RoomLinks.CODE_LENGTH),
-            error = null,
-        )
+        it.copy(code = value.uppercase().filter { c -> c in RoomLinks.CODE_ALPHABET }.take(RoomLinks.CODE_LENGTH))
     }
+
+    fun toggleCodeField() = _ui.update { it.copy(showCodeField = !it.showCodeField) }
 
     fun refreshLastRoom() = _ui.update { it.copy(lastRoom = container.prefs.lastRoomCode) }
 
+    fun dismissMessage() = _ui.update { it.copy(message = null) }
+
     fun create(onJoined: (String) -> Unit) {
         if (_ui.value.busy) return
-        val name = container.prefs.displayName.trim()
-        if (name.isBlank()) {
-            _ui.update { it.copy(error = "Set your name in Settings first") }
-            return
+        val name = container.prefs.displayName.trim().ifBlank { myProfile.value?.displayName.orEmpty() }
+        launchAction("Couldn't create a room", busy = true) {
+            val code = container.transport.createRoom(name.ifBlank { "Host" })
+            container.prefs.lastRoomCode = code
+            onJoined(code)
         }
+    }
+
+    fun askToJoin(row: FriendRow) {
+        val activity = row.activity ?: return
+        launchAction("Couldn't ask ${row.friend.profile.displayName}") {
+            social.watchInvites.requestToJoin(row.uid, activity.app, activity.title)
+            _ui.update { it.copy(message = "Asked ${row.friend.profile.displayName}. You'll join as soon as they accept.") }
+        }
+    }
+
+    fun unfriend(uid: String) = launchAction("Couldn't remove friend") { social.friends.unfriend(uid) }
+
+    fun block(uid: String) = launchAction("Couldn't block") { social.friends.block(uid) }
+
+    fun showMessage(text: String) = _ui.update { it.copy(message = text) }
+
+    private fun launchAction(failure: String, busy: Boolean = false, block: suspend () -> Unit) {
         viewModelScope.launch {
-            _ui.update { it.copy(busy = true, error = null) }
+            if (busy) _ui.update { it.copy(busy = true) }
             try {
-                val code = container.transport.createRoom(name)
-                container.prefs.lastRoomCode = code
-                onJoined(code)
+                block()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _ui.update { it.copy(error = "Couldn't create a room: ${e.message ?: e.javaClass.simpleName}") }
+                _ui.update { it.copy(message = "$failure: ${e.message ?: e.javaClass.simpleName}") }
             } finally {
-                _ui.update { it.copy(busy = false) }
+                if (busy) _ui.update { it.copy(busy = false) }
             }
+        }
+    }
+
+    companion object {
+        /**
+         * Playing something first, then online, then everyone else; most recently seen first
+         * within offline friends, names alphabetically otherwise.
+         */
+        fun buildRows(
+            friends: List<Friend>,
+            unread: Map<String, Int>,
+            myRequests: List<JoinRequest>,
+            nowMs: Long,
+        ): List<FriendRow> {
+            val pending = myRequests.filter { it.status == JoinStatus.PENDING }.map { it.hostUid }.toSet()
+            return friends.map { f ->
+                FriendRow(
+                    friend = f,
+                    online = f.presence?.online == true,
+                    status = ActivityText.statusLine(f.presence, nowMs),
+                    activity = ActivityText.visibleActivity(f.presence),
+                    unread = unread[f.profile.uid] ?: 0,
+                    joinRequested = f.profile.uid in pending,
+                )
+            }.sortedWith(
+                compareBy<FriendRow>(
+                    { if (it.activity != null) 0 else if (it.online) 1 else 2 },
+                    { -(it.friend.presence?.lastSeen ?: 0L) * (if (it.online) 0 else 1) },
+                    { it.friend.profile.displayName.lowercase() },
+                ),
+            )
         }
     }
 }

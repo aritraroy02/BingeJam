@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -65,6 +66,7 @@ import com.syncit.app.ui.glass.PlatformBadge
 import com.syncit.app.ui.glass.StatusPill
 import com.syncit.app.ui.glass.glass
 import com.syncit.app.ui.theme.Glass
+import com.syncit.core.config.Brand
 import com.syncit.core.config.RoomLinks
 import com.syncit.core.config.SyncStatusLabels
 import com.syncit.core.model.Room
@@ -73,6 +75,13 @@ import com.syncit.core.model.StreamingService
 import com.syncit.core.model.SyncStatus
 import com.syncit.core.session.SyncSessionState
 import com.syncit.sync.PositionMath
+
+/**
+ * Invite text built here so it carries the current product name (core's RoomLinks.shareText
+ * still says the old one).
+ */
+internal fun shareText(code: String): String =
+    "Join my ${Brand.NAME} watch party! Room code: $code\n${RoomLinks.shareLink(code)}"
 
 /** How long "PLAY NOW" stays up after the target time. */
 private const val PLAY_NOW_VISIBLE_MS = 2_000L
@@ -92,6 +101,9 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
     val message by viewModel.message.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
+    var inviteOpen by rememberSaveable { mutableStateOf(false) }
+    val friends by viewModel.friends.collectAsStateWithLifecycle()
+    val invited by viewModel.invited.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) { viewModel.enter() }
 
@@ -103,11 +115,12 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
             GlassTopBar(
                 navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) },
                 actions = {
-                    GlassIconButton(Icons.Filled.Share, "Invite", onClick = {
+                    GlassIconButton(Icons.Filled.Add, "Invite friends", onClick = { inviteOpen = true })
+                    GlassIconButton(Icons.Filled.Share, "Share invite link", onClick = {
                         val send = Intent(Intent.ACTION_SEND)
                             .setType("text/plain")
-                            .putExtra(Intent.EXTRA_TEXT, RoomLinks.shareText(viewModel.code))
-                        context.startActivity(Intent.createChooser(send, "Invite to Sync it"))
+                            .putExtra(Intent.EXTRA_TEXT, shareText(viewModel.code))
+                        context.startActivity(Intent.createChooser(send, "Invite to ${Brand.NAME}"))
                     })
                     GlassIconButton(Icons.AutoMirrored.Filled.ExitToApp, "Leave room", onClick = { confirmLeave = true })
                 },
@@ -179,6 +192,20 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
         }
 
         CountdownOverlay(room = currentRoom, serverNow = serverNow)
+
+        InviteFriendsSheet(
+            visible = inviteOpen,
+            friends = friends,
+            invited = invited,
+            memberUids = currentRoom?.members.orEmpty().filter { it.online }.map { it.uid }.toSet(),
+            onInvite = viewModel::inviteFriend,
+            onShareLink = {
+                inviteOpen = false
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, shareText(viewModel.code))
+                context.startActivity(Intent.createChooser(send, "Invite to ${Brand.NAME}"))
+            },
+            onDismiss = { inviteOpen = false },
+        )
     }
 
     message?.let {
@@ -223,8 +250,8 @@ private fun RoomHero(
     val service = preview?.service ?: room?.title?.service ?: sync.service
     val title = preview?.title ?: if (service != null) "Start the movie in ${service.displayName}" else "Nothing playing yet"
     val subtitle = preview?.subtitle
-        ?: if (preview?.title == null) "Open Netflix or JioHotstar and press play. Everyone follows." else null
-    val statusText = SyncStatusLabels.label(sync.status, service?.displayName ?: "Netflix or JioHotstar")
+        ?: if (preview?.title == null) "Open Netflix, JioHotstar or Prime Video and press play. Everyone follows." else null
+    val statusText = SyncStatusLabels.label(sync.status, service?.displayName ?: "your streaming app")
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (artwork != null && artwork.width >= artwork.height) {
@@ -282,7 +309,7 @@ private fun RoomHero(
                 modifier = Modifier.fillMaxWidth(),
             )
             val start = if (episode.isNotEmpty()) "Start $episode" else "Start what the host is watching"
-            val jump = if (at != null) " and Sync it jumps you to $at." else ", and Sync it lines you up with the room."
+            val jump = if (at != null) " and ${Brand.NAME} jumps you to $at." else ", and ${Brand.NAME} lines you up with the room."
             Text(
                 (if (sync.status == SyncStatus.OTHER_TITLE) "You're on a different episode. " else "") + start + jump,
                 style = MaterialTheme.typography.bodySmall,

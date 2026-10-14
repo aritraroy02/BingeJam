@@ -29,4 +29,6 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
     implementation(libs.kotlinx.coroutines.android)
+
+    testImplementation(libs.junit)
 }
