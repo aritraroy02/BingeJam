@@ -34,8 +34,8 @@ class ActivityDeciderTest {
         metadata = NowPlayingMetadata(title, null, art),
     )
 
-    private fun update(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, room: String? = null) =
-        decider.update(sessions.toList(), shared, room, now)
+    private fun update(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, party: Boolean = false) =
+        decider.update(sessions.toList(), shared, party, now)
 
     /** Publishes whatever is due and returns it (wrapped so "publish null" is visible). */
     private fun publishDue(): ActivityDecider.Due? = decider.due(now)?.also { decider.onPublished(it.update) }
@@ -45,10 +45,10 @@ class ActivityDeciderTest {
     }
 
     /** Sets inputs, waits out the debounce and publishes. */
-    private fun settle(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, room: String? = null): ActivityUpdate? {
-        update(*sessions, shared = shared, room = room)
+    private fun settle(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, party: Boolean = false): ActivityUpdate? {
+        update(*sessions, shared = shared, party = party)
         advance(ActivityDecider.DEBOUNCE_MS)
-        update(*sessions, shared = shared, room = room)
+        update(*sessions, shared = shared, party = party)
         return publishDue()?.update
     }
 
@@ -158,19 +158,21 @@ class ActivityDeciderTest {
         assertNull(due!!.update)
     }
 
-    @Test fun roomCodeOnlyForJoinableAppsAndRepublishedOnChange() {
-        val music = settle(session(ActivityApp.SPOTIFY, LocalPlaybackState.PLAYING), room = "ABC123")
-        assertNull(music!!.roomCode)
+    @Test fun watchPartyOnlyForJoinableAppsAndRepublishedOnChange() {
+        val music = settle(session(ActivityApp.SPOTIFY, LocalPlaybackState.PLAYING), party = true)
+        assertFalse(music!!.inWatchParty)
 
         settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"))
-        val withRoom = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), room = "ABC123")
-        assertEquals("ABC123", withRoom!!.roomCode)
+        val withRoom = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), party = true)
+        assertTrue("flag change republishes", withRoom!!.inWatchParty)
+        val left = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), party = false)
+        assertFalse("leaving republishes", left!!.inWatchParty)
     }
 
     @Test fun primeVideoIsJoinable() {
-        val update = settle(session(ActivityApp.PRIME_VIDEO, LocalPlaybackState.PLAYING, "Film"), room = "XYZ789")
+        val update = settle(session(ActivityApp.PRIME_VIDEO, LocalPlaybackState.PLAYING, "Film"), party = true)
         assertEquals(ActivityApp.PRIME_VIDEO, update!!.app)
-        assertEquals("XYZ789", update.roomCode)
+        assertTrue(update.inWatchParty)
     }
 
     @Test fun artworkArrivingLaterRepublishes() {

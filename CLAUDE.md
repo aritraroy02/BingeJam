@@ -4,10 +4,12 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status:** Phases 0–5 plus the liquid-glass redesign, now-playing preview and https invite
-links are built. `./gradlew assembleDebug lint test` passes (0 lint issues, 56 tests), the
-rules pass an emulator replay (39 checks), and the app runs on the user's OPPO (Android 16)
-against the live Firebase project. See REVIEW_LOG.md for what's been verified on the device.
+**Status (2026-10-15):** v2 "Vyro" social restructure built (accounts via Google/email link, unique
+usernames, friends, DMs, per-app activity sharing, ask-to-join/invites, Prime Video) by the
+backend/media/ui agents and integrated on the real Firebase backend (`USE_FAKE_SOCIAL = false` in
+`app/.../di/AppContainer.kt`). `./gradlew assembleDebug lint test` passes (195 tests, 0 lint issues);
+rules emulator test 215/215. Not yet: rules deployed, device-tested, released. See PLAN.md "v2".
+Working name **Vyro** lives in `core/config/Brand.kt`, `app_name`, web/ (will be renamed again).
 
 Read these before changing anything:
 - `PLAN.md`: architecture, module ownership, sync rules, Firebase data model.
@@ -61,7 +63,7 @@ CLI at `data-firebase/firebase/database.rules.json`; publish with `firebase depl
 | JioHotstar link hosts | `core/.../model/StreamingService.kt` → `listOf("hotstar.com", "jiohotstar.com")` | Unverified guess; only used for a soft warning. Check against a real share link. |
 | Invite site | `web/` + `firebase.json` hosting; `RoomLinks.WEB_HOST` | `https://syncit-watchparty.web.app/join/CODE` (`firebase deploy --only hosting`, the user runs deploys). APK = `sync-it.apk` attached to GitHub releases of public repo `aritraroy02/sync-it-releases` (Spark plan can't host APKs). Ship a version with `bash scripts/release.sh X.Y.Z "notes"`. |
 | Release signing | `keystore.properties` (git-ignored) → `C:/Users/aritr/.syncit/syncit-release.jks` | Never commit. Its fingerprint is in `web/.well-known/assetlinks.json`. |
-| Launcher icon | `app/src/main/res/drawable/ic_launcher_foreground.xml` | Placeholder vector art. |
+| Privacy policy | `web/privacy.html` → https://syncit-watchparty.web.app/privacy | Contact: aritraditya.roy@gmail.com (user-provided 2026-10-15). Keep in sync with app behaviour. |
 
 ## UI
 Liquid glass (user's choice): `ui/theme/Theme.kt` (palettes, Inter font), `ui/glass/Glass.kt`

@@ -57,36 +57,61 @@ class UserPrefs(context: Context) {
         _themeMode.value = mode
     }
 
-    private val _sharedApps = MutableStateFlow(
-        prefs.getStringSet(KEY_SHARED_APPS, emptySet()).orEmpty().mapNotNull(ActivityApp::fromWire).toSet(),
-    )
+    /**
+     * Sharing choices are stored per account (keys suffixed with the uid), so a second account on
+     * this phone never inherits the first one's. [bindAccount] switches which account they belong
+     * to; signed out = share nothing.
+     */
+    private var boundUid: String? = null
 
-    /** Apps whose "now playing" friends may see. Empty (the default) = share nothing. */
+    private val _sharedApps = MutableStateFlow<Set<ActivityApp>>(emptySet())
+
+    /** Apps whose "now playing" friends may see, for the bound account. Empty (the default) = share nothing. */
     val sharedApps: StateFlow<Set<ActivityApp>> = _sharedApps.asStateFlow()
 
-    fun setSharedApps(apps: Set<ActivityApp>) {
-        prefs.edit { putStringSet(KEY_SHARED_APPS, apps.map { it.wire }.toSet()) }
-        _sharedApps.value = apps
-    }
-
-    private val _invisible = MutableStateFlow(prefs.getBoolean(KEY_INVISIBLE, false))
+    private val _invisible = MutableStateFlow(false)
 
     /** Invisible: friends see us offline and no activity is shared, whatever [sharedApps] says. */
     val invisible: StateFlow<Boolean> = _invisible.asStateFlow()
 
+    /** Called whenever the signed-in account changes (null = signed out). Synchronous. */
+    @Synchronized
+    fun bindAccount(uid: String?) {
+        if (uid == boundUid) return
+        boundUid = uid
+        _sharedApps.value = if (uid == null) {
+            emptySet()
+        } else {
+            prefs.getStringSet(KEY_SHARED_APPS + uid, emptySet()).orEmpty().mapNotNull(ActivityApp::fromWire).toSet()
+        }
+        _invisible.value = uid != null && prefs.getBoolean(KEY_INVISIBLE + uid, false)
+    }
+
+    /** Ignored while signed out (there's no account to store it for). */
+    @Synchronized
+    fun setSharedApps(apps: Set<ActivityApp>) {
+        val uid = boundUid ?: return
+        prefs.edit { putStringSet(KEY_SHARED_APPS + uid, apps.map { it.wire }.toSet()) }
+        _sharedApps.value = apps
+    }
+
+    @Synchronized
     fun setInvisible(value: Boolean) {
-        prefs.edit { putBoolean(KEY_INVISIBLE, value) }
+        val uid = boundUid ?: return
+        prefs.edit { putBoolean(KEY_INVISIBLE + uid, value) }
         _invisible.value = value
     }
 
-    private val _activitySetupFor = MutableStateFlow(prefs.getString(KEY_ACTIVITY_SETUP_UID, null))
+    private val _activitySetupDone = MutableStateFlow(prefs.getStringSet(KEY_ACTIVITY_SETUP_UIDS, emptySet()).orEmpty().toSet())
 
-    /** uid of the account that has seen the activity-sharing setup page on this phone. */
-    val activitySetupFor: StateFlow<String?> = _activitySetupFor.asStateFlow()
+    /** uids of the accounts that have completed the activity-sharing setup page on this phone. */
+    val activitySetupDone: StateFlow<Set<String>> = _activitySetupDone.asStateFlow()
 
+    @Synchronized
     fun markActivitySetupDone(uid: String) {
-        prefs.edit { putString(KEY_ACTIVITY_SETUP_UID, uid) }
-        _activitySetupFor.value = uid
+        val done = _activitySetupDone.value + uid
+        prefs.edit { putStringSet(KEY_ACTIVITY_SETUP_UIDS, done) }
+        _activitySetupDone.value = done
     }
 
     private companion object {
@@ -96,8 +121,8 @@ class UserPrefs(context: Context) {
         const val KEY_PENDING_JOIN = "pending_join"
         const val KEY_CLIPBOARD_CHECKED = "invite_clipboard_checked"
         const val KEY_THEME = "theme_mode"
-        const val KEY_SHARED_APPS = "shared_apps"
-        const val KEY_INVISIBLE = "invisible"
-        const val KEY_ACTIVITY_SETUP_UID = "activity_setup_uid"
+        const val KEY_SHARED_APPS = "shared_apps_"
+        const val KEY_INVISIBLE = "invisible_"
+        const val KEY_ACTIVITY_SETUP_UIDS = "activity_setup_uids"
     }
 }

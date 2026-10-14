@@ -36,6 +36,7 @@ import com.syncit.app.ui.diagnostics.DiagnosticsViewModel
 import com.syncit.app.ui.friends.FriendsScreen
 import com.syncit.app.ui.friends.FriendsViewModel
 import com.syncit.app.ui.glass.GlassButton
+import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.home.HomeScreen
 import com.syncit.app.ui.home.HomeViewModel
@@ -128,7 +129,11 @@ fun SyncItApp(
     when (val g = gate) {
         Gate.Loading -> Splash()
 
-        Gate.ProfileError -> Splash(error = "Couldn't load your profile. Check your connection.", onRetry = app::retryProfile)
+        Gate.ProfileError -> Splash(
+            error = "Couldn't load your profile. Check your connection and try again.",
+            onRetry = app::retryProfile,
+            onSignOut = app::signOut,
+        )
 
         Gate.SignedOut -> {
             val auth: AuthViewModel = viewModel(factory = viewModelFactory { initializer { AuthViewModel(container) } })
@@ -261,7 +266,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel) {
 
 /** Brand + spinner while auth/profile load; with [error], a retry button instead. */
 @Composable
-private fun Splash(error: String? = null, onRetry: (() -> Unit)? = null) {
+private fun Splash(error: String? = null, onRetry: (() -> Unit)? = null, onSignOut: (() -> Unit)? = null) {
     val p = Glass.palette
     GlassScreen {
         Column(
@@ -276,6 +281,7 @@ private fun Splash(error: String? = null, onRetry: (() -> Unit)? = null) {
             } else {
                 Text(error, style = MaterialTheme.typography.bodyMedium, color = p.danger)
                 if (onRetry != null) GlassButton("Try again", onClick = onRetry)
+                if (onSignOut != null) GlassButton("Sign out", onClick = onSignOut, style = GlassButtonStyle.Secondary)
             }
         }
     }

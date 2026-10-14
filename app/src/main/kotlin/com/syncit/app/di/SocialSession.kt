@@ -1,56 +1,68 @@
 package com.syncit.app.di
 
 import com.syncit.app.data.UserPrefs
-import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SyncStatus
 import com.syncit.core.session.SyncSessionController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Runs presence and the activity tracker for as long as someone is signed in (process lifetime,
- * not tied to a screen). Invisible = presence stopped and an empty share set.
+ * Runs presence and the activity tracker while an account is signed in, has finished the
+ * activity-sharing setup page on this phone, and isn't invisible (process lifetime, not tied to a
+ * screen). Also points [UserPrefs]' per-account sharing settings at the signed-in account.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SocialSession(
     private val social: SocialServices,
-    prefs: UserPrefs,
+    private val prefs: UserPrefs,
     sessionController: SyncSessionController,
     scope: CoroutineScope,
 ) {
-    /** What the tracker may publish: the user's picks, or nothing while invisible. */
-    private val effectiveSharedApps: StateFlow<Set<ActivityApp>> =
-        combine(prefs.sharedApps, prefs.invisible) { apps, invisible -> if (invisible) emptySet() else apps }
-            .stateIn(scope, SharingStarted.Eagerly, if (prefs.invisible.value) emptySet() else prefs.sharedApps.value)
-
     /**
-     * The room code to attach to shared movie activity ("Ask to join" lands there), only while
-     * we're actually on the room's title. CORRECTING/CATCHING_UP are still on the title; counting
-     * them too stops the code flapping in presence during a drift correction.
+     * True while we're actually on the room's title. CORRECTING/CATCHING_UP are still on the
+     * title; counting them stops the flag flapping in presence during a drift correction.
      */
-    private val currentRoomCode: StateFlow<String?> = sessionController.state
-        .map { s -> s.roomCode.takeIf { s.status in ON_TITLE } }
+    private val inWatchParty: StateFlow<Boolean> = sessionController.state
+        .map { it.roomCode != null && it.status in ON_TITLE }
         .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, null)
+        .stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
         scope.launch {
-            val signedInUid = social.auth.state.map { (it as? AuthState.SignedIn)?.uid }.distinctUntilChanged()
-            combine(signedInUid, prefs.invisible, ::Pair).collect { (uid, invisible) ->
-                // Restart on every change so a new account never inherits the previous one's session.
-                social.activityTracker.stop()
-                social.presence.stop()
-                if (uid != null) {
-                    if (!invisible) social.presence.start()
-                    social.activityTracker.start(effectiveSharedApps, currentRoomCode)
+            social.auth.state
+                .map { (it as? AuthState.SignedIn)?.uid }
+                .distinctUntilChanged()
+                // Synchronously, before anything reads sharedApps/invisible for the new account.
+                .onEach { prefs.bindAccount(it) }
+                .flatMapLatest { uid ->
+                    if (uid == null) {
+                        flowOf(null)
+                    } else {
+                        combine(prefs.activitySetupDone, prefs.invisible) { setupDone, invisible ->
+                            uid.takeIf { it in setupDone && !invisible }
+                        }
+                    }
                 }
-            }
+                .distinctUntilChanged()
+                .collect { activeUid ->
+                    social.activityTracker.stop()
+                    social.presence.stop()
+                    if (activeUid != null) {
+                        social.presence.start()
+                        social.activityTracker.start(prefs.sharedApps, inWatchParty)
+                    }
+                }
         }
     }
 

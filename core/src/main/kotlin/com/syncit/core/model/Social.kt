@@ -57,7 +57,9 @@ data class Presence(
 /**
  * What a user is playing, published only for apps they chose to share. Built from the app's
  * MediaSession metadata, never notifications. [artworkJpeg] is a small thumbnail (≤ 52 KB).
- * [roomCode] is set while they host a room for it. [startedAt] is server time.
+ * [inWatchParty] is true while they're in a synced room for it. The room code itself is never
+ * published (friends join only through "Ask to join", which the host approves). [startedAt] is
+ * server time.
  */
 class Activity(
     val app: ActivityApp,
@@ -67,19 +69,19 @@ class Activity(
     val playing: Boolean,
     val durationMs: Long?,
     val startedAt: Long,
-    val roomCode: String?,
+    val inWatchParty: Boolean,
 ) {
     override fun equals(other: Any?): Boolean =
         other is Activity && app == other.app && title == other.title && subtitle == other.subtitle &&
             playing == other.playing && durationMs == other.durationMs && startedAt == other.startedAt &&
-            roomCode == other.roomCode && artworkJpeg.contentEquals(other.artworkJpeg)
+            inWatchParty == other.inWatchParty && artworkJpeg.contentEquals(other.artworkJpeg)
 
     override fun hashCode(): Int =
-        listOf(app, title, subtitle, playing, durationMs, startedAt, roomCode).hashCode() * 31 +
+        listOf(app, title, subtitle, playing, durationMs, startedAt, inWatchParty).hashCode() * 31 +
             artworkJpeg.contentHashCode()
 
     override fun toString(): String =
-        "Activity(app=$app, title=$title, subtitle=$subtitle, playing=$playing, roomCode=$roomCode, art=${artworkJpeg?.size ?: 0} B)"
+        "Activity(app=$app, title=$title, subtitle=$subtitle, playing=$playing, inWatchParty=$inWatchParty, art=${artworkJpeg?.size ?: 0} B)"
 }
 
 /** dms/{dmId}/{id}: only the two friends read or write. [sentAt] is server time. */
@@ -103,6 +105,12 @@ data class JoinRequest(
     /** Set by the host when accepting. */
     val roomCode: String?,
     val sentAt: Long,
+    /**
+     * Server time the host accepted or declined; null while pending. Requesters judge freshness
+     * from this (not [sentAt]), so a late answer still works; hosts hide pending requests that
+     * are older than a cut-off.
+     */
+    val answeredAt: Long? = null,
 )
 
 enum class JoinStatus { PENDING, ACCEPTED, DECLINED }

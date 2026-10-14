@@ -58,6 +58,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.data.UpdateChecker
 import com.syncit.app.social.ActivityLinks
+import com.syncit.app.social.ActivityText
 import com.syncit.app.ui.common.BrandWordmark
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.BadgedIconButton
@@ -315,6 +316,9 @@ private fun FriendRowView(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            ActivityText.watchPartyLabel(activity)?.let {
+                Text(it, style = MaterialTheme.typography.labelMedium, color = p.accent2)
+            }
             if (activity != null) {
                 Spacer(Modifier.height(2.dp))
                 if (activity.app.kind == MediaKind.MOVIE_TV && activity.app.joinable) {
@@ -375,6 +379,9 @@ private fun FriendSheetContent(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     ActivityAppBadge(activity.app)
                     Text(row.status, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
+                    ActivityText.watchPartyLabel(activity)?.let {
+                        Text(it, style = MaterialTheme.typography.labelMedium, color = p.accent2)
+                    }
                 }
             }
             if (activity.app.joinable) {

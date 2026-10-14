@@ -5,6 +5,7 @@ import com.syncit.app.ui.home.HomeViewModel
 import com.syncit.app.ui.nav.Gate
 import com.syncit.app.ui.nav.ProfileLoad
 import com.syncit.app.ui.nav.computeGate
+import com.syncit.app.ui.social.SocialEventsViewModel
 import com.syncit.core.model.Activity
 import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.AuthState
@@ -24,17 +25,40 @@ class GateAndRowsTest {
     private val profile = UserProfile("u1", "alex", "Alex")
 
     @Test fun gateOrder() {
-        assertEquals(Gate.Loading, computeGate(AuthState.Loading, ProfileLoad.Loading, null, false))
-        assertEquals(Gate.SignedOut, computeGate(AuthState.SignedOut, ProfileLoad.Loading, "u1", true))
-        assertEquals(Gate.Loading, computeGate(signedIn, ProfileLoad.Loading, "u1", true))
-        assertEquals(Gate.ProfileError, computeGate(signedIn, ProfileLoad.Failed, "u1", true))
-        // Email-link sign-in has no display name: suggestions seed from the address.
-        assertEquals(Gate.NeedsUsername("alex"), computeGate(signedIn, ProfileLoad.Loaded(null), "u1", true))
-        assertEquals(Gate.NeedsActivitySetup("u1"), computeGate(signedIn, ProfileLoad.Loaded(profile), null, true))
+        val done = setOf("u1")
+        assertEquals(Gate.Loading, computeGate(AuthState.Loading, ProfileLoad.Loading, emptySet(), false))
+        assertEquals(Gate.SignedOut, computeGate(AuthState.SignedOut, ProfileLoad.Loading, done, true))
+        assertEquals(Gate.Loading, computeGate(signedIn, ProfileLoad.Loading, done, true))
+        // e.g. permission denied reading the profile: Retry, never the username picker.
+        assertEquals(Gate.ProfileError, computeGate(signedIn, ProfileLoad.Failed, done, true))
+        // Email-link sign-in: nothing is derived from the address.
+        assertEquals(Gate.NeedsUsername(null), computeGate(signedIn, ProfileLoad.Loaded(null), done, true))
+        assertEquals(Gate.NeedsActivitySetup("u1"), computeGate(signedIn, ProfileLoad.Loaded(profile), emptySet(), true))
         // Setup done by a different account on this phone doesn't count.
-        assertEquals(Gate.NeedsActivitySetup("u1"), computeGate(signedIn, ProfileLoad.Loaded(profile), "u2", true))
-        assertEquals(Gate.NeedsPermissions, computeGate(signedIn, ProfileLoad.Loaded(profile), "u1", false))
-        assertEquals(Gate.Ready, computeGate(signedIn, ProfileLoad.Loaded(profile), "u1", true))
+        assertEquals(Gate.NeedsActivitySetup("u1"), computeGate(signedIn, ProfileLoad.Loaded(profile), setOf("u2"), true))
+        assertEquals(Gate.NeedsPermissions, computeGate(signedIn, ProfileLoad.Loaded(profile), done, false))
+        assertEquals(Gate.Ready, computeGate(signedIn, ProfileLoad.Loaded(profile), setOf("u2", "u1"), true))
+    }
+
+    @Test fun onlyGoogleNamesSeedTheUsernamePicker() {
+        val google = AuthState.SignedIn("u1", "alex@gmail.com", " Alex Sharma ", null, SignInProvider.GOOGLE)
+        assertEquals(Gate.NeedsUsername("Alex Sharma"), computeGate(google, ProfileLoad.Loaded(null), emptySet(), false))
+        val emailWithName = AuthState.SignedIn("u1", "alex@x.com", "Alex", null, SignInProvider.EMAIL_LINK)
+        assertEquals(Gate.NeedsUsername(null), computeGate(emailWithName, ProfileLoad.Loaded(null), emptySet(), false))
+    }
+
+    @Test fun staleJoinRequests() {
+        val now = 100 * 60_000L
+        fun req(from: String, sentMinAgo: Long, status: JoinStatus = JoinStatus.PENDING) =
+            JoinRequest("me", from, from, from, ActivityApp.NETFLIX, null, status, null, now - sentMinAgo * 60_000)
+        val fresh = SocialEventsViewModel.freshPending(
+            listOf(req("old", 31), req("new", 2), req("edge", 30), req("answered", 1, JoinStatus.ACCEPTED), req("mid", 10)),
+            now,
+        )
+        // Oldest first, pending and younger than 30 min only.
+        assertEquals(listOf("mid", "new"), fresh.map { it.fromUid })
+        assertTrue(SocialEventsViewModel.isStale(now - 30 * 60_000, now))
+        assertFalse(SocialEventsViewModel.isStale(now - 29 * 60_000, now))
     }
 
     @Test fun emailValidation() {
@@ -49,7 +73,7 @@ class GateAndRowsTest {
 
     @Test fun rowsSortActiveThenOnlineThenRecentlySeen() {
         val now = 10_000_000L
-        val watching = Activity(ActivityApp.NETFLIX, "Dune", null, null, true, null, 0L, null)
+        val watching = Activity(ActivityApp.NETFLIX, "Dune", null, null, true, null, 0L, false)
         val rows = HomeViewModel.buildRows(
             friends = listOf(
                 friend("old", "Zed", Presence(false, now - 3_600_000, null)),

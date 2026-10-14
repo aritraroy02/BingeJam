@@ -48,7 +48,7 @@
       }
     },
     "usernames": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && query.orderByKey == true && query.limitToFirst <= 20",
+      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && query.orderByKey == true && query.limitToFirst <= 20 && query.startAt != null && query.startAt.length >= 2 && query.endAt == query.startAt + '\uf8ff'",
       "$name": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)) || (!newData.exists() && data.val() === auth.uid && newData.parent().parent().child('users').child(auth.uid).child('username').val().replace('.', ',') !== $name))",
@@ -66,13 +66,13 @@
             ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('username').val()"
           },
           "fromDisplayName": {
-            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('displayName').val()"
           },
           "toUsername": {
             ".validate": "newData.isString() && newData.val() === root.child('users').child($to).child('username').val()"
           },
           "toDisplayName": {
-            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            ".validate": "newData.isString() && newData.val() === root.child('users').child($to).child('displayName').val()"
           },
           "sentAt": {
             ".validate": "newData.val() === now"
@@ -149,8 +149,8 @@
           "startedAt": {
             ".validate": "newData.isNumber() && newData.val() <= now"
           },
-          "roomCode": {
-            ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/)"
+          "inWatchParty": {
+            ".validate": "newData.isBoolean()"
           },
           "$other": {
             ".validate": false
@@ -200,12 +200,12 @@
         "$from": {
           ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $host !== $from && ((!newData.exists() && (auth.uid === $from || auth.uid === $host)) || (auth.uid === $from && root.child('friends').child($host).child($from).exists()) || (auth.uid === $host && data.exists()))",
-          ".validate": "newData.hasChildren(['fromUsername', 'fromDisplayName', 'app', 'status', 'sentAt'])",
+          ".validate": "newData.hasChildren(['fromUsername', 'fromDisplayName', 'app', 'status', 'sentAt']) && (auth.uid !== $host || newData.child('status').val() === data.child('status').val() || newData.child('answeredAt').val() === now)",
           "fromUsername": {
             ".validate": "auth.uid === $from ? newData.val() === root.child('users').child($from).child('username').val() : newData.val() === data.val()"
           },
           "fromDisplayName": {
-            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40 && (auth.uid === $from || newData.val() === data.val())"
+            ".validate": "auth.uid === $from ? newData.isString() && newData.val() === root.child('users').child($from).child('displayName').val() : newData.val() === data.val()"
           },
           "app": {
             ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo') && (auth.uid === $from || newData.val() === data.val())"
@@ -221,6 +221,9 @@
           },
           "sentAt": {
             ".validate": "auth.uid === $from ? newData.val() === now : newData.val() === data.val()"
+          },
+          "answeredAt": {
+            ".validate": "auth.uid === $host && newData.isNumber() && (newData.val() === now || newData.val() === data.val())"
           },
           "$other": {
             ".validate": false
@@ -239,7 +242,7 @@
             ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('username').val()"
           },
           "fromDisplayName": {
-            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('displayName').val()"
           },
           "roomCode": {
             ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/) && root.child('rooms').child(newData.val()).child('members').child($from).exists()"

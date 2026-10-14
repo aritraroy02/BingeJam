@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
 import com.syncit.core.model.AuthState
+import com.syncit.core.model.SignInProvider
 import com.syncit.core.model.UserProfile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /** Which part of the app a user may see. Signed-out users only get the account flow. */
 sealed interface Gate {
@@ -42,7 +44,7 @@ sealed interface ProfileLoad {
 fun computeGate(
     auth: AuthState,
     profile: ProfileLoad,
-    activitySetupFor: String?,
+    activitySetupDone: Set<String>,
     onboarded: Boolean,
 ): Gate = when (auth) {
     AuthState.Loading -> Gate.Loading
@@ -51,8 +53,11 @@ fun computeGate(
         ProfileLoad.Loading -> Gate.Loading
         ProfileLoad.Failed -> Gate.ProfileError
         is ProfileLoad.Loaded -> when {
-            profile.profile == null -> Gate.NeedsUsername(auth.displayName ?: auth.email?.substringBefore('@'))
-            activitySetupFor != auth.uid -> Gate.NeedsActivitySetup(auth.uid)
+            // Only a Google display name seeds the name/suggestions; never the email address.
+            profile.profile == null -> Gate.NeedsUsername(
+                auth.displayName?.trim()?.takeIf { it.isNotEmpty() && auth.provider == SignInProvider.GOOGLE },
+            )
+            auth.uid !in activitySetupDone -> Gate.NeedsActivitySetup(auth.uid)
             !onboarded -> Gate.NeedsPermissions
             else -> Gate.Ready
         }
@@ -73,25 +78,34 @@ class AppViewModel(container: AppContainer) : ViewModel() {
      */
     val gate: StateFlow<Gate> = social.auth.state.flatMapLatest { auth ->
         if (auth !is AuthState.SignedIn) {
-            flowOf(computeGate(auth, ProfileLoad.Loading, null, false))
+            flowOf(computeGate(auth, ProfileLoad.Loading, emptySet(), false))
         } else {
             val profile = retry.flatMapLatest {
                 social.profiles.observeMyProfile()
                     .map<UserProfile?, ProfileLoad> { ProfileLoad.Loaded(it) }
                     .onStart { emit(ProfileLoad.Loading) }
+                    // e.g. permission denied: show Retry / Sign out, never the username picker.
                     .catch { emit(ProfileLoad.Failed) }
             }.onEach { load ->
                 // Rooms, room chat and the chat bubble read the name from prefs.
                 (load as? ProfileLoad.Loaded)?.profile?.displayName?.takeIf { it.isNotBlank() }
                     ?.let { prefs.displayName = it }
             }
-            combine(profile, prefs.activitySetupFor, prefs.onboarded) { load, setupFor, onboarded ->
-                computeGate(auth, load, setupFor, onboarded)
+            combine(profile, prefs.activitySetupDone, prefs.onboarded) { load, setupDone, onboarded ->
+                computeGate(auth, load, setupDone, onboarded)
             }
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, Gate.Loading)
 
     fun retryProfile() {
         retry.value++
+    }
+
+    /** Way out of a profile that can't be loaded (e.g. permission denied). */
+    fun signOut() {
+        viewModelScope.launch {
+            social.activityTracker.stop()
+            runCatching { social.auth.signOut() }
+        }
     }
 }

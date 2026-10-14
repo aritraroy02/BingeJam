@@ -8,8 +8,13 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ActivityTextTest {
-    private fun activity(app: ActivityApp, title: String?, subtitle: String? = null, playing: Boolean = true) =
-        Activity(app, title, subtitle, null, playing, null, 0L, null)
+    private fun activity(
+        app: ActivityApp,
+        title: String?,
+        subtitle: String? = null,
+        playing: Boolean = true,
+        inWatchParty: Boolean = false,
+    ) = Activity(app, title, subtitle, null, playing, null, 0L, inWatchParty)
 
     @Test fun netflixEpisode() = assertEquals(
         "Watching S2:E4 · Redanian Intelligence on Netflix",
@@ -48,6 +53,12 @@ class ActivityTextTest {
         val p = Presence(false, NOW - 5 * MIN, activity(ActivityApp.NETFLIX, "Dune"))
         assertEquals("Last seen 5m ago", ActivityText.statusLine(p, NOW))
         assertNull(ActivityText.visibleActivity(p))
+    }
+
+    @Test fun watchPartyLabel() {
+        assertEquals("In a watch party", ActivityText.watchPartyLabel(activity(ActivityApp.NETFLIX, "Dune", inWatchParty = true)))
+        assertNull(ActivityText.watchPartyLabel(activity(ActivityApp.NETFLIX, "Dune")))
+        assertNull(ActivityText.watchPartyLabel(null))
     }
 
     @Test fun lastSeenBuckets() {

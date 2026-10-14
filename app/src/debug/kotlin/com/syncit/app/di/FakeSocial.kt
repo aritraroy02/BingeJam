@@ -41,8 +41,8 @@ import kotlinx.coroutines.launch
 /**
  * In-memory stand-ins for every v2 social interface, with a few sample friends and their activity,
  * so the UI can be built and clicked through before :data-firebase and :media ship the real ones.
- * Nothing leaves the phone and nothing survives a restart. Used only behind the switch in
- * [AppContainer].
+ * Nothing leaves the phone and nothing survives a restart. Debug builds only, behind
+ * [DebugSocial.USE_FAKE_SOCIAL]; release builds don't contain this file.
  *
  * Simulated behaviour: an email sign-in link "arrives" 2.5 s after it's requested; friends reply
  * to DMs; asking to join is declined after a few seconds (a fake host can't open a real room).
@@ -88,7 +88,7 @@ object FakeSocial {
                     lastSeen = now(),
                     activity = Activity(
                         ActivityApp.NETFLIX, "Redanian Intelligence", "S2:E4", null, playing = true,
-                        durationMs = 3_480_000, startedAt = now() - 600_000, roomCode = null,
+                        durationMs = 3_480_000, startedAt = now() - 600_000, inWatchParty = true,
                     ),
                 ),
                 "u-kabir" to Presence(
@@ -96,7 +96,7 @@ object FakeSocial {
                     lastSeen = now(),
                     activity = Activity(
                         ActivityApp.SPOTIFY, "Blinding Lights", "The Weeknd", null, playing = true,
-                        durationMs = 200_000, startedAt = now() - 60_000, roomCode = null,
+                        durationMs = 200_000, startedAt = now() - 60_000, inWatchParty = false,
                     ),
                 ),
                 "u-meera" to Presence(online = true, lastSeen = now(), activity = null),
@@ -106,7 +106,7 @@ object FakeSocial {
                     lastSeen = now(),
                     activity = Activity(
                         ActivityApp.YOUTUBE, "Lo-fi beats to study to", null, null, playing = false,
-                        durationMs = null, startedAt = now() - 120_000, roomCode = null,
+                        durationMs = null, startedAt = now() - 120_000, inWatchParty = false,
                     ),
                 ),
             ),
@@ -328,7 +328,7 @@ object FakeSocial {
         }
 
         val tracker = object : ActivityTracker {
-            override fun start(sharedApps: StateFlow<Set<ActivityApp>>, currentRoomCode: StateFlow<String?>) = Unit
+            override fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>) = Unit
             override fun stop() = Unit
             override val current: StateFlow<Activity?> = MutableStateFlow(null)
         }
@@ -347,7 +347,7 @@ object FakeSocial {
                 scope.launch {
                     delay(4_000)
                     myJoinRequests.update { list ->
-                        list.map { if (it.hostUid == hostUid) it.copy(status = JoinStatus.DECLINED) else it }
+                        list.map { if (it.hostUid == hostUid) it.copy(status = JoinStatus.DECLINED, answeredAt = now()) else it }
                     }
                 }
             }

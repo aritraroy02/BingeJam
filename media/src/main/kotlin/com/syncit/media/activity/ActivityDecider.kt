@@ -23,7 +23,7 @@ import com.syncit.core.social.ActivityUpdate
  *   then the gateway's order (most recently active first).
  * - If the session goes away (Netflix closes it when leaving the player), the last activity is
  *   kept as paused until [idleTimeoutMs] after it last played, so it doesn't flicker off.
- * - Publish only when the app, title, subtitle, playing flag, room code or artwork presence
+ * - Publish only when the app, title, subtitle, playing flag, watch-party flag or artwork presence
  *   changes (never on position ticks), and only once it has been stable for [debounceMs].
  *   Clearing because the app is no longer shared is immediate.
  * - The first decision after start is always published (even null), clearing stale activity
@@ -44,7 +44,7 @@ internal class ActivityDecider(
         val title: String?,
         val subtitle: String?,
         val playing: Boolean,
-        val roomCode: String?,
+        val inWatchParty: Boolean,
         val hasArtwork: Boolean,
     )
 
@@ -71,7 +71,7 @@ internal class ActivityDecider(
     /** Something the caller should publish now; [update] null means "clear". */
     class Due(val update: ActivityUpdate?)
 
-    fun update(sessions: List<MediaSessionInfo>, sharedApps: Set<ActivityApp>, roomCode: String?, nowMs: Long) {
+    fun update(sessions: List<MediaSessionInfo>, sharedApps: Set<ActivityApp>, inWatchParty: Boolean, nowMs: Long) {
         shared = sharedApps
         val present = HashSet<String>()
         val candidates = ArrayList<Pair<MediaSessionInfo, Seen>>()
@@ -116,11 +116,12 @@ internal class ActivityDecider(
         val next: ActivityUpdate? = if (best != null) {
             val (session, s) = best
             lastShown = Shown(s.app, session.metadata)
-            ActivityUpdate(s.app, session.metadata, s.playing, roomCode.takeIf { s.app.joinable })
+            // Only movie/TV apps can be in a watch party; never the room code itself.
+            ActivityUpdate(s.app, session.metadata, s.playing, inWatchParty && s.app.joinable)
         } else {
             val last = lastShown
             if (last != null && last.app in sharedApps && playedRecently(last.app, nowMs)) {
-                ActivityUpdate(last.app, last.metadata, false, roomCode.takeIf { last.app.joinable })
+                ActivityUpdate(last.app, last.metadata, false, inWatchParty && last.app.joinable)
             } else {
                 lastShown = null
                 null
@@ -185,7 +186,7 @@ internal class ActivityDecider(
         title = metadata?.title,
         subtitle = metadata?.subtitle,
         playing = playing,
-        roomCode = roomCode,
+        inWatchParty = inWatchParty,
         hasArtwork = metadata?.artworkJpeg != null,
     )
 

@@ -51,8 +51,9 @@ fun SocialBanners(viewModel: SocialEventsViewModel) {
         ) {
             when {
                 request != null -> Banner(
-                    name = request.fromDisplayName,
-                    text = "${request.fromDisplayName} wants to join you" +
+                    username = request.fromUsername,
+                    displayName = request.fromDisplayName,
+                    text = "@${request.fromUsername} wants to join you" +
                         (request.title?.let { " watching $it" } ?: " on ${request.app.displayName}"),
                     more = (requests.size - 1).takeIf { it > 0 }?.let { "+$it more" },
                     accept = "Accept",
@@ -62,8 +63,9 @@ fun SocialBanners(viewModel: SocialEventsViewModel) {
                     onDecline = { viewModel.decline(request) },
                 )
                 invite != null -> Banner(
-                    name = invite.fromDisplayName,
-                    text = "${invite.fromDisplayName} invited you to watch" +
+                    username = invite.fromUsername,
+                    displayName = invite.fromDisplayName,
+                    text = "@${invite.fromUsername} invited you to watch" +
                         (invite.title?.let { " $it" } ?: invite.app?.let { " on ${it.displayName}" } ?: " together"),
                     more = (invites.size - 1).takeIf { it > 0 }?.let { "+$it more" },
                     accept = "Join",
@@ -80,7 +82,8 @@ fun SocialBanners(viewModel: SocialEventsViewModel) {
 
 @Composable
 private fun Banner(
-    name: String,
+    username: String,
+    displayName: String,
     text: String,
     more: String?,
     accept: String,
@@ -99,11 +102,13 @@ private fun Banner(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Avatar(name, size = 42.dp)
+            Avatar(username, size = 42.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
+                // Username first: it's the unique handle; display names are free text.
                 Text(text, style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
-                more?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = p.textSecondary) }
+                val details = listOfNotNull(displayName.takeIf { it.isNotBlank() }, more).joinToString(" · ")
+                if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

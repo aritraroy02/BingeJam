@@ -18,16 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
 /**
- * ======================== ORCHESTRATOR SWITCH: social backend ========================
- * true  = in-memory fakes (FakeSocial: sample friends, nothing leaves the phone). Rooms don't
- *         work in this mode: the v2 transport needs a real signed-in account.
- * false = real :data-firebase (FirebaseServices: auth, profiles, friends, DMs, presence,
- *         invites, transport) + :media's AndroidActivityTracker.
- * =====================================================================================
- */
-const val USE_FAKE_SOCIAL = false
-
-/**
  * Manual DI: the one place concrete implementations are chosen. Everything else sees only the
  * :core interfaces. To move to a Socket.IO backend, swap [transport] here.
  */
@@ -35,7 +25,11 @@ class AppContainer(app: Application) : SyncDependencies {
     /** Lives as long as the process (activity tracker, social session). */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    private val firebase: FirebaseServices? = if (USE_FAKE_SOCIAL) null else FirebaseServices.create(app)
+    /**
+     * Real backend, unless the debug-only switch DebugSocial.USE_FAKE_SOCIAL (app/src/debug) asks
+     * for the in-memory fakes. Release builds always take the real one.
+     */
+    private val firebase: FirebaseServices? = if (DebugSocial.USE_FAKE_SOCIAL) null else FirebaseServices.create(app)
 
     override val gateway: MediaControllerGateway = AndroidMediaControllerGateway(app)
 
@@ -56,7 +50,7 @@ class AppContainer(app: Application) : SyncDependencies {
             watchInvites = fb.watchInvites,
             activityTracker = AndroidActivityTracker(gateway, fb.presence, appScope),
         )
-    } ?: FakeSocial.create(now = transport.serverClock::serverNowMs)
+    } ?: DebugSocial.createFake(now = transport.serverClock::serverNowMs)
 
     /** Presence + activity tracker while signed in. */
     val socialSession = SocialSession(social, prefs, sessionController, appScope)

@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** First-run username picker: live availability, suggestions, editable display name. */
-class UsernameViewModel(container: AppContainer, seedName: String?) : ViewModel() {
+class UsernameViewModel(container: AppContainer, private val seedName: String?) : ViewModel() {
     private val profiles = container.social.profiles
 
     data class UiState(
@@ -26,7 +26,8 @@ class UsernameViewModel(container: AppContainer, seedName: String?) : ViewModel(
     )
 
     private val _ui = MutableStateFlow(
-        UiState(displayName = (seedName ?: container.prefs.displayName).trim().take(MAX_DISPLAY_NAME)),
+        // Only a Google display name pre-fills this; email-link users start empty.
+        UiState(displayName = seedName.orEmpty().trim().take(MAX_DISPLAY_NAME)),
     )
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
@@ -38,7 +39,7 @@ class UsernameViewModel(container: AppContainer, seedName: String?) : ViewModel(
 
     private fun loadSuggestions() {
         viewModelScope.launch {
-            val seed = _ui.value.displayName.ifBlank { null }
+            val seed = seedName?.takeIf { it.isNotBlank() }
             val list = runCatching { profiles.suggestUsernames(seed) }.getOrDefault(emptyList())
             _ui.update { it.copy(suggestions = list) }
             // Pre-fill the first idea so most people can just tap Continue.

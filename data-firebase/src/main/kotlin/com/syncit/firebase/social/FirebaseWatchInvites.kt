@@ -27,8 +27,8 @@ import kotlinx.coroutines.flow.map
  * "Ask to join" and "Invite", between friends only (enforced by the rules).
  *
  *   joinRequests/{host}/{from}  {fromUsername, fromDisplayName, app, title?, status, roomCode?, sentAt}
- *       the requester writes it as "pending"; the host may only change status (and add the
- *       room code when accepting); either side may delete it.
+ *       the requester writes it as "pending"; the host may only change status, stamping
+ *       answeredAt (server time) and adding the room code when accepting; either side may delete it.
  *   invites/{to}/{from}         {fromUsername, fromDisplayName, roomCode, app?, title?, sentAt}
  *       the inviter must be a member of that room; either side may delete it.
  *
@@ -89,14 +89,14 @@ class FirebaseWatchInvites internal constructor(
         val me = session.requireUid()
         require(isRoomCode(roomCode)) { "Invalid room code" }
         db.getReference("joinRequests").child(me).child(fromUid).updateChildren(
-            mapOf("status" to JoinStatus.ACCEPTED.wire(), "roomCode" to roomCode),
+            mapOf("status" to JoinStatus.ACCEPTED.wire(), "roomCode" to roomCode, "answeredAt" to ServerValue.TIMESTAMP),
         ).await()
     }
 
     override suspend fun declineJoin(fromUid: String) {
         val me = session.requireUid()
         db.getReference("joinRequests").child(me).child(fromUid).updateChildren(
-            mapOf("status" to JoinStatus.DECLINED.wire(), "roomCode" to null),
+            mapOf("status" to JoinStatus.DECLINED.wire(), "roomCode" to null, "answeredAt" to ServerValue.TIMESTAMP),
         ).await()
     }
 

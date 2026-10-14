@@ -27,7 +27,7 @@ class FirebaseServices private constructor(context: Context) {
     private val session = FirebaseSession(FirebaseAuth.getInstance())
     private val clock = FirebaseServerClock(db)
 
-    private val presenceImpl = FirebasePresenceRepository(session, db, clock)
+    private val presenceImpl = FirebasePresenceRepository(session, db)
 
     val auth: AuthService = FirebaseAuthService(context, session, db, beforeSignOut = presenceImpl::stop)
     val profiles: ProfileRepository = FirebaseProfileRepository(session, db)

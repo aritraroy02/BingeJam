@@ -118,7 +118,7 @@ class FriendsViewModel(container: AppContainer) : ViewModel() {
 
     fun accept(request: FriendRequest) = action(request.fromUid, "Couldn't accept") {
         friends.accept(request.fromUid)
-        _message.value = "You and ${request.fromDisplayName} are now friends"
+        _message.value = "You and @${request.fromUsername} are now friends"
     }
 
     fun decline(request: FriendRequest) = action(request.fromUid, "Couldn't decline") { friends.decline(request.fromUid) }

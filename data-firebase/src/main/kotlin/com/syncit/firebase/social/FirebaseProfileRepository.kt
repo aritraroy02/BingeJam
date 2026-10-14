@@ -11,6 +11,7 @@ import com.syncit.firebase.FirebaseSession
 import com.syncit.firebase.await
 import com.syncit.firebase.isPermissionDenied
 import com.syncit.firebase.snapshots
+import com.syncit.firebase.snapshotsOrError
 import com.syncit.firebase.string
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -39,8 +40,19 @@ class FirebaseProfileRepository internal constructor(
     private val users: DatabaseReference = db.getReference("users")
     private val usernames: DatabaseReference = db.getReference("usernames")
 
+    /**
+     * Our profile, or null while signed out or when no username has been claimed yet.
+     *
+     * Unlike [observeProfile], a failed read is an error, not null: if the listener is cancelled
+     * (e.g. "permission denied", rules not published, token problems) the flow throws the
+     * DatabaseException. "null" must only mean "this account has no profile", because the app
+     * sends a null profile to the pick-a-username screen; an existing user must see an error
+     * instead. Collectors should catch and offer a retry (re-collecting re-attaches the listener).
+     */
     override fun observeMyProfile(): Flow<UserProfile?> =
-        session.uid.flatMapLatest { uid -> if (uid == null) flowOf(null) else observeProfile(uid) }
+        session.uid.flatMapLatest { uid ->
+            if (uid == null) flowOf(null) else users.child(uid).snapshotsOrError().map { SocialParser.profile(uid, it) }
+        }
 
     override fun observeProfile(uid: String): Flow<UserProfile?> =
         users.child(uid).snapshots().map { SocialParser.profile(uid, it) }

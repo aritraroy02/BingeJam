@@ -126,7 +126,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                     }
                     GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
                         for (req in incoming) {
-                            PersonRow(req.fromDisplayName, "@${req.fromUsername} wants to be friends") {
+                            PersonRow("@${req.fromUsername}", "${req.fromDisplayName} · wants to be friends") {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     GlassSmallButton("Decline", onClick = { viewModel.decline(req) }, primary = false, enabled = req.fromUid !in busy)
                                     GlassSmallButton("Accept", onClick = { viewModel.accept(req) }, enabled = req.fromUid !in busy)
@@ -140,7 +140,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                     SectionLabel("Sent", Modifier.padding(top = 10.dp))
                     GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
                         for (req in outgoing) {
-                            PersonRow(req.toDisplayName, "@${req.toUsername} · waiting") {
+                            PersonRow("@${req.toUsername}", "${req.toDisplayName} · waiting") {
                                 GlassSmallButton("Cancel", onClick = { viewModel.cancel(req) }, primary = false, enabled = req.toUid !in busy)
                             }
                         }
@@ -165,9 +165,10 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
 
 @Composable
 private fun PersonRow(name: String, subtitle: String, trailing: @Composable () -> Unit) {
+    // Request rows lead with "@username"; the avatar letter skips the @.
     val p = Glass.palette
     Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Avatar(name, size = 42.dp)
+        Avatar(name.removePrefix("@"), size = 42.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(name, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Privacy Policy · Sync it</title>
-<meta name="description" content="How Sync it handles your data.">
+<title>Privacy Policy · Vyro</title>
+<meta name="description" content="How Vyro handles your data.">
 <link rel="stylesheet" href="/style.css">
 <style>
   .card.doc { max-width: 720px; }
@@ -18,70 +18,89 @@
 </head>
 <body>
 <main class="card doc">
-  <h1 class="brand">Sync it</h1>
-  <p class="eyebrow">Privacy Policy · Last updated 8 October 2026</p>
+  <!-- Product name: keep in sync with core/config/Brand.kt (working name, will change). -->
+  <h1 class="brand">Vyro</h1>
+  <p class="eyebrow">Privacy Policy · Last updated 15 October 2026</p>
 
-  <p>Sync it lets friends watch Netflix or JioHotstar together, each on their own Android phone, by keeping
-  play, pause and position in sync. This policy explains what the app reads, what it stores and why.
-  Sync it is not affiliated with Netflix or JioHotstar.</p>
+  <p>Vyro lets friends watch Netflix, JioHotstar or Prime Video together, each on their own Android phone, by
+  keeping play, pause and position in sync, and lets friends see what each other is watching or listening to
+  when they choose to share it. This policy explains what the app reads, what it stores and why. Vyro is not
+  affiliated with Netflix, JioHotstar, Amazon, Spotify or YouTube.</p>
 
-  <h2>What Sync it reads on your phone</h2>
+  <h2>Your account</h2>
   <ul>
-    <li><b>Media session of the streaming app you choose</b> (Netflix or JioHotstar): whether it's playing or
-      paused, the playback position and speed, which controls it supports, and the title, subtitle, length and
-      artwork it publishes for Android's media controls. Sync it sends that app play, pause and seek commands.
-      Android only allows this for apps with <b>Notification Access</b>, which is why Sync it asks for it.</li>
-    <li>Sync it <b>never reads your notifications</b>, messages or their content, and never records or
-      transmits your screen, video or audio.</li>
-    <li><b>Clipboard, once:</b> on its very first launch the app checks the clipboard one time for a Sync it
-      invite link (the invite web page puts it there so a fresh install can open your friend's room).
-      Anything else on the clipboard is ignored; nothing from it is stored or sent. Android shows its own
-      "pasted from clipboard" notice when this happens.</li>
+    <li>You sign in with <b>Google</b> or with a <b>one-time sign-in link</b> sent to your email. We receive your
+      email address, and from Google also your name and profile photo address.</li>
+    <li>Your <b>email address is private</b>: it's stored only for your own account and is never shown to other users.</li>
+    <li>You choose a unique <b>username</b>, a <b>display name</b> and optionally a short <b>bio</b>. These form your
+      public profile, which other signed-in Vyro users can see and find by username.</li>
+  </ul>
+
+  <h2>What Vyro reads on your phone</h2>
+  <ul>
+    <li><b>Media sessions</b> of supported apps (Netflix, JioHotstar, Prime Video, Spotify, YouTube Music, Amazon
+      Music, YouTube): whether something is playing or paused, the position, which controls the app supports, and
+      the title, subtitle, length and artwork the app publishes for Android's media controls. In a watch party,
+      Vyro sends the video app play, pause and seek commands. Android only allows this for apps with
+      <b>Notification Access</b>, which is why Vyro asks for it.</li>
+    <li>Vyro <b>never reads your notifications</b>, messages or their content, and never records or transmits
+      your screen, video or audio.</li>
+    <li><b>Clipboard, once:</b> on its very first launch the app checks the clipboard one time for a Vyro invite
+      link (the invite page puts it there so a fresh install can open your friend's room). Anything else is
+      ignored; nothing from it is stored or sent. Android shows its own notice when this happens.</li>
+  </ul>
+
+  <h2>Activity sharing (you choose)</h2>
+  <ul>
+    <li>Sharing is <b>off for every app until you turn it on</b>, app by app (for example Netflix on, Spotify off).
+      You can change this or go <b>invisible</b> at any time in Settings.</li>
+    <li>For the apps you share, your <b>friends only</b> see what you're playing: the app, title, subtitle, a small
+      artwork thumbnail, whether it's playing, and whether you're hosting a watch party. They also see whether
+      you're online and when you were last seen. It's cleared when you stop playing, go invisible or go offline.</li>
   </ul>
 
   <h2>What is stored, and where</h2>
-  <p>Rooms are stored in Google Firebase (Realtime Database, Singapore region) using an anonymous sign-in.
-  No account, email or phone number is needed. For each room we store:</p>
+  <p>Data is stored in Google Firebase (Realtime Database, Singapore region):</p>
   <ul>
-    <li>an anonymous user ID and the <b>display name</b> you enter;</li>
-    <li>room membership, online status and when you were last seen;</li>
-    <li>the room's play/pause state and position, and your periodically reported position (used for syncing);</li>
-    <li>if you host: the title, subtitle, length and a <b>small artwork thumbnail</b> of what you're playing,
-      and any share link you choose to add;</li>
-    <li><b>chat messages and reactions</b> you send in the room.</li>
+    <li>your profile (username, display name, photo address, bio) and private account record (email, sign-in method);</li>
+    <li>your <b>friends</b>, friend requests you send or receive, and people you've <b>blocked</b>;</li>
+    <li><b>messages</b> you send to friends, readable only by you and that friend, and when you last read each chat;</li>
+    <li>your online status and, if you share it, your current activity (above);</li>
+    <li>"ask to join" requests and room invites between friends;</li>
+    <li>for watch parties: room membership, the room's play/pause state and position, your periodically reported
+      position (used for syncing), the host's now-playing title, length and artwork thumbnail, room chat and
+      reactions. A room's contents are readable only by its members; a room's preview can be read by any
+      signed-in user who has the room code, so invitees can see what's playing before joining.</li>
   </ul>
-  <p>A room's contents are readable only by its members. A room's preview (host name, platform, title, length
-  and artwork thumbnail) can be read by any Sync it user who has the room code, so invitees can see what's
-  playing before joining; previews can't be listed or searched.</p>
 
   <h2>Other network requests</h2>
   <ul>
-    <li><b>Update check:</b> once per launch the app asks GitHub's public API whether a newer version exists.
-      No personal data is sent; GitHub sees the request (IP address) as with any web request.</li>
-    <li>The invite web page (syncit-watchparty.web.app) uses no trackers, ads, analytics or third-party scripts.</li>
+    <li><b>Update check:</b> once per launch the app asks GitHub's public API whether a newer version exists. No
+      personal data is sent; GitHub sees the request (IP address) as with any web request.</li>
+    <li>The invite web page uses no trackers, ads, analytics or third-party scripts.</li>
   </ul>
-  <p>Sync it contains <b>no ads and no analytics SDKs</b>, and never sells or shares your data.</p>
+  <p>Vyro contains <b>no ads and no analytics SDKs</b>, and never sells or shares your data.</p>
 
   <h2>Optional permissions</h2>
   <ul>
-    <li><b>Notifications:</b> one quiet notification while you're in a room, so Android keeps syncing running.</li>
+    <li><b>Notifications:</b> one quiet notification while you're in a watch party, so Android keeps syncing running.</li>
     <li><b>Display over other apps:</b> only if you turn on the floating chat bubble.</li>
     <li><b>Battery optimisation exemption:</b> only if you allow it, so syncing isn't stopped mid-movie.</li>
   </ul>
 
   <h2>Your choices and deletion</h2>
   <ul>
-    <li>Leaving a room removes your membership from it. You can stop syncing at any time from the app or its notification.</li>
-    <li>Uninstalling the app removes everything stored on your phone, including your anonymous ID.</li>
-    <li>To have room data (chat, name, positions) deleted from our database, contact us at the address below
-      with the room code.</li>
+    <li>Turn activity sharing off per app, go invisible, unfriend or block anyone at any time.</li>
+    <li>Signing out stops sharing and marks you offline. Uninstalling removes everything stored on your phone.</li>
+    <li>To delete your account and its data (profile, username, friends, messages, activity), contact us at the
+      address below from the email you signed in with.</li>
   </ul>
 
   <h2>Children</h2>
-  <p>Sync it is intended for users aged 18 and over and is not directed at children.</p>
+  <p>Vyro is intended for users aged 18 and over and is not directed at children.</p>
 
   <h2>Contact</h2>
-  <p>Questions or deletion requests: <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a></p>
+  <p>Questions or deletion requests: <a href="mailto:aritraditya.roy@gmail.com">aritraditya.roy@gmail.com</a></p>
 </main>
 </body>
 </html>

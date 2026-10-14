@@ -49,7 +49,7 @@ internal object SocialParser {
             playing = s.child("playing").bool() ?: false,
             durationMs = s.child("durationMs").long(),
             startedAt = s.child("startedAt").long() ?: 0L,
-            roomCode = s.child("roomCode").string(),
+            inWatchParty = s.child("inWatchParty").bool() ?: false,
         )
     }
 
@@ -89,6 +89,7 @@ internal object SocialParser {
             status = joinStatus(s.child("status").string()) ?: return null,
             roomCode = s.child("roomCode").string(),
             sentAt = s.child("sentAt").long() ?: 0L,
+            answeredAt = s.child("answeredAt").long(),
         )
     }
 

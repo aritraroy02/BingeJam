@@ -69,6 +69,21 @@ internal fun Query.snapshots(): Flow<DataSnapshot?> = callbackFlow {
     awaitClose { removeEventListener(listener) }
 }
 
+/** Live value of [this] query; a cancelled listener fails the flow with the DatabaseException. */
+internal fun Query.snapshotsOrError(): Flow<DataSnapshot> = callbackFlow {
+    val listener = object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            trySend(snapshot)
+        }
+
+        override fun onCancelled(error: DatabaseError) {
+            close(error.toException())
+        }
+    }
+    addValueEventListener(listener)
+    awaitClose { removeEventListener(listener) }
+}
+
 /** combine() that emits an empty list for no flows (plain combine would never emit). */
 internal inline fun <reified T> combineAll(flows: List<Flow<T>>): Flow<List<T>> =
     if (flows.isEmpty()) flowOf(emptyList()) else combine(flows) { it.toList() }

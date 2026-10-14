@@ -8,6 +8,7 @@ import com.syncit.core.model.JoinStatus
 import com.syncit.core.model.RoomInvite
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -40,9 +42,19 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
     private val events = Channel<NavEvent>(Channel.BUFFERED)
     val navEvents: Flow<NavEvent> = events.receiveAsFlow()
 
-    val joinRequests: StateFlow<List<JoinRequest>> = invites.observeIncomingJoinRequests()
-        .map { list -> list.filter { it.status == JoinStatus.PENDING }.sortedBy { it.sentAt } }
-        .catch { emit(emptyList()) }
+    /** Server time, re-read every 30 s so pending requests age out of the banner on their own. */
+    private val now = flow {
+        while (true) {
+            emit(container.transport.serverClock.serverNowMs())
+            delay(30_000)
+        }
+    }
+
+    /** Pending requests younger than [STALE_MS]; older ones are declined automatically (init). */
+    val joinRequests: StateFlow<List<JoinRequest>> = combine(
+        invites.observeIncomingJoinRequests().catch { emit(emptyList()) },
+        now,
+    ) { list, nowMs -> freshPending(list, nowMs) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Invites, minus any for the room we're already syncing in. */
@@ -52,8 +64,9 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
     ) { list, session -> list.filter { it.roomCode != session.roomCode }.sortedBy { it.sentAt } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** uid -> "@username", to name the host when our request is answered. */
     private val friendNames: StateFlow<Map<String, String>> = container.social.friends.observeFriends()
-        .map { list -> list.associate { it.profile.uid to it.profile.displayName } }
+        .map { list -> list.associate { it.profile.uid to "@${it.profile.username}" } }
         .catch { emit(emptyMap()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
@@ -67,9 +80,24 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
     /** Outcomes already acted on (the node stays until cleared, and may re-emit). */
     private val handled = mutableSetOf<String>()
 
+    /** Stale pending requests already auto-declined. */
+    private val autoDeclined = mutableSetOf<String>()
+
     init {
         viewModelScope.launch {
             invites.observeMyJoinRequests().catch { }.collect { list -> list.forEach { onMyRequest(it) } }
+        }
+        // Host side: a request nobody answered within STALE_MS can't be accepted any more, so
+        // decline it (the requester sees the usual gentle note, if they're still waiting).
+        viewModelScope.launch {
+            combine(invites.observeIncomingJoinRequests().catch { emit(emptyList()) }, now, ::Pair)
+                .collect { (list, nowMs) ->
+                    for (r in list) {
+                        if (r.status != JoinStatus.PENDING || !isStale(r.sentAt, nowMs)) continue
+                        if (!autoDeclined.add("${r.fromUid}:${r.sentAt}")) continue
+                        runCatching { invites.declineJoin(r.fromUid) }
+                    }
+                }
         }
     }
 
@@ -79,8 +107,9 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
         handled += key
         val host = friendNames.value[request.hostUid] ?: "Your friend"
         runCatching { invites.clearMyJoinRequest(request.hostUid) }
-        // An answer from long ago (app was closed) shouldn't throw us into an old room.
-        val fresh = container.transport.serverClock.serverNowMs() - request.sentAt < STALE_ANSWER_MS
+        // An answer from long ago (app was closed) shouldn't throw us into an old room. Judged
+        // from when the host answered, so a late but recent answer still works.
+        val fresh = !isStale(request.answeredAt ?: request.sentAt, container.transport.serverClock.serverNowMs())
         when (request.status) {
             JoinStatus.ACCEPTED -> {
                 val code = request.roomCode
@@ -98,13 +127,19 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
      * Host accepts: use the room we're syncing in, or create one (as "Start" on Home does) and
      * open it, which starts the sync session. Then hand the code to the requester.
      */
-    fun accept(request: JoinRequest) = act(request.fromUid, "Couldn't let ${request.fromDisplayName} in") {
+    fun accept(request: JoinRequest) = act(request.fromUid, "Couldn't let @${request.fromUsername} in") {
+        // The banner may have sat on screen past the cut-off.
+        if (isStale(request.sentAt, container.transport.serverClock.serverNowMs())) {
+            invites.declineJoin(request.fromUid)
+            _notice.value = "That request expired. Ask @${request.fromUsername} to send a new one."
+            return@act
+        }
         val running = container.sessionController.state.value.roomCode
         val code = running ?: container.transport.createRoom(container.prefs.displayName.ifBlank { "Host" })
             .also { container.prefs.lastRoomCode = it }
         invites.acceptJoin(request.fromUid, code)
         if (running == null) events.send(NavEvent.OpenRoom(code))
-        _notice.value = "${request.fromDisplayName} is joining your watch party"
+        _notice.value = "@${request.fromUsername} is joining your watch party"
     }
 
     fun decline(request: JoinRequest) = act(request.fromUid, "Couldn't decline") { invites.declineJoin(request.fromUid) }
@@ -137,7 +172,16 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     companion object {
-        /** Answers to "Ask to join" older than this are cleared without acting on them. */
-        const val STALE_ANSWER_MS = 30 * 60_000L
+        /**
+         * Pending requests older than this (by sentAt) are hidden and declined on the host's side;
+         * answers older than this (by answeredAt) are ignored on the requester's side.
+         */
+        const val STALE_MS = 30 * 60_000L
+
+        /** Both arguments are server time. */
+        fun isStale(at: Long, nowMs: Long): Boolean = nowMs - at >= STALE_MS
+
+        fun freshPending(list: List<JoinRequest>, nowMs: Long): List<JoinRequest> =
+            list.filter { it.status == JoinStatus.PENDING && !isStale(it.sentAt, nowMs) }.sortedBy { it.sentAt }
     }
 }
