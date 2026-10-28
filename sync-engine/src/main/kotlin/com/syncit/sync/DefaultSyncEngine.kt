@@ -48,6 +48,14 @@ class DefaultSyncEngine(
      * its resume point), not user actions: attach time + attachSettleMs.
      */
     private var settleUntil = 0L
+    /**
+     * Realigns caused by the app's own start-up changes since the last attach. Capped: Netflix
+     * lands a seek on the keyframe before the target and starts playing by itself, so re-aligning on
+     * every one of its changes became a pause/seek loop (~25 times in 4 s on a Motorola, 2026-10-29).
+     */
+    private var settleRealigns = 0
+    /** Cap reached: realign once the settle window is over (onTick). */
+    private var realignWhenSettled = false
     /** True until we've lined the local app up with the room after (re)attaching. */
     private var needsAlignment = true
     /** Elapsed time the app entered its current transient state (buffering, skipping...); null once settled. */
@@ -109,6 +117,8 @@ class DefaultSyncEngine(
             if (restart == null) {
                 settleUntil = now + config.attachSettleMs
                 needsAlignment = true
+                settleRealigns = 0
+                realignWhenSettled = false
             }
             EngineOutput.NONE
         } else {
@@ -173,6 +183,10 @@ class DefaultSyncEngine(
         }
 
         output += expireTransientHold(now)
+        if (realignWhenSettled && now >= settleUntil) {
+            realignWhenSettled = false
+            needsAlignment = true
+        }
         if (needsAlignment && restart == null) output += align(now)
 
         catchUpResumeAt?.let { resumeAt ->
@@ -279,8 +293,14 @@ class DefaultSyncEngine(
 
         if (now < settleUntil || pendingJump == TransientJump.STARTUP) {
             // The app is still starting up (autoplay, jumping to its resume point). That's not
-            // the user; pull it back in line with the room instead of broadcasting it.
-            needsAlignment = true
+            // the user; pull it back in line with the room instead of broadcasting it, but only a
+            // few times; after that, once more when the window is over.
+            if (settleRealigns < config.maxSettleRealigns) {
+                settleRealigns++
+                needsAlignment = true
+            } else {
+                realignWhenSettled = true
+            }
             return EngineOutput.NONE
         }
 
@@ -605,6 +625,7 @@ class DefaultSyncEngine(
         snapshot = null
         localStatus = null
         needsAlignment = true
+        realignWhenSettled = false
         transientSince = null
         transientJump = null
         echo.clear()

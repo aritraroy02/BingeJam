@@ -154,6 +154,41 @@ class TimelineSyncTest {
         assertEquals(listOf(SyncCommand.SeekTo(60_000)), out.commands)
     }
 
+    /**
+     * Netflix on a Motorola (2026-10-29), room paused: each pause + seek landed on the keyframe 3 s
+     * before the target and Netflix started playing by itself, so every reading in the attach-settle
+     * window triggered another realign (~25 in 4 s). Now: a couple, then one more after the window,
+     * and nothing is broadcast.
+     */
+    @Test
+    fun lateJoin_appThatLandsEarlyAndAutoplays_doesNotLoop() {
+        val engine = DefaultSyncEngine(ME, clock)
+        val room = 5_226_911L
+        engine.onRoom(clock.roomState(PlaybackStatus.PAUSED, room, seq = 9), emptyList())
+        var commandBatches = 0
+        var broadcasts = 0
+        fun feed(snapshot: com.syncit.core.model.PlaybackSnapshot) {
+            val out = engine.onLocalSnapshot(snapshot)
+            if (out.commands.isNotEmpty()) commandBatches++
+            if (out.broadcast != null) broadcasts++
+        }
+        feed(clock.paused(5_224_634))
+        // ~150 ms per round, for the whole 4 s window: Netflix buffers, lands early, plays.
+        while (clock.elapsed < 1_000_000L + SyncConfig().attachSettleMs - 200) {
+            clock.advance(60); feed(clock.buffering(room))
+            clock.advance(60); feed(clock.playing(room - 3_060))
+            clock.advance(30); feed(clock.paused(room - 3_060))
+        }
+        assertTrue("realigned $commandBatches times inside the window", commandBatches <= 3)
+
+        // Window over: exactly one more realign on the next tick.
+        clock.advance(400)
+        val after = engine.onTick()
+        assertTrue(after.commands.isNotEmpty())
+        assertEquals(0, broadcasts)
+        assertNull(after.broadcast)
+    }
+
     @Test
     fun lateJoin_roomArrivesAfterApp_stillAligns() {
         val engine = DefaultSyncEngine(ME, clock)

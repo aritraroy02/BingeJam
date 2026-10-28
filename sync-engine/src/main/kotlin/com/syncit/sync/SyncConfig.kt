@@ -37,6 +37,8 @@ data class SyncConfig(
     val maxCatchUpPauseMs: Long = 30_000,
     /** After (re)attaching to the app, its own start-up changes aren't treated as user actions. */
     val attachSettleMs: Long = 4_000,
+    /** Within the attach-settle window, at most this many realigns; one more when it ends. */
+    val maxSettleRealigns: Int = 2,
     /** After we broadcast, skip drift checks this long so our write can land first. */
     val broadcastGraceMs: Long = 3_000,
     // ---- Item change (onItemChanged: a new track in a jam) ----
