@@ -30,8 +30,12 @@ internal class CapabilityDetector(private val config: SyncConfig) {
         seenActions += snapshot.actions
 
         if (snapshot.positionMs < 0) {
-            // PLAYBACK_POSITION_UNKNOWN: the app tells us outright it has no position.
-            positionReliable = false
+            // PLAYBACK_POSITION_UNKNOWN while actually playing or paused: the app tells us outright
+            // it has no position. While it's still loading (Netflix's first reading after opening
+            // a title is CONNECTING with -1, then PAUSED at the resume point) that says nothing.
+            if (snapshot.state == LocalPlaybackState.PLAYING || snapshot.state == LocalPlaybackState.PAUSED) {
+                positionReliable = false
+            }
             return
         }
 

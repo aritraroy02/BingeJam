@@ -1,5 +1,7 @@
 package com.syncit.sync
 
+import com.syncit.core.model.LocalPlaybackState
+import com.syncit.core.model.MediaAction
 import com.syncit.core.model.Member
 import com.syncit.core.model.PlaybackSnapshot
 import com.syncit.core.model.PlaybackStatus
@@ -84,6 +86,40 @@ class FallbackModesTest {
     @Test
     fun positionUnknown_isPlayPauseOnly() {
         val engine = DefaultSyncEngine(ME, clock)
+        engine.onLocalSnapshot(clock.playing(PlaybackSnapshot.POSITION_UNKNOWN))
+        assertEquals(SyncMode.PLAY_PAUSE_ONLY, engine.mode)
+    }
+
+    /**
+     * Netflix opened from a watch link (Motorola, 2026-10-29): CONNECTING with no position, then
+     * PAUSED at the viewer's own resume point without SEEK_TO, BUFFERING, then PLAYING. The loading
+     * reading must not turn timeline sync off: the member is pulled to the room's position.
+     */
+    @Test
+    fun positionUnknownWhileConnecting_keepsTimelineSync_andLateJoinSeeks() {
+        val engine = DefaultSyncEngine(ME, clock)
+        val room = 5_162_000L
+        engine.onRoom(clock.roomState(PlaybackStatus.PLAYING, room, seq = 7), emptyList())
+        val loading = setOf(MediaAction.STOP, MediaAction.PLAY)
+
+        engine.onLocalSnapshot(clock.snapshot(LocalPlaybackState.CONNECTING, 8, PlaybackSnapshot.POSITION_UNKNOWN, loading))
+        clock.advance(5)
+        engine.onLocalSnapshot(clock.paused(5_134_000, loading))
+        clock.advance(66)
+        engine.onLocalSnapshot(clock.buffering(5_134_000, setOf(MediaAction.STOP)))
+        clock.advance(934)
+        val out = engine.onLocalSnapshot(clock.playing(5_133_398))
+
+        assertEquals(SyncMode.FULL, engine.mode)
+        val seek = out.commands.filterIsInstance<SyncCommand.SeekTo>().singleOrNull()
+        assertTrue("expected a seek to the room, got ${out.commands}", seek != null)
+        assertTrue(kotlin.math.abs(seek!!.positionMs - (room + 1_005)) < 50)
+    }
+
+    @Test
+    fun positionUnknownWhilePlaying_isStillPlayPauseOnly() {
+        val engine = DefaultSyncEngine(ME, clock)
+        engine.onLocalSnapshot(clock.snapshot(LocalPlaybackState.CONNECTING, 8, PlaybackSnapshot.POSITION_UNKNOWN))
         engine.onLocalSnapshot(clock.playing(PlaybackSnapshot.POSITION_UNKNOWN))
         assertEquals(SyncMode.PLAY_PAUSE_ONLY, engine.mode)
     }
