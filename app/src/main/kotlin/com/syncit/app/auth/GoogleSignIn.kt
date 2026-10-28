@@ -2,6 +2,7 @@ package com.syncit.app.auth
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -18,6 +19,7 @@ import kotlinx.coroutines.CancellationException
  * it into a Firebase sign-in, so this is the only place that touches Google's UI APIs.
  */
 object GoogleSignIn {
+    private const val TAG = "SyncItAuth"
 
     sealed interface Result {
         data class Token(val idToken: String) : Result
@@ -56,13 +58,18 @@ object GoogleSignIn {
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (_: GetCredentialCancellationException) {
+        } catch (e: GetCredentialCancellationException) {
+            // Also what Google returns when this build's signing certificate isn't registered.
+            Log.w(TAG, "Google sign-in cancelled: ${e.type} ${e.errorMessage}", e)
             Result.Cancelled
-        } catch (_: NoCredentialException) {
+        } catch (e: NoCredentialException) {
+            Log.w(TAG, "No Google credential: ${e.errorMessage}", e)
             Result.Failed("No Google account found on this phone. Add one in Settings, or continue with email.")
         } catch (e: GetCredentialException) {
+            Log.w(TAG, "Google sign-in failed: ${e.type} ${e.errorMessage}", e)
             Result.Failed(e.errorMessage?.toString() ?: "Google sign-in didn't work. Try again or continue with email.")
-        } catch (_: GoogleIdTokenParsingException) {
+        } catch (e: GoogleIdTokenParsingException) {
+            Log.w(TAG, "Couldn't parse the Google ID token", e)
             Result.Failed("Google sign-in didn't work. Try again or continue with email.")
         }
     }

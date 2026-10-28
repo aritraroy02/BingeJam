@@ -164,6 +164,18 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
 - Room hero for JioHotstar has no poster (falls back to the aurora backdrop + JioHotstar badge).
 - JioHotstar kept playing while Sync it was in front this time.
 
+## Push notifications (2026-10-28, OPPO CPH2607, debug build)
+- `push-relay/` deployed at `https://vyro-push-relay.aritraroy02.workers.dev`; `pushTokens` rule published.
+- `./gradlew assembleDebug test`: green. Phone registered one token after email-link sign-in.
+- Scripted test bot (custom-token account, deleted afterwards): friend request → notification ✅;
+  after accepting, a DM → notification, tap opens the chat ✅.
+- Found: the first upload of the service-account secret via PowerShell piping carried a BOM → relay
+  502 (`Unexpected token '﻿'`); re-uploaded through `cmd` redirection (documented in RUN_ON_MY_MACHINE.md).
+- Google sign-in on the laptop's debug build returned "[16] Account reauth failed" while the phone's
+  mobile data wasn't validated; works in the v0.3.0 release. GoogleSignIn now logs Google's reason
+  (tag SyncItAuth) instead of failing silently.
+- Ships to other users only with the next release; both sender and receiver need it.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.

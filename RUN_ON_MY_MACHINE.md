@@ -95,6 +95,9 @@ Blaze. So sending is done by `push-relay/`, a Cloudflare Worker on Cloudflare's 
    wrangler deploy
    ```
    `deploy` prints the URL, e.g. `https://vyro-push-relay.<subdomain>.workers.dev`.
+   **Windows PowerShell:** don't pipe the key with `Get-Content | wrangler ...`. PowerShell 5.1 adds
+   a byte-order mark and the relay then fails with `Unexpected token '﻿'` (502). Use
+   `cmd /c "npx wrangler secret put FIREBASE_SERVICE_ACCOUNT < path\to\key.json"`.
 3. Put that URL in `FirebaseConfig.PUSH_RELAY_URL`
    (`data-firebase/src/main/kotlin/com/syncit/firebase/FirebaseConfig.kt`).
 4. Publish the rules (new `pushTokens` node): `firebase deploy --only database`.
