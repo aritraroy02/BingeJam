@@ -278,6 +278,7 @@ let it start. Status card on both shows **Syncing**. Turn on **Drift (debug)** o
 | 15 | Stop from notification | B taps **Stop syncing** in the notification | B stops following; status "Not in a room" + **Resume syncing** works |
 | 15a | Quit from notification | B taps **Quit BingeJam** in the sync notification | Notification and chat bubble disappear, app leaves recents; A shows B offline within ~1 min; friends see B offline. `adb shell dumpsys activity services com.syncit.app` lists no MediaListenerService/SyncForegroundService. A DM to B still notifies. Opening the app brings everything back (Media diagnostics lists sessions again) |
 | 15b | No ghost notification | B taps **Stop syncing** (or leaves the room) | The sync notification goes away; no leftover "room CODE · Not in a room" notification |
+| 8a | Play in Netflix opens the movie | Host plays a Netflix **movie** (e.g. The Paradise); B joins and taps **Play in Netflix** | B's Netflix starts that movie directly (no search), then jumps to the host's position. "Movie found with Watchmode" shows under the button. Movie not in Watchmode (e.g. Extraction): Netflix search opens with the title typed in. Episodes: same as before. Relay logs: `npx wrangler tail` in push-relay/ |
 | 16 | No session | Close Netflix on B entirely | B status "Netflix not open"; countdown card available |
 | 17 | Countdown | A taps **3, 2, 1 countdown** | Both phones show Get ready → 3 → 2 → 1 → PLAY NOW within ~0.3 s of each other |
 | 18 | Leave | B taps Leave room | A shows B removed; B back on Home |
