@@ -4,37 +4,41 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-28):** v0.3.0 (v2 "Vyro" social restructure: Google/email-link accounts, unique
-usernames, friends, DMs, per-app activity sharing, ask-to-join/invites, Prime Video) is released.
-Built on `main` since, **not released yet** (next release = 0.4.0):
+**Status (2026-10-29):** **v0.4.0 released** (GitHub releases, versionCode 7; tag v0.4.0 pushed).
+v0.3.0 was the v2 "Vyro" social restructure (Google/email-link accounts, unique usernames, friends,
+DMs, per-app activity sharing, ask-to-join/invites, Prime Video). New in 0.4.0:
 - Push notifications for new DMs and friend requests: FCM, sent by `push-relay/` (Cloudflare
   Worker, free) because Cloud Functions need Blaze. Tested on the user's OPPO with a test bot.
 - Profile pictures (photo or GIF ≤ 1 MB) stored in the same Worker's KV namespace `AVATARS`;
   shown with Coil. Photo upload tested on the phone; GIF not yet confirmed.
 - "News & updates" channel so Firebase-console announcements also show while the app is open.
 - **Jams** (synced listening) for Spotify, YouTube Music, Amazon Music, YouTube: friend asks to
-  jam / is invited, the same track starts on their phone (playFromUri/playFromSearch or the app opens
-  on the exact item), play/pause/seek sync, members follow the host's track changes. See PLAN.md
-  "Jams" and RUN_ON_MY_MACHINE.md J1–J10 (not yet tried on two phones). Needs the jam rules deployed.
-- Already **live** in production: Worker (notify + avatars), RTDB rules (`pushTokens`, `photoUrl`
-  prefix), hosting (privacy policy). Old app versions keep working; the new features need 0.4.0 on
-  both the sender's and the receiver's phone.
+  jam / is invited, the same track starts on their phone (playFromUri/playFromSearch, or the room
+  screen opens the app on the exact item), play/pause/seek sync, members follow the host's track
+  changes. See PLAN.md "Jams". **Not yet tried on two phones** (RUN_ON_MY_MACHINE.md J1–J13).
+- Sync engine: scrubs through BUFFERING are broadcast (were dropped), stalls aren't seeks; host
+  switching app/episode is a leader item change; room kind (watch party vs jam) locks once someone joins.
+- Live in production: Worker (notify + avatars), RTDB rules (pushTokens, photoUrl, jam services,
+  playableRef; deployed 2026-10-28, emulator 332/332), hosting (privacy policy incl. jams).
+  `./gradlew assembleDebug lint test`: 433 tests, 0 failures, lint clean.
 Working name **Vyro** lives in `core/config/Brand.kt`, `app_name`, web/ (will be renamed again).
 
-## Next steps (as of 2026-10-28)
-1. **Release 0.4.0 from the dev machine** (it has the release key; never create a new key, since installs
-   couldn't update): `git pull`, `gh auth status`, `bash scripts/release.sh 0.4.0 "Notifications for
-   messages and friend requests; profile pictures and GIFs"`, then `git push --follow-tags`.
-   Users on 0.3.0 then see the "update available" banner on Home (UpdateChecker → GitHub releases).
-2. On the user's OPPO: it currently runs a **debug build signed on the work laptop**. Uninstall it
-   before installing the release (`adb uninstall com.syncit.app`); the user signs in again.
+## Next steps (as of 2026-10-29)
+1. Two-phone jam test (RUN_ON_MY_MACHINE.md J1–J13): what Spotify/YouTube/YT Music/Amazon Music
+   publish as MEDIA_ID (`ref=` in SyncItDiag), whether they honour playFromUri/playFromSearch, track
+   changes, and the watch-party regressions J8–J12. Thresholds may need tuning.
+2. On the user's OPPO: it runs a **debug build signed on the work laptop**. Uninstall it before
+   installing the release (`adb uninstall com.syncit.app`); the user signs in again.
 3. Confirm a GIF profile picture animates (Edit profile → Change).
 4. Known open items: web/index.html and web/join.html still say "Sync it" (app and privacy say
    Vyro); Google sign-in on a non-release build failed with "[16] Account reauth failed" while the
    phone's mobile data was unvalidated (works in releases; `SyncItAuth` logs Google's reason now);
-   no cleanup job for old rooms/chats; rooms/previews/chats still allow anonymous v1 users.
+   no cleanup job for old rooms/chats; rooms/previews/chats still allow anonymous v1 users;
+   if the host is in a Netflix room and accepts a Spotify jam request, the friend joins that room.
 5. The work laptop's debug signing fingerprints (SHA-1 `CB:AC:27:…`, SHA-256 `C1:6B:F2:…`) were added
    to the Firebase Android app for testing; remove them in Project settings if no longer needed.
+6. Releases: only from the machine with the release key (never create a new key):
+   `bash scripts/release.sh X.Y.Z "notes"` (GH=path to gh if not on PATH), then `git push --follow-tags`.
 
 Read these before changing anything:
 - `PLAN.md`: architecture, module ownership, sync rules, Firebase data model.

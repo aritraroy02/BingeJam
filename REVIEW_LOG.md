@@ -195,6 +195,12 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
   song; late-BUFFERING after a freeze broadcasting a backward seek; ref-after-title counted as a new
   track; members pulled back after leaving the jam; background song shown as "In a jam";
   "Back to the jam" for apps without play-from actions.
+- Re-review (2026-10-28) after merging the user's push/avatars work: blocker fixed; two MEDIUM found and
+  fixed: a music app already playing locked a new room as a jam (kind now follows the alone host, locks
+  once someone joins), and a watch-party host switching Netflix → Prime was pulled back to the old room
+  state (host app/title change is now a leader item change; members use `onItemChanged(false)`).
+  Engine stall fix capped by `stallWindowMaxMs` (15 s). 433 unit tests, lint clean, rules 332/332.
+- Released in **0.4.0** (2026-10-28) with rules + hosting deployed first. Not yet tried on two phones.
 
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
