@@ -8,10 +8,10 @@ object SyncStatusLabels {
     fun label(status: SyncStatus, appName: String): String = when (status) {
         SyncStatus.IDLE -> "Not in a room"
         SyncStatus.WAITING_FOR_ROOM -> "Connecting to room…"
-        SyncStatus.NO_NOTIFICATION_ACCESS -> "Session not found: turn on Notification Access"
+        SyncStatus.NO_NOTIFICATION_ACCESS -> "Can't see $appName: turn on Notification Access"
         SyncStatus.NOT_CONFIGURED -> "$appName isn't configured yet"
-        SyncStatus.APP_NOT_OPEN -> "$appName not open"
-        SyncStatus.SESSION_LOST -> "Session not found"
+        SyncStatus.APP_NOT_OPEN -> "$appName not open on this phone"
+        SyncStatus.SESSION_LOST -> "$appName closed on this phone"
         SyncStatus.OTHER_TITLE -> "Not on the same title"
         SyncStatus.SYNCING -> "Syncing"
         SyncStatus.CORRECTING -> "Out of sync, correcting"

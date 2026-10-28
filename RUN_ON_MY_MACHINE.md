@@ -270,7 +270,7 @@ let it start. Status card on both shows **Syncing**. Turn on **Drift (debug)** o
 | 7 | Drift | Let it play 10 min | Drift overlay stays within ±1.5 s; no visible stutter from constant corrections |
 | 8 | Join mid-movie | Room playing 10 min in; C (or B after leaving) joins and opens the title | C seeks to the room position, then plays |
 | 9 | Join while paused | Pause room; C joins | C ends paused at the room position |
-| 10 | Kill & reopen Netflix | On B: swipe Netflix away from recents | B status: "Session not found". Reopen the title on B → it seeks to the room position and matches play/pause; A unaffected |
+| 10 | Kill & reopen Netflix | On B: swipe Netflix away from recents | B status: "Netflix closed on this phone". Reopen the title on B → it seeks to the room position and matches play/pause; A unaffected |
 | 11 | Netflix autoplay | B reopens Netflix and it autoplays from its resume point | B is pulled to the room, A is NOT moved |
 | 12 | Network loss 30 s | Airplane mode on B for 30 s while playing; A pauses meanwhile | A shows B offline. When B reconnects, B pauses to match A |
 | 13 | Network loss, local action | Airplane on B, B pauses, wait 30 s, airplane off | After reconnect the room follows the last write; both end in the same state |
@@ -279,7 +279,7 @@ let it start. Status card on both shows **Syncing**. Turn on **Drift (debug)** o
 | 15a | Quit from notification | B taps **Quit BingeJam** in the sync notification | Notification and chat bubble disappear, app leaves recents; A shows B offline within ~1 min; friends see B offline. `adb shell dumpsys activity services com.syncit.app` lists no MediaListenerService/SyncForegroundService. A DM to B still notifies. Opening the app brings everything back (Media diagnostics lists sessions again) |
 | 15b | No ghost notification | B taps **Stop syncing** (or leaves the room) | The sync notification goes away; no leftover "room CODE · Not in a room" notification |
 | 8a | Play in Netflix opens the movie | Host plays a Netflix **movie** (e.g. The Paradise); B joins and taps **Play in Netflix** | B's Netflix starts that movie directly (no search), then jumps to the host's position. "Movie found with Watchmode" shows under the button. Movie not in Watchmode (e.g. Extraction): Netflix search opens with the title typed in. Episodes: same as before. Relay logs: `npx wrangler tail` in push-relay/ |
-| 16 | No session | Close Netflix on B entirely | B status "Netflix not open"; countdown card available |
+| 16 | No session | Close Netflix on B entirely | B status "Netflix not open on this phone"; countdown card available |
 | 17 | Countdown | A taps **3, 2, 1 countdown** | Both phones show Get ready → 3 → 2 → 1 → PLAY NOW within ~0.3 s of each other |
 | 18 | Leave | B taps Leave room | A shows B removed; B back on Home |
 | 19 | Chat & reactions | Send messages and reactions both ways | Appear on the other phone within ~1 s |
