@@ -1,6 +1,7 @@
 package com.syncit.app.di
 
 import com.syncit.core.auth.AuthService
+import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.ActivityTracker
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendsRepository
@@ -22,6 +23,7 @@ class SocialServices(
     val watchInvites: WatchInvites,
     val activityTracker: ActivityTracker,
     val push: PushRegistry,
+    val avatars: AvatarStore,
     /** True for [FakeSocial]: "Continue with Google" skips Credential Manager and signs in directly. */
     val isFake: Boolean = false,
 )

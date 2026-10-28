@@ -1,15 +1,19 @@
 package com.syncit.app.ui.settings
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
 import com.syncit.app.push.PushNotifications
 import com.syncit.app.social.ActivityText
+import com.syncit.app.social.AvatarImages
 import com.syncit.app.social.UsernameAvailability
 import com.syncit.app.social.UsernameRules
 import com.syncit.core.model.Activity
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.UserProfile
+import com.syncit.core.social.AvatarException
 import com.syncit.core.social.UsernameTakenException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,15 +65,18 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     }
 }
 
-/** Edit username (live availability), display name and bio. */
+/** Edit profile picture, username (live availability), display name and bio. */
 class EditProfileViewModel(container: AppContainer) : ViewModel() {
     private val profiles = container.social.profiles
+    private val avatars = container.social.avatars
 
     data class UiState(
         val loaded: Boolean = false,
         val username: String = "",
         val displayName: String = "",
         val bio: String = "",
+        val photoUrl: String? = null,
+        val photoBusy: Boolean = false,
         val saving: Boolean = false,
         val saved: Boolean = false,
         val error: String? = null,
@@ -87,9 +94,50 @@ class EditProfileViewModel(container: AppContainer) : ViewModel() {
             val me = runCatching { profiles.observeMyProfile().first() }.getOrNull()
             current = me
             _ui.update {
-                it.copy(loaded = true, username = me?.username.orEmpty(), displayName = me?.displayName.orEmpty(), bio = me?.bio.orEmpty())
+                it.copy(
+                    loaded = true,
+                    username = me?.username.orEmpty(),
+                    displayName = me?.displayName.orEmpty(),
+                    bio = me?.bio.orEmpty(),
+                    photoUrl = me?.photoUrl,
+                )
             }
             availability.onInput(me?.username.orEmpty())
+        }
+    }
+
+    /** Uploads the picked picture (GIFs stay animated) and puts it on our profile right away. */
+    fun changePhoto(context: Context, uri: Uri) {
+        val appContext = context.applicationContext
+        photoAction("Couldn't change your picture") {
+            val url = avatars.upload(AvatarImages.prepare(appContext, uri))
+            profiles.updatePhoto(url)
+            _ui.update { it.copy(photoUrl = url) }
+        }
+    }
+
+    fun removePhoto() = photoAction("Couldn't remove your picture") {
+        profiles.updatePhoto(null)
+        _ui.update { it.copy(photoUrl = null) }
+        // A Google photo isn't stored by us; deleting a missing picture is harmless.
+        runCatching { avatars.delete() }
+    }
+
+    private fun photoAction(failure: String, block: suspend () -> Unit) {
+        if (_ui.value.photoBusy) return
+        viewModelScope.launch {
+            _ui.update { it.copy(photoBusy = true, error = null) }
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: AvatarException) {
+                _ui.update { it.copy(error = e.message) }
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = "$failure: ${e.message ?: e.javaClass.simpleName}") }
+            } finally {
+                _ui.update { it.copy(photoBusy = false) }
+            }
         }
     }
 

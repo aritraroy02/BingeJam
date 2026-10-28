@@ -16,6 +16,8 @@ import com.syncit.core.model.RoomInvite
 import com.syncit.core.model.SignInProvider
 import com.syncit.core.model.UserProfile
 import com.syncit.core.social.ActivityTracker
+import com.syncit.core.social.AvatarException
+import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.ActivityUpdate
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendRequestException
@@ -66,6 +68,11 @@ object FakeSocial {
             push = object : PushRegistry {
                 override suspend fun register(token: String) = Unit
                 override suspend fun unregister(token: String) = Unit
+            },
+            avatars = object : AvatarStore {
+                override suspend fun upload(bytes: ByteArray): String =
+                    throw AvatarException("Profile pictures need the real backend (DebugSocial.USE_FAKE_SOCIAL = false)")
+                override suspend fun delete() = Unit
             },
             isFake = true,
         )
@@ -233,6 +240,10 @@ object FakeSocial {
             override suspend fun updateProfile(displayName: String, bio: String?) {
                 delay(300)
                 profiles.update { map -> map[ME]?.let { map + (ME to it.copy(displayName = displayName, bio = bio)) } ?: map }
+            }
+
+            override suspend fun updatePhoto(photoUrl: String?) {
+                profiles.update { map -> map[ME]?.let { map + (ME to it.copy(photoUrl = photoUrl)) } ?: map }
             }
 
             override suspend fun findByUsername(username: String): UserProfile? =

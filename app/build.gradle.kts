@@ -96,5 +96,10 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
 
+    // Profile pictures (still and animated GIF) from push-relay/ and Google.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.coil.network.okhttp)
+
     testImplementation(libs.junit)
 }

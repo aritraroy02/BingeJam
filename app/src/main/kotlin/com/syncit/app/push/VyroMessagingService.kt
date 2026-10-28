@@ -2,6 +2,7 @@ package com.syncit.app.push
 
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.syncit.app.R
 import com.syncit.app.SyncItApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,10 +19,16 @@ class VyroMessagingService : FirebaseMessagingService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val type = message.data[PushNotifications.EXTRA_TYPE] ?: return
-        val uid = message.data[PushNotifications.EXTRA_UID] ?: return
-        val title = message.notification?.title ?: return
-        PushNotifications.show(this, type, uid, title, message.notification?.body.orEmpty())
+        val notification = message.notification ?: return
+        val body = notification.body.orEmpty()
+        val type = message.data[PushNotifications.EXTRA_TYPE]
+        val uid = message.data[PushNotifications.EXTRA_UID]
+        if (type != null && uid != null) {
+            PushNotifications.show(this, type, uid, notification.title ?: return, body)
+        } else {
+            // A Firebase-console announcement: no type/uid in its data.
+            PushNotifications.showNews(this, message.messageId ?: "latest", notification.title ?: getString(R.string.app_name), body)
+        }
     }
 
     override fun onNewToken(token: String) {

@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.syncit.app.ui.theme.Glass
 import com.syncit.app.ui.theme.PlatformColors
 import com.syncit.core.model.StreamingService
@@ -431,9 +432,12 @@ private val AvatarGradients = listOf(
     Color(0xFF8B5CF6) to Color(0xFFEC4899),
 )
 
-/** Initial on a gradient circle chosen from the name, with an optional online dot. */
+/**
+ * Profile picture ([photoUrl], still or animated GIF) over the initial on a gradient circle chosen
+ * from the name; the initial shows while the picture loads or if there is none. Optional online dot.
+ */
 @Composable
-fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp, online: Boolean? = null) {
+fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp, online: Boolean? = null, photoUrl: String? = null) {
     val (a, b) = AvatarGradients[name.hashCode().absoluteValue % AvatarGradients.size]
     Box(modifier.size(size)) {
         Box(
@@ -447,6 +451,14 @@ fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp, online
                 fontSize = (size.value * 0.42f).sp,
                 textAlign = TextAlign.Center,
             )
+            if (photoUrl != null) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
         if (online != null) {
             val p = Glass.palette

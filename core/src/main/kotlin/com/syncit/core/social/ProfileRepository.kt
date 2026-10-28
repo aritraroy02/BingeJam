@@ -31,6 +31,9 @@ interface ProfileRepository {
 
     suspend fun updateProfile(displayName: String, bio: String?)
 
+    /** Sets (or with null removes) our profile picture URL, from [AvatarStore.upload]. */
+    suspend fun updatePhoto(photoUrl: String?)
+
     /** Exact lookup by username (case-insensitive). */
     suspend fun findByUsername(username: String): UserProfile?
 

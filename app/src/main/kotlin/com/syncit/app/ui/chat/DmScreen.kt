@@ -73,7 +73,12 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
             ) {
                 GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack)
                 Spacer(Modifier.width(10.dp))
-                Avatar(name.ifEmpty { "?" }, size = 40.dp, online = friend?.presence?.online == true)
+                Avatar(
+                    name.ifEmpty { "?" },
+                    size = 40.dp,
+                    online = friend?.presence?.online == true,
+                    photoUrl = profile?.photoUrl ?: friend?.profile?.photoUrl,
+                )
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(name, style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)

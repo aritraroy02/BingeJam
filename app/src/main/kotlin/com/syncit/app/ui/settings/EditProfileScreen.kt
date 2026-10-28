@@ -1,8 +1,15 @@
 package com.syncit.app.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -22,14 +29,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.social.UsernameAvailability
 import com.syncit.app.ui.account.UsernameField
+import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
+import com.syncit.app.ui.glass.GlassSmallButton
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.SectionLabel
@@ -41,6 +51,11 @@ fun EditProfileScreen(viewModel: EditProfileViewModel, onBack: () -> Unit) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val status by viewModel.availability.status.collectAsStateWithLifecycle()
     val usernameOk = status is UsernameAvailability.Status.Available || status == UsernameAvailability.Status.Unchanged
+    val context = LocalContext.current
+    // System photo picker: no storage permission needed, and it includes GIFs.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.changePhoto(context, uri)
+    }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -62,6 +77,31 @@ fun EditProfileScreen(viewModel: EditProfileViewModel, onBack: () -> Unit) {
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                GlassPanel(Modifier.fillMaxWidth()) {
+                    SectionLabel("Profile picture")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Avatar(ui.displayName.ifBlank { "?" }, size = 84.dp, photoUrl = ui.photoUrl)
+                            if (ui.photoBusy) CircularProgressIndicator(Modifier.size(32.dp), color = p.accent, strokeWidth = 3.dp)
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            GlassSmallButton(
+                                if (ui.photoUrl == null) "Add photo or GIF" else "Change",
+                                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                enabled = !ui.photoBusy,
+                            )
+                            if (ui.photoUrl != null) {
+                                GlassSmallButton("Remove", onClick = viewModel::removePhoto, enabled = !ui.photoBusy, primary = false)
+                            }
+                        }
+                    }
+                    Text(
+                        "A photo or an animated GIF (up to 1 MB). Everyone who finds you can see it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textTertiary,
+                    )
+                }
                 GlassPanel(Modifier.fillMaxWidth()) {
                     SectionLabel("Username")
                     UsernameField(value = ui.username, status = status, onValueChange = viewModel::onUsernameChange)

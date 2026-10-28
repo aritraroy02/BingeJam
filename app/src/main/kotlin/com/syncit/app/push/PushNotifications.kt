@@ -28,6 +28,9 @@ object PushNotifications {
     const val CHANNEL_MESSAGES = "messages"
     const val CHANNEL_FRIENDS = "friends"
 
+    /** Announcements sent from the Firebase console (Messaging → New campaign). */
+    const val CHANNEL_NEWS = "news"
+
     // Keys and values match the relay's FCM data payload.
     const val EXTRA_TYPE = "type"
     const val EXTRA_UID = "uid"
@@ -50,6 +53,8 @@ object PushNotifications {
                     .apply { description = "Messages from friends" },
                 NotificationChannel(CHANNEL_FRIENDS, "Friend requests", NotificationManager.IMPORTANCE_DEFAULT)
                     .apply { description = "People who want to be friends" },
+                NotificationChannel(CHANNEL_NEWS, "News & updates", NotificationManager.IMPORTANCE_DEFAULT)
+                    .apply { description = "Announcements about the app" },
             ),
         )
     }
@@ -77,6 +82,28 @@ object PushNotifications {
             .setContentIntent(tap)
             .build()
         manager.notify(tag(type, uid), NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * An announcement that arrived while the app is open (in the background Android shows console
+     * campaigns itself, on the default channel from the manifest, which is [CHANNEL_NEWS]).
+     */
+    @SuppressLint("MissingPermission")
+    fun showNews(context: Context, id: String, title: String, body: String) {
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return
+        val open = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val tap = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val notification = NotificationCompat.Builder(context, CHANNEL_NEWS)
+            .setSmallIcon(R.drawable.ic_stat_vyro)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setAutoCancel(true)
+            .setContentIntent(tap)
+            .build()
+        manager.notify("news-$id", NOTIFICATION_ID, notification)
     }
 
     /** Clears the notification for a chat once it's opened. */

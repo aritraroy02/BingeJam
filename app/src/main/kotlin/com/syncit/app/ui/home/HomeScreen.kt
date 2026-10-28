@@ -115,6 +115,7 @@ fun HomeScreen(
                     Avatar(
                         me?.displayName ?: "?",
                         size = 46.dp,
+                        photoUrl = me?.photoUrl,
                         modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenSettings),
                     )
                 },
@@ -293,7 +294,7 @@ private fun FriendRowView(
             .padding(horizontal = 6.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Avatar(row.friend.profile.displayName, size = 46.dp, online = row.online)
+        Avatar(row.friend.profile.displayName, size = 46.dp, online = row.online, photoUrl = row.friend.profile.photoUrl)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
@@ -362,7 +363,7 @@ private fun FriendSheetContent(
     val profile = row.friend.profile
     var confirm by rememberSaveable { mutableStateOf<String?>(null) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Avatar(profile.displayName, size = 64.dp, online = row.online)
+        Avatar(profile.displayName, size = 64.dp, online = row.online, photoUrl = profile.photoUrl)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(profile.displayName, style = MaterialTheme.typography.headlineSmall, color = p.textPrimary)

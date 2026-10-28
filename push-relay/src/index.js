@@ -1,4 +1,5 @@
-// Push relay for Vyro (Cloudflare Worker, free tier).
+// Push relay + profile-picture store for Vyro (Cloudflare Worker, free tier).
+// Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid> (further down).
 //
 // Firebase Cloud Messaging is free, but sending needs a trusted server, and Cloud Functions need
 // the paid Blaze plan. This Worker is that server:
@@ -28,8 +29,15 @@ let accessCache = null; // { token, expiresAt }
 
 export default {
   async fetch(request, env) {
-    if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+    const path = new URL(request.url).pathname;
+    if (path.startsWith('/avatar/') && request.method === 'GET') return serveAvatar(path, env);
+    if (path === '/avatar' && (request.method === 'PUT' || request.method === 'DELETE')) return changeAvatar(request, env);
+    if (path !== '/' || request.method !== 'POST') return new Response('Not found', { status: 404 });
+    return notify(request, env);
+  },
+};
 
+async function notify(request, env) {
     let sender;
     try {
       sender = await verifyIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
@@ -59,8 +67,81 @@ export default {
       console.error('relay failed', e && e.message);
       return new Response('Relay error', { status: 502 });
     }
-  },
-};
+}
+
+// ---- Profile pictures (Workers KV, free plan) ----
+//
+// PUT /avatar     body = image bytes, Authorization: Bearer <Firebase ID token>
+//                 → {"url": "<origin>/avatar/<uid>?v=<version>"}; the app then saves that URL in
+//                 users/{uid}/photoUrl (the database rules only accept this prefix for your own uid).
+// DELETE /avatar  removes your picture.
+// GET /avatar/<uid> serves it (public, like any profile photo). The URL changes with every upload,
+// so it can be cached forever.
+
+const MAX_GIF_BYTES = 1_048_576;
+const MAX_STILL_BYTES = 300_000;
+/** One upload per user per this long, so the free plan's 1,000 writes/day can't be burnt by one person. */
+const UPLOAD_COOLDOWN_MS = 20_000;
+
+async function changeAvatar(request, env) {
+  let uid;
+  try {
+    uid = await verifyIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
+  } catch (e) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  const key = `avatar:${uid}`;
+
+  if (request.method === 'DELETE') {
+    await env.AVATARS.delete(key);
+    return new Response(null, { status: 204 });
+  }
+
+  const declared = Number(request.headers.get('Content-Length') || 0);
+  if (declared > MAX_GIF_BYTES) return json({ error: 'too_large' }, 413);
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  const type = imageType(bytes);
+  if (!type) return json({ error: 'not_an_image' }, 415);
+  if (bytes.length > (type === 'image/gif' ? MAX_GIF_BYTES : MAX_STILL_BYTES)) return json({ error: 'too_large' }, 413);
+
+  const previous = await env.AVATARS.getWithMetadata(key, { type: 'stream' });
+  previous.value?.cancel();
+  if (previous.metadata && Date.now() - previous.metadata.v < UPLOAD_COOLDOWN_MS) return json({ error: 'too_soon' }, 429);
+
+  const v = Date.now();
+  await env.AVATARS.put(key, bytes, { metadata: { type, v } });
+  const origin = new URL(request.url).origin;
+  return json({ url: `${origin}/avatar/${uid}?v=${v}` });
+}
+
+async function serveAvatar(path, env) {
+  const uid = path.slice('/avatar/'.length);
+  if (!UID.test(uid)) return new Response('Not found', { status: 404 });
+  const { value, metadata } = await env.AVATARS.getWithMetadata(`avatar:${uid}`, { type: 'arrayBuffer' });
+  if (!value) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=60' } });
+  return new Response(value, {
+    headers: {
+      'Content-Type': metadata?.type || 'application/octet-stream',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
+/** The real type from the file's first bytes (never trust the client's Content-Type). */
+function imageType(b) {
+  if (b.length < 12) return null;
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return 'image/gif';
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+      b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp';
+  return null;
+}
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
 
 // ---- What to send ----
 

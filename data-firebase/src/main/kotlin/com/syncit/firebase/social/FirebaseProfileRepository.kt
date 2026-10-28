@@ -129,6 +129,12 @@ class FirebaseProfileRepository internal constructor(
         ).await()
     }
 
+    override suspend fun updatePhoto(photoUrl: String?) {
+        val uid = session.requireUid()
+        // null deletes the field; the rules only accept our own avatar URL or a Google photo.
+        users.child(uid).child("photoUrl").setValue(photoUrl).await()
+    }
+
     override suspend fun findByUsername(username: String): UserProfile? {
         val name = UsernameRules.normalize(username)
         if (!UsernameRules.isValid(name)) return null

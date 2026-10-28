@@ -98,7 +98,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                             )
                         }
                         for (r in results) {
-                            PersonRow(r.profile.displayName, "@${r.profile.username}") {
+                            PersonRow(r.profile.displayName, "@${r.profile.username}", r.profile.photoUrl) {
                                 when (r.relation) {
                                     Relation.NONE -> GlassSmallButton("Add", onClick = { viewModel.add(r.profile) }, enabled = r.profile.uid !in busy)
                                     Relation.INCOMING -> GlassSmallButton("Accept", onClick = { viewModel.acceptFrom(r.profile) }, enabled = r.profile.uid !in busy)
@@ -151,7 +151,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                     SectionLabel("Blocked", Modifier.padding(top = 10.dp))
                     GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
                         for (profile in blocked) {
-                            PersonRow(profile.displayName, "@${profile.username}") {
+                            PersonRow(profile.displayName, "@${profile.username}", profile.photoUrl) {
                                 GlassSmallButton("Unblock", onClick = { viewModel.unblock(profile) }, primary = false, enabled = profile.uid !in busy)
                             }
                         }
@@ -164,11 +164,11 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun PersonRow(name: String, subtitle: String, trailing: @Composable () -> Unit) {
+private fun PersonRow(name: String, subtitle: String, photoUrl: String? = null, trailing: @Composable () -> Unit) {
     // Request rows lead with "@username"; the avatar letter skips the @.
     val p = Glass.palette
     Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Avatar(name.removePrefix("@"), size = 42.dp)
+        Avatar(name.removePrefix("@"), size = 42.dp, photoUrl = photoUrl)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(name, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)

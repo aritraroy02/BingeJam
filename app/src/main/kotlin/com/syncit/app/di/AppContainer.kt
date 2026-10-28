@@ -50,6 +50,7 @@ class AppContainer(app: Application) : SyncDependencies {
             watchInvites = fb.watchInvites,
             activityTracker = AndroidActivityTracker(gateway, fb.presence, appScope),
             push = fb.push,
+            avatars = fb.avatars,
         )
     } ?: DebugSocial.createFake(now = transport.serverClock::serverNowMs)
 

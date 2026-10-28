@@ -93,7 +93,7 @@ fun SettingsScreen(
                 SectionLabel("Profile", Modifier.padding(top = 8.dp))
                 GlassPanel(onClick = onEditProfile) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(profile?.displayName ?: "?", size = 56.dp)
+                        Avatar(profile?.displayName ?: "?", size = 56.dp, photoUrl = profile?.photoUrl)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(profile?.displayName.orEmpty(), style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)

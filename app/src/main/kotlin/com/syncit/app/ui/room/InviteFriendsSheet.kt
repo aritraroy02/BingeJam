@@ -49,7 +49,7 @@ fun InviteFriendsSheet(
         for (friend in sorted) {
             val uid = friend.profile.uid
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Avatar(friend.profile.displayName, size = 40.dp, online = friend.presence?.online == true)
+                Avatar(friend.profile.displayName, size = 40.dp, online = friend.presence?.online == true, photoUrl = friend.profile.photoUrl)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(friend.profile.displayName, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)

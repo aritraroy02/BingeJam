@@ -19,6 +19,8 @@ haze = "1.6.10"
 # which Kotlin 2.2 can't read (same story as Haze). Checked 2026-10-15.
 credentials = "1.6.0"
 googleid = "1.2.0"
+# Profile pictures incl. animated GIFs (user-approved 2026-10-28).
+coil = "3.2.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -50,6 +52,10 @@ haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

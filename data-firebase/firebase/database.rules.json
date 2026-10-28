@@ -15,7 +15,7 @@
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
         },
         "photoUrl": {
-          ".validate": "newData.isString() && newData.val().length <= 500 && newData.val().beginsWith('https://')"
+          ".validate": "newData.isString() && newData.val().length <= 500 && (newData.val().beginsWith('https://vyro-push-relay.aritraroy02.workers.dev/avatar/' + $uid + '?v=') || newData.val().beginsWith('https://lh3.googleusercontent.com/'))"
         },
         "bio": {
           ".validate": "newData.isString() && newData.val().length <= 160"

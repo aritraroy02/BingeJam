@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.syncit.core.auth.AuthService
+import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendsRepository
 import com.syncit.core.social.PresenceRepository
@@ -11,6 +12,7 @@ import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
 import com.syncit.core.social.WatchInvites
 import com.syncit.core.transport.SyncTransport
+import com.syncit.firebase.social.FirebaseAvatarStore
 import com.syncit.firebase.social.FirebaseDirectMessages
 import com.syncit.firebase.social.FirebaseFriendsRepository
 import com.syncit.firebase.social.FirebasePresenceRepository
@@ -38,6 +40,7 @@ class FirebaseServices private constructor(context: Context) {
     val friends: FriendsRepository = FirebaseFriendsRepository(session, db, pushRelay)
     val dms: DirectMessages = FirebaseDirectMessages(session, db, pushRelay)
     val push: PushRegistry = FirebasePushRegistry(session, db)
+    val avatars: AvatarStore = FirebaseAvatarStore(session)
     val presence: PresenceRepository = presenceImpl
     val watchInvites: WatchInvites = FirebaseWatchInvites(session, db)
     val transport: SyncTransport = FirebaseSyncTransport(session, db, clock)
