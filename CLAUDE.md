@@ -6,7 +6,8 @@ MediaSession. Only control events are synced, never video or audio.
 
 **Status (2026-10-29):** **v0.6.2 released** (versionCode 12): one tap on "Play in Netflix" works with
 Netflix closed (Netflix started cold drops the link and bounces back; `NetflixRetry` in `ui/room/TitleLinks.kt`
-resends it once). First version announced by the relay's update notification. **v0.6.1** (versionCode 11,
+resends it once). Tested on the Motorola: one tap works with Netflix swiped away. Released from the Asus
+laptop, installed there. **v0.6.1** (versionCode 11,
 released from the Asus laptop as gh `somesh118`; rules + hosting deployed first). New in 0.6.1:
 - **Play in Netflix opens the host's exact movie.** Netflix's MediaSession has no ID (5 metadata keys,
   no queue, checked on Netflix 9.89), so members' `RoomViewModel.netflixId` asks the relay's `GET /netflix`
@@ -54,7 +55,15 @@ Name: **BingeJam** (user's choice 2026-10-29; was Vyro, before that Sync it) in 
 web/terms, web/delete-account; checklist + trademark filing pack: `legal/LEGAL_CHECKLIST.md`.
 
 ## Next steps (as of 2026-10-29)
-1. Two-phone check of 0.6.1 (RUN_ON_MY_MACHINE.md 8a, 15a/15b): host vs member offset with the 1 s
+0. **Update notification for 0.6.2 is pending a KV seed:** at 03:25 on 2026-10-29 the relay's cron had not
+   run yet (KV `release:announced` missing), and its first run only records the current version, so 0.6.2
+   would be recorded without announcing. Seeding `0.6.1` first makes the next run announce 0.6.2 (Claude's
+   attempt was blocked by the permission check; the user runs it or approves):
+   `npx wrangler kv key put "release:announced" "0.6.1" --namespace-id e2762004f519436e8bb63d669365b86e --remote`
+   in `push-relay/`. Check: `npx wrangler kv key get "release:announced" --namespace-id … --remote`, and
+   `npx wrangler tail` shows "announced X" when it sends. If it was missed, nothing breaks (the in-app banner
+   still offers the update); announcements work normally from 0.6.3.
+1. Two-phone check of 0.6.1/0.6.2 (RUN_ON_MY_MACHINE.md 8a, 15a/15b): host vs member offset with the 1 s
    Netflix lead (tune `NETFLIX_SEEK_LEAD_MS`), join-request pop-up on the host's phone, "watching with" on a
    friend's Home. Member-side logs: `adb logcat -G 16M`, then `adb logcat -s SyncItDiag SyncItLookup`.
 2. Two-phone jam test (RUN_ON_MY_MACHINE.md J1-J13): what Spotify/YouTube/YT Music/Amazon Music

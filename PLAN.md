@@ -157,7 +157,9 @@ apps with notification-listener access in India.
   of `aritraroy02/sync-it-releases`; when its version changes it sends one data-only FCM message to topic
   `updates` (every install subscribes at start-up). The app shows "BingeJam X is available" only if X
   is newer than the installed version; a tap opens Home (update banner). KV `release:announced` holds the
-  last announced version; the first run only records it.
+  last announced version; the first run only records it (so seed it with the previous version before
+  the first release that should be announced: `wrangler kv key put "release:announced" "<previous>"
+  --namespace-id <AVATARS id> --remote`). Only installs from 0.6.1 on subscribe to the topic.
 - (2026-10-29) **"Watching with"**: friends see "In a watch party with Somesh" (the online room
   members' display names, already readable by any signed-in user). Still never the room code.
 - (2026-10-29) **Quit** (sync notification, since 0.5.1): stops sync, chat bubble, presence and activity
