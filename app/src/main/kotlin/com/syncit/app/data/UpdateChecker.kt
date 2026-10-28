@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Sync it is installed from an APK, so nothing updates it automatically. Once per launch we
+ * The app is installed from an APK, so nothing updates it automatically. Once per launch we
  * ask GitHub for the latest release of the public releases repo and compare versions.
  * Unauthenticated GitHub API: nothing about the user is sent beyond the request itself.
  */

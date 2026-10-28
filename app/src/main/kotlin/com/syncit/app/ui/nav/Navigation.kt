@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +47,7 @@ import com.syncit.app.ui.join.JoinPreviewViewModel
 import com.syncit.app.ui.onboarding.OnboardingScreen
 import com.syncit.app.ui.room.RoomScreen
 import com.syncit.app.ui.room.RoomViewModel
+import com.syncit.app.ui.settings.DeleteAccountViewModel
 import com.syncit.app.ui.settings.EditProfileScreen
 import com.syncit.app.ui.settings.EditProfileViewModel
 import com.syncit.app.ui.settings.SettingsScreen
@@ -156,7 +158,14 @@ fun SyncItApp(
                 pendingEmailLink.value = null
                 auth.onEmailLink(link)
             }
-            AccountFlow(auth, useFakeGoogle = container.social.isFake)
+            val deletion = deleteAccountViewModel(container)
+            val deletionUi by deletion.ui.collectAsStateWithLifecycle()
+            AccountFlow(
+                auth,
+                useFakeGoogle = container.social.isFake,
+                accountDeleted = deletionUi.step == DeleteAccountViewModel.Step.Deleted,
+                onDismissDeleted = deletion::close,
+            )
         }
 
         is Gate.NeedsUsername -> {
@@ -172,15 +181,21 @@ fun SyncItApp(
         Gate.NeedsPermissions -> OnboardingScreen(container = container, onDone = { prefs.onboardingDone = true })
 
         Gate.Ready -> {
-            // Already signed in: an email link has nothing left to do.
-            LaunchedEffect(pendingEmailLink.value) { pendingEmailLink.value = null }
-            MainNav(container, nav)
+            val deletion = deleteAccountViewModel(container)
+            LaunchedEffect(pendingEmailLink.value) {
+                val link = pendingEmailLink.value ?: return@LaunchedEffect
+                pendingEmailLink.value = null
+                // Already signed in, so a link only matters when it's the fresh sign-in that
+                // deleting the account asked for; then make sure its sheet is on screen.
+                if (deletion.onEmailLink(link) && nav.current != Screen.Settings) nav.reset(Screen.Home, Screen.Settings)
+            }
+            MainNav(container, nav, deletion)
         }
     }
 }
 
 @Composable
-private fun MainNav(container: AppContainer, nav: NavViewModel) {
+private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: DeleteAccountViewModel) {
     val events: SocialEventsViewModel = viewModel(factory = viewModelFactory { initializer { SocialEventsViewModel(container) } })
 
     LaunchedEffect(events) {
@@ -225,6 +240,8 @@ private fun MainNav(container: AppContainer, nav: NavViewModel) {
                 val vm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer { SettingsViewModel(container) } })
                 SettingsScreen(
                     viewModel = vm,
+                    deleteAccount = deletion,
+                    useFakeGoogle = container.social.isFake,
                     onBack = nav::pop,
                     onEditProfile = { nav.push(Screen.EditProfile) },
                     onOpenSetup = { nav.push(Screen.Permissions) },
@@ -276,6 +293,13 @@ private fun MainNav(container: AppContainer, nav: NavViewModel) {
 
         SocialBanners(events)
     }
+}
+
+/** Activity-scoped, like every ViewModel here: Settings, the email-link handoff and the welcome note share it. */
+@Composable
+private fun deleteAccountViewModel(container: AppContainer): DeleteAccountViewModel {
+    val appContext = LocalContext.current.applicationContext
+    return viewModel(factory = viewModelFactory { initializer { DeleteAccountViewModel.create(container, appContext) } })
 }
 
 /** Brand + spinner while auth/profile load; with [error], a retry button instead. */

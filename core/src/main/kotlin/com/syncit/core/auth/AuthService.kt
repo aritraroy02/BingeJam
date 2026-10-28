@@ -34,6 +34,18 @@ interface AuthService {
     val pendingEmail: String?
 
     suspend fun signOut()
+
+    /**
+     * Permanently deletes the signed-in account and everything stored for it: profile, username,
+     * friends (both sides), requests, presence/activity, push tokens, profile picture, DMs the
+     * user is part of, join requests and invites, then the Firebase Auth user. Required by Play's
+     * account-deletion policy and India's DPDP Act (right to erasure). Signs out on success.
+     * Throws [RecentLoginRequiredException] if Firebase needs a fresh sign-in first.
+     */
+    suspend fun deleteAccount()
 }
+
+/** Firebase refuses to delete an account whose sign-in is too old; sign in again, then retry. */
+class RecentLoginRequiredException : Exception("Sign in again to confirm, then delete your account")
 
 class EmailRequiredException : Exception("Enter the email address the link was sent to")

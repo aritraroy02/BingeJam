@@ -32,12 +32,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.syncit.app.R
 import com.syncit.app.auth.GoogleSignIn
+import com.syncit.app.data.LegalLinks
 import com.syncit.app.ui.common.BrandWordmark
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
@@ -52,7 +61,13 @@ import kotlinx.coroutines.launch
 
 /** Everything a signed-out user can see: welcome, email entry, "check your inbox", link confirm. */
 @Composable
-fun AccountFlow(viewModel: AuthViewModel, useFakeGoogle: Boolean) {
+fun AccountFlow(
+    viewModel: AuthViewModel,
+    useFakeGoogle: Boolean,
+    /** Just deleted an account on this phone: say so on the welcome step until dismissed. */
+    accountDeleted: Boolean = false,
+    onDismissDeleted: () -> Unit = {},
+) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -80,6 +95,8 @@ fun AccountFlow(viewModel: AuthViewModel, useFakeGoogle: Boolean) {
                 when (val step = ui.step) {
                     AuthViewModel.Step.Welcome -> Welcome(
                         busy = ui.busy,
+                        accountDeleted = accountDeleted,
+                        onDismissDeleted = onDismissDeleted,
                         onGoogle = {
                             if (useFakeGoogle) {
                                 viewModel.signInWithGoogleToken("fake-token")
@@ -156,9 +173,29 @@ fun AccountFlow(viewModel: AuthViewModel, useFakeGoogle: Boolean) {
 }
 
 @Composable
-private fun Welcome(busy: Boolean, onGoogle: () -> Unit, onEmail: () -> Unit) {
+private fun Welcome(
+    busy: Boolean,
+    accountDeleted: Boolean,
+    onDismissDeleted: () -> Unit,
+    onGoogle: () -> Unit,
+    onEmail: () -> Unit,
+) {
     val p = Glass.palette
-    Spacer(Modifier.height(96.dp))
+    val context = LocalContext.current
+    if (accountDeleted) {
+        Spacer(Modifier.height(24.dp))
+        GlassPanel(Modifier.fillMaxWidth(), onClick = onDismissDeleted) {
+            Text("Your account was deleted", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+            Text(
+                "Your profile, username, friends, messages, activity and profile picture are gone. Thanks for trying ${Brand.NAME}.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = p.textSecondary,
+            )
+        }
+        Spacer(Modifier.height(24.dp))
+    } else {
+        Spacer(Modifier.height(96.dp))
+    }
     BrandWordmark(style = MaterialTheme.typography.displaySmall.copy(fontSize = MaterialTheme.typography.displaySmall.fontSize * 1.4f))
     Text(Brand.TAGLINE, style = MaterialTheme.typography.headlineSmall, color = p.textPrimary)
     Text(
@@ -175,6 +212,28 @@ private fun Welcome(busy: Boolean, onGoogle: () -> Unit, onEmail: () -> Unit) {
         icon = Icons.Filled.Email,
         style = GlassButtonStyle.Secondary,
         enabled = !busy,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val linkStyle = TextLinkStyles(SpanStyle(color = p.accent, textDecoration = TextDecoration.Underline))
+    val legal = buildAnnotatedString {
+        append("By continuing you agree to the ")
+        withLink(LinkAnnotation.Url(LegalLinks.TERMS, linkStyle) { LegalLinks.open(context, LegalLinks.TERMS) }) { append("Terms") }
+        append(" and ")
+        withLink(LinkAnnotation.Url(LegalLinks.PRIVACY, linkStyle) { LegalLinks.open(context, LegalLinks.PRIVACY) }) { append("Privacy Policy") }
+        append(".")
+    }
+    Text(
+        legal,
+        style = MaterialTheme.typography.bodySmall,
+        color = p.textSecondary,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Text(
+        stringResource(R.string.age_requirement, Brand.NAME),
+        style = MaterialTheme.typography.bodySmall,
+        color = p.textSecondary,
+        textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth(),
     )
     Text(

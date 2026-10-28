@@ -190,6 +190,24 @@ object FakeSocial {
             override suspend fun signOut() {
                 _state.value = AuthState.SignedOut
             }
+
+            /** Clears everything the fake keeps for "me" (other users' sample data stays), then signs out. */
+            override suspend fun deleteAccount() {
+                delay(600)
+                profiles.update { it - ME }
+                presence.update { it - ME }
+                friendSince.value = emptyMap()
+                incoming.value = emptyList()
+                outgoing.value = emptyList()
+                blocked.value = emptySet()
+                messages.value = emptyMap()
+                reads.value = emptyMap()
+                joinRequestsToMe.value = emptyList()
+                myJoinRequests.value = emptyList()
+                roomInvites.value = emptyList()
+                pendingEmail = null
+                _state.value = AuthState.SignedOut
+            }
         }
 
         // ---- Profiles ----

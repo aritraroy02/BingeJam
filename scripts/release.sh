@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publishes a new Sync it version:
+# Publishes a new BingeJam version:
 #   bash scripts/release.sh 0.3.0 "What changed, one line per item"
 # 1. bumps versionName/versionCode in app/build.gradle.kts
 # 2. runs the tests and builds the signed release APK (dist/sync-it.apk)
@@ -35,11 +35,11 @@ cp app/build/outputs/apk/release/app-release.apk dist/sync-it.apk
 
 git add "$GRADLE"
 git commit -q -m "Release $VERSION" -m "versionCode $NEXT."
-git tag -a "v$VERSION" -m "Sync it $VERSION"
+git tag -a "v$VERSION" -m "BingeJam $VERSION"
 
 "$GH" release create "v$VERSION" dist/sync-it.apk \
   --repo "$REPO" \
-  --title "Sync it $VERSION" \
+  --title "BingeJam $VERSION" \
   --notes "$NOTES"
 
 echo "Released: https://github.com/$REPO/releases/tag/v$VERSION"

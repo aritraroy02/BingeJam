@@ -166,6 +166,12 @@ rooms/…, previews/…, chats/…, reactions/… (v1, unchanged; previews.servi
 rooms/…, previews/…, chats/…, reactions/… (v1; service also allows PRIME_VIDEO + the 4 jam apps;
                           previews/{code}/playableRef optional, strict public formats only)
 ```
+Account deletion (2026-10-29, `AuthService.deleteAccount`, `FirebaseAccountEraser`): one atomic multi-path
+null update of the user's own nodes, mirror entries on connected users, whole DM threads and the active room
+membership/preview, then the avatar (Worker DELETE /avatar) and the Auth user. Rules: owner-only delete-only
+rules on whole own nodes; `dms/$dmId` may be nulled by a participant only in the same write that deletes their
+`users/{uid}`; `usernames/$name` deletable when the owner's profile goes in the same write. Sign-in must be
+< 4 min old (ID-token auth_time) or `RecentLoginRequiredException`. Room chats/reactions/older rooms remain.
 All v2 social paths require a real (non-anonymous) account; v1 room paths still accept anonymous
 users so v0.2.x installs keep working until they update (Anonymous provider stays enabled until then).
 

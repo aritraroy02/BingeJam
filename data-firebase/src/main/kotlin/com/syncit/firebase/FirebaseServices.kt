@@ -26,6 +26,7 @@ import com.syncit.firebase.social.PushRelay
  * hands the pieces out. All of them share one auth session and one server clock.
  *
  * Signing out first marks us offline in presence (that write needs the account's token).
+ * Deleting the account erases its data first (FirebaseAccountEraser), then the Auth user.
  */
 class FirebaseServices private constructor(context: Context) {
     private val db: FirebaseDatabase = database()
@@ -34,16 +35,26 @@ class FirebaseServices private constructor(context: Context) {
 
     private val presenceImpl = FirebasePresenceRepository(session, db)
     private val pushRelay = PushRelay(session)
+    private val avatarsImpl = FirebaseAvatarStore(session)
+    private val transportImpl = FirebaseSyncTransport(session, db, clock)
+    private val eraser = FirebaseAccountEraser(db, presenceImpl, transportImpl, avatarsImpl)
 
-    val auth: AuthService = FirebaseAuthService(context, session, db, beforeSignOut = presenceImpl::stop)
+    val auth: AuthService = FirebaseAuthService(
+        context,
+        session,
+        db,
+        eraseAccountData = eraser::erase,
+        deletionAbandoned = eraser::abandon,
+        beforeSignOut = presenceImpl::stop,
+    )
     val profiles: ProfileRepository = FirebaseProfileRepository(session, db)
     val friends: FriendsRepository = FirebaseFriendsRepository(session, db, pushRelay)
     val dms: DirectMessages = FirebaseDirectMessages(session, db, pushRelay)
     val push: PushRegistry = FirebasePushRegistry(session, db)
-    val avatars: AvatarStore = FirebaseAvatarStore(session)
+    val avatars: AvatarStore = avatarsImpl
     val presence: PresenceRepository = presenceImpl
     val watchInvites: WatchInvites = FirebaseWatchInvites(session, db)
-    val transport: SyncTransport = FirebaseSyncTransport(session, db, clock)
+    val transport: SyncTransport = transportImpl
 
     companion object {
         @Volatile private var instance: FirebaseServices? = null

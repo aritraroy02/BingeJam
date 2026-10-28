@@ -21,23 +21,27 @@ DMs, per-app activity sharing, ask-to-join/invites, Prime Video). New in 0.4.0:
 - Live in production: Worker (notify + avatars), RTDB rules (pushTokens, photoUrl, jam services,
   playableRef; deployed 2026-10-28, emulator 332/332), hosting (privacy policy incl. jams).
   `./gradlew assembleDebug lint test`: 433 tests, 0 failures, lint clean.
-Working name **Vyro** lives in `core/config/Brand.kt`, `app_name`, web/ (will be renamed again).
+Name: **BingeJam** (user's choice 2026-10-29; was Vyro, before that Sync it) in `core/config/Brand.kt`,
+`app_name`, web/. Package stays `com.syncit.app`; release asset stays `sync-it.apk`. Legal pages: web/privacy,
+web/terms, web/delete-account; checklist + trademark filing pack: `legal/LEGAL_CHECKLIST.md`.
 
 ## Next steps (as of 2026-10-29)
 1. Two-phone jam test (RUN_ON_MY_MACHINE.md J1–J13): what Spotify/YouTube/YT Music/Amazon Music
    publish as MEDIA_ID (`ref=` in SyncItDiag), whether they honour playFromUri/playFromSearch, track
    changes, and the watch-party regressions J8–J12. Thresholds may need tuning.
-2. On the user's OPPO: it runs a **debug build signed on the work laptop**. Uninstall it before
-   installing the release (`adb uninstall com.syncit.app`); the user signs in again.
+2. Test phones run the 0.4.0 release, installed with adb (Play Protect blocks sideloaded installs of
+   apps with Notification Access in India): OPPO CPH2607 (Wi-Fi debugging) and Motorola Edge 60 Pro
+   ZA22382JM2 (USB; has JioHotstar, YouTube, YT Music). Friends need a store listing (Indus) instead.
 3. Confirm a GIF profile picture animates (Edit profile → Change).
-4. Known open items: web/index.html and web/join.html still say "Sync it" (app and privacy say
-   Vyro); Google sign-in on a non-release build failed with "[16] Account reauth failed" while the
+4. Known open items: Google sign-in on a non-release build failed with "[16] Account reauth failed" while the
    phone's mobile data was unvalidated (works in releases; `SyncItAuth` logs Google's reason now);
    no cleanup job for old rooms/chats; rooms/previews/chats still allow anonymous v1 users;
    if the host is in a Netflix room and accepts a Spotify jam request, the friend joins that room.
 5. The work laptop's debug signing fingerprints (SHA-1 `CB:AC:27:…`, SHA-256 `C1:6B:F2:…`) were added
    to the Firebase Android app for testing; remove them in Project settings if no longer needed.
-6. Releases: only from the machine with the release key (never create a new key):
+6. Legal: the user files the BingeJam trademark and runs the official IP India search
+   (`legal/LEGAL_CHECKLIST.md`), and creates the Indus developer account (PAN).
+7. Releases: only from the machine with the release key (never create a new key):
    `bash scripts/release.sh X.Y.Z "notes"` (GH=path to gh if not on PATH), then `git push --follow-tags`.
 
 Read these before changing anything:

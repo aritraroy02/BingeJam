@@ -1,0 +1,9 @@
+/* Shared layout for the legal pages (privacy, terms, delete-account). */
+.card.doc { max-width: 720px; }
+.doc h2 { font-size: 19px; margin: 26px 0 8px; }
+.doc p, .doc li { color: var(--text-2); line-height: 1.6; font-size: 15px; }
+.doc ul, .doc ol { padding-left: 20px; }
+.doc b { color: var(--text); }
+.doc a { color: var(--accent-2); }
+.doc .links { margin-top: -4px; font-size: 14px; }
+body { align-items: flex-start; }

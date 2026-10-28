@@ -17,7 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -38,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.BuildConfig
+import com.syncit.app.data.LegalLinks
 import com.syncit.app.overlay.ChatBubbleService
 import com.syncit.app.ui.activity.ActivityAppToggles
 import com.syncit.app.ui.glass.Avatar
@@ -48,6 +51,7 @@ import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSegmented
 import com.syncit.app.ui.glass.GlassSwitchRow
 import com.syncit.app.ui.glass.GlassTopBar
+import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.theme.Glass
 import com.syncit.app.ui.theme.ThemeMode
@@ -58,6 +62,8 @@ import com.syncit.core.model.SignInProvider
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    deleteAccount: DeleteAccountViewModel,
+    useFakeGoogle: Boolean,
     onBack: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenSetup: () -> Unit,
@@ -74,6 +80,10 @@ fun SettingsScreen(
     val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
+    var linkError by rememberSaveable { mutableStateOf<String?>(null) }
+    val openLegal: (String) -> Unit = { url ->
+        if (!LegalLinks.open(context, url)) linkError = "No browser found. The page is at $url"
+    }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -177,9 +187,16 @@ fun SettingsScreen(
                         icon = Icons.AutoMirrored.Filled.ExitToApp,
                         onClick = { if (!signingOut) confirmSignOut = true },
                     )
+                    GlassRow(
+                        title = "Delete account",
+                        subtitle = "Permanently delete your account, friends, messages and activity",
+                        icon = Icons.Filled.Delete,
+                        onClick = { if (!signingOut) deleteAccount.open() },
+                        trailing = { Chevron() },
+                    )
                 }
 
-                SectionLabel("About", Modifier.padding(top = 12.dp))
+                SectionLabel("About & legal", Modifier.padding(top = 12.dp))
                 GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
                     GlassRow(
                         title = "${Brand.NAME} ${BuildConfig.VERSION_NAME}",
@@ -189,12 +206,39 @@ fun SettingsScreen(
                         icon = Icons.Filled.Info,
                     )
                     GlassRow(
+                        title = "Terms of Service",
+                        icon = Icons.AutoMirrored.Filled.List,
+                        onClick = { openLegal(LegalLinks.TERMS) },
+                        trailing = { Chevron() },
+                    )
+                    GlassRow(
+                        title = "Privacy Policy",
+                        icon = Icons.Filled.Lock,
+                        onClick = { openLegal(LegalLinks.PRIVACY) },
+                        trailing = { Chevron() },
+                    )
+                    GlassRow(
+                        title = "Deleting your account",
+                        subtitle = "What gets deleted, and how to ask without the app",
+                        icon = Icons.Filled.Delete,
+                        onClick = { openLegal(LegalLinks.DELETE_ACCOUNT_HELP) },
+                        trailing = { Chevron() },
+                    )
+                    GlassRow(
                         title = "Licences",
                         subtitle = "Inter typeface, SIL Open Font License 1.1. Haze, Apache 2.0.",
+                    )
+                    Text(
+                        LegalLinks.NOT_AFFILIATED,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textTertiary,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
                     )
                 }
             }
         }
+        NoticeBanner(linkError, onDismiss = { linkError = null }, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        DeleteAccountSheet(deleteAccount, useFakeGoogle)
     }
 
     if (confirmSignOut) {

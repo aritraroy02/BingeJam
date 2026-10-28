@@ -9,7 +9,7 @@ import com.syncit.core.config.RoomLinks
  * install, so the page copies the invite link to the clipboard when "Download" is tapped,
  * and the app looks for it exactly once, on its first launch.
  *
- * Only a Sync it invite link is used; anything else on the clipboard is ignored and nothing
+ * Only one of our invite links is used; anything else on the clipboard is ignored and nothing
  * is stored or sent. Android 12+ shows its own "pasted from clipboard" notice.
  */
 object InviteHandoff {

@@ -53,7 +53,10 @@ class FirebaseSyncTransport internal constructor(
     override val connected: StateFlow<Boolean> = _connected.asStateFlow()
 
     private val random = SecureRandom()
-    private var presence: Presence? = null
+    @Volatile private var presence: Presence? = null
+
+    /** Room whose member presence we're keeping up (joined or created, not left), if any. */
+    internal val activeRoomCode: String? get() = presence?.code
 
     init {
         db.getReference(".info/connected").addValueEventListener(object : ValueEventListener {
@@ -295,6 +298,7 @@ class FirebaseSyncTransport internal constructor(
     // ---- Presence ----
 
     private class Presence(
+        val code: String,
         val connectedRef: DatabaseReference,
         val listener: ValueEventListener,
     )
@@ -322,7 +326,7 @@ class FirebaseSyncTransport internal constructor(
             override fun onCancelled(error: DatabaseError) = Unit
         }
         connectedRef.addValueEventListener(listener)
-        presence = Presence(connectedRef, listener)
+        presence = Presence(code, connectedRef, listener)
     }
 
     private fun stopPresence() {

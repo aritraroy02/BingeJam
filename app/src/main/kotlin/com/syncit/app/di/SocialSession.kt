@@ -7,6 +7,7 @@ import com.syncit.core.model.SyncStatus
 import com.syncit.core.session.SyncSessionController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -30,6 +31,9 @@ class SocialSession(
     sessionController: SyncSessionController,
     scope: CoroutineScope,
 ) {
+    /** Set while an account deletion runs, so nothing writes presence/activity for a dying account. */
+    private val paused = MutableStateFlow(false)
+
     /**
      * True while we're actually on the room's title. CORRECTING/CATCHING_UP are still on the
      * title; counting them stops the flag flapping in presence during a drift correction.
@@ -58,8 +62,8 @@ class SocialSession(
                     if (uid == null) {
                         flowOf(null)
                     } else {
-                        combine(prefs.activitySetupDone, prefs.invisible) { setupDone, invisible ->
-                            uid.takeIf { it in setupDone && !invisible }
+                        combine(prefs.activitySetupDone, prefs.invisible, paused) { setupDone, invisible, isPaused ->
+                            uid.takeIf { it in setupDone && !invisible && !isPaused }
                         }
                     }
                 }
@@ -73,6 +77,26 @@ class SocialSession(
                     }
                 }
         }
+    }
+
+    /**
+     * Before deleting the account: stop presence and the activity tracker now (not on the next
+     * collector pass), so their last writes happen while the account still exists. The push
+     * token stays registered; the eraser removes it from the account.
+     */
+    fun pauseForAccountDeletion() {
+        paused.value = true
+        social.activityTracker.stop()
+        social.presence.stop()
+    }
+
+    /**
+     * Deletion finished or was abandoned. If the account still exists, presence and activity
+     * start again; after a successful deletion we're signed out, so nothing restarts until the
+     * next sign-in.
+     */
+    fun endAccountDeletion() {
+        paused.value = false
     }
 
     private companion object {

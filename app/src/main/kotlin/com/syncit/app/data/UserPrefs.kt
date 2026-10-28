@@ -114,6 +114,29 @@ class UserPrefs(context: Context) {
         _activitySetupDone.value = done
     }
 
+    /**
+     * The account [uid] was deleted: forget everything stored for it on this phone (sharing
+     * choices, invisible, activity-setup flag) plus the account-wide leftovers (display name,
+     * last/pending room). Phone-wide settings (theme, permissions walkthrough) stay.
+     */
+    @Synchronized
+    fun clearAccount(uid: String) {
+        val setupDone = _activitySetupDone.value - uid
+        prefs.edit {
+            remove(KEY_SHARED_APPS + uid)
+            remove(KEY_INVISIBLE + uid)
+            putStringSet(KEY_ACTIVITY_SETUP_UIDS, setupDone)
+            remove(KEY_NAME)
+            remove(KEY_LAST_ROOM)
+            remove(KEY_PENDING_JOIN)
+        }
+        _activitySetupDone.value = setupDone
+        if (boundUid == uid) {
+            _sharedApps.value = emptySet()
+            _invisible.value = false
+        }
+    }
+
     private companion object {
         const val KEY_NAME = "display_name"
         const val KEY_LAST_ROOM = "last_room"

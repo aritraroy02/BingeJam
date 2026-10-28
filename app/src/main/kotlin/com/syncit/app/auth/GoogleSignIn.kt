@@ -22,7 +22,8 @@ object GoogleSignIn {
     private const val TAG = "SyncItAuth"
 
     sealed interface Result {
-        data class Token(val idToken: String) : Result
+        /** [email]: the Google account picked (GoogleIdTokenCredential.id), when Google reports it. */
+        data class Token(val idToken: String, val email: String? = null) : Result
         data object Cancelled : Result
         data class Failed(val message: String) : Result
     }
@@ -52,7 +53,8 @@ object GoogleSignIn {
             if (credential is CustomCredential &&
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             ) {
-                Result.Token(GoogleIdTokenCredential.createFrom(credential.data).idToken)
+                val google = GoogleIdTokenCredential.createFrom(credential.data)
+                Result.Token(google.idToken, email = google.id.takeIf { it.contains('@') })
             } else {
                 Result.Failed("Google didn't return an account")
             }

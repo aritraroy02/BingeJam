@@ -51,12 +51,13 @@
       ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && query.orderByKey == true && query.limitToFirst <= 20 && query.startAt != null && query.startAt.length >= 2 && query.endAt == query.startAt + '\uf8ff'",
       "$name": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)) || (!newData.exists() && data.val() === auth.uid && newData.parent().parent().child('users').child(auth.uid).child('username').val().replace('.', ',') !== $name))",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)) || (!newData.exists() && data.val() === auth.uid && (!newData.parent().parent().child('users').child(auth.uid).child('username').exists() || newData.parent().parent().child('users').child(auth.uid).child('username').val().replace('.', ',') !== $name)))",
         ".validate": "newData.isString() && $name.matches(/^[a-z0-9_][a-z0-9_,]{1,18}[a-z0-9_]$/) && !$name.contains(',,') && !$name.matches(/^(admin|vyro|syncit|support|help|root|system|null|undefined)$/) && newData.parent().parent().child('users').child(auth.uid).child('username').val().replace('.', ',') === $name"
       }
     },
     "friendRequests": {
       "$to": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to",
         "$from": {
           ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
@@ -85,6 +86,7 @@
     },
     "sentFriendRequests": {
       "$from": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
         "$to": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((!newData.exists() && (auth.uid === $from || auth.uid === $to)) || (auth.uid === $from && newData.parent().parent().parent().child('friendRequests').child($to).child($from).exists()))",
@@ -94,6 +96,7 @@
     },
     "friends": {
       "$uid": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
         "$other": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $uid !== $other && ((!newData.exists() && (auth.uid === $uid || auth.uid === $other)) || (!data.exists() && newData.parent().parent().child($other).child($uid).exists() && ((auth.uid === $uid && root.child('friendRequests').child($uid).child($other).exists()) || (auth.uid === $other && root.child('friendRequests').child($other).child($uid).exists()))))",
@@ -109,6 +112,7 @@
     },
     "blocked": {
       "$uid": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
         "$other": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && $other !== $uid",
@@ -163,6 +167,7 @@
     },
     "dms": {
       "$dmId": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !newData.exists() && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && !newData.parent().parent().child('users').child(auth.uid).exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists()",
         ".indexOn": [
           "sentAt"
@@ -187,6 +192,7 @@
     },
     "dmReads": {
       "$uid": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
         "$friend": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
@@ -196,6 +202,7 @@
     },
     "pushTokens": {
       "$uid": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
         "$token": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
@@ -211,6 +218,7 @@
     },
     "joinRequests": {
       "$host": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $host && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $host",
         "$from": {
           ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
@@ -248,6 +256,7 @@
     },
     "invites": {
       "$to": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to",
         "$from": {
           ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",

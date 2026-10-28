@@ -3,29 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Privacy Policy · Vyro</title>
-<meta name="description" content="How Vyro handles your data.">
+<title>Privacy Policy · BingeJam</title>
+<meta name="description" content="How BingeJam handles your data.">
 <link rel="stylesheet" href="/style.css">
-<style>
-  .card.doc { max-width: 720px; }
-  .doc h2 { font-size: 19px; margin: 26px 0 8px; }
-  .doc p, .doc li { color: var(--text-2); line-height: 1.6; font-size: 15px; }
-  .doc ul { padding-left: 20px; }
-  .doc b { color: var(--text); }
-  .doc a { color: var(--accent-2); }
-  body { align-items: flex-start; }
-</style>
+<link rel="stylesheet" href="/legal.css">
 </head>
 <body>
 <main class="card doc">
-  <!-- Product name: keep in sync with core/config/Brand.kt (working name, will change). -->
-  <h1 class="brand">Vyro</h1>
-  <p class="eyebrow">Privacy Policy · Last updated 15 October 2026</p>
+  <!-- Product name: keep in sync with core/config/Brand.kt. -->
+  <h1 class="brand">BingeJam</h1>
+  <p class="eyebrow">Privacy Policy · Last updated 29 October 2026</p>
+  <p class="links"><a href="/terms">Terms of Service</a> · <a href="/delete-account">Delete your account</a></p>
 
-  <p>Vyro lets friends watch Netflix, JioHotstar or Prime Video together, each on their own Android phone, by
-  keeping play, pause and position in sync, and lets friends see what each other is watching or listening to
-  when they choose to share it. This policy explains what the app reads, what it stores and why. Vyro is not
-  affiliated with Netflix, JioHotstar, Amazon, Spotify or YouTube.</p>
+  <p>BingeJam lets friends watch Netflix, JioHotstar or Prime Video together ("watch parties") and listen to
+  Spotify, YouTube Music, Amazon Music or YouTube together ("jams"), each on their own Android phone, by keeping
+  play, pause and position in sync. Friends can also chat and, if they choose, see what each other is playing.
+  This policy explains what the app reads, what it stores, why, and your rights. It is written to meet India's
+  Digital Personal Data Protection Act, 2023 ("DPDP Act") and the Information Technology Act, 2000 and its rules.
+  BingeJam is not affiliated with Netflix, JioHotstar, Amazon, Spotify or YouTube.</p>
+
+  <h2>Who is responsible</h2>
+  <p>BingeJam is developed and operated by <b>Aritraditya Roy</b>, India (the "Data Fiduciary" under the DPDP
+  Act). Contact: <a href="mailto:aritraditya.roy@gmail.com">aritraditya.roy@gmail.com</a>.</p>
 
   <h2>Your account</h2>
   <ul>
@@ -33,23 +32,23 @@
       email address, and from Google also your name and profile photo address.</li>
     <li>Your <b>email address is private</b>: it's stored only for your own account and is never shown to other users.</li>
     <li>You choose a unique <b>username</b>, a <b>display name</b> and optionally a short <b>bio</b> and a
-      <b>profile picture</b> (a photo or GIF you pick). These form your public profile, which other signed-in Vyro
-      users can see and find by username. If you sign in with Google, your Google profile photo may be used until
-      you change or remove it.</li>
+      <b>profile picture</b> (a photo or GIF you pick). These form your public profile, which other signed-in
+      BingeJam users can see and find by username. If you sign in with Google, your Google profile photo may be
+      used until you change or remove it.</li>
   </ul>
 
-  <h2>What Vyro reads on your phone</h2>
+  <h2>What BingeJam reads on your phone</h2>
   <ul>
     <li><b>Media sessions</b> of supported apps (Netflix, JioHotstar, Prime Video, Spotify, YouTube Music, Amazon
       Music, YouTube): whether something is playing or paused, the position, which controls the app supports, and
-      the title, subtitle, length and artwork the app publishes for Android's media controls. In a watch party or jam,
-      Vyro sends the app play, pause and seek commands, and in a jam asks your music or YouTube app to start the
-      track the host is playing (by its public Spotify or YouTube link, or by searching its title). Android only allows this for apps with
-      <b>Notification Access</b>, which is why Vyro asks for it.</li>
-    <li>Vyro <b>never reads your notifications</b>, messages or their content, and never records or transmits
+      the title, subtitle, length and artwork the app publishes for Android's media controls. In a watch party or
+      jam, BingeJam sends the app play, pause and seek commands, and in a jam asks your music or YouTube app to start
+      the track the host is playing (by its public Spotify or YouTube link, or by searching its title). Android only
+      allows this for apps with <b>Notification Access</b>, which is why BingeJam asks for it.</li>
+    <li>BingeJam <b>never reads your notifications</b>, messages or their content, and never records or transmits
       your screen, video or audio.</li>
-    <li><b>Clipboard, once:</b> on its very first launch the app checks the clipboard one time for a Vyro invite
-      link (the invite page puts it there so a fresh install can open your friend's room). Anything else is
+    <li><b>Clipboard, once:</b> on its very first launch the app checks the clipboard one time for a BingeJam
+      invite link (the invite page puts it there so a fresh install can open your friend's room). Anything else is
       ignored; nothing from it is stored or sent. Android shows its own notice when this happens.</li>
   </ul>
 
@@ -65,7 +64,7 @@
   <h2>What is stored, and where</h2>
   <p>Profile pictures you upload are stored on Cloudflare (Workers KV) and served from a public link that only
     appears on your profile; removing your picture deletes it. Everything else is stored in Google Firebase
-    (Realtime Database, Singapore region):</p>
+    (Realtime Database, Singapore region), so your data is processed outside India by these providers:</p>
   <ul>
     <li>your profile (username, display name, photo address, bio) and private account record (email, sign-in method);</li>
     <li>your <b>friends</b>, friend requests you send or receive, and people you've <b>blocked</b>;</li>
@@ -74,22 +73,31 @@
     <li>"ask to join" requests and room invites between friends;</li>
     <li>a <b>push token</b> for each phone you're signed in on, so we can notify you about new messages and
       friend requests (removed when you sign out);</li>
-    <li>for watch parties and jams: room membership, the room's play/pause state and position, your periodically reported
-      position (used for syncing), the host's now-playing title, length, artwork thumbnail and public track link (jams), room chat and
-      reactions. A room's contents are readable only by its members; a room's preview can be read by any
-      signed-in user who has the room code, so invitees can see what's playing before joining.</li>
+    <li>for watch parties and jams: room membership, the room's play/pause state and position, your periodically
+      reported position (used for syncing), the host's now-playing title, length, artwork thumbnail and public track
+      link (jams), room chat and reactions. A room's contents are readable only by its members; a room's preview can
+      be read by any signed-in user who has the room code, so invitees can see what's playing before joining.</li>
   </ul>
 
-  <h2>Other network requests</h2>
+  <h2>Why we use it (purpose and consent)</h2>
+  <p>We process this data only to provide what you ask for: your account and profile, friends and messages,
+    keeping playback in sync, showing friends the activity you chose to share, and notifications. You give consent
+    when you create an account and when you grant each permission or turn on sharing for an app; you can withdraw it
+    at any time by turning the feature off or deleting your account. We don't use your data for advertising,
+    profiling or training, and we <b>never sell or share it</b> with anyone except the service providers below,
+    who process it on our behalf.</p>
+
+  <h2>Service providers</h2>
   <ul>
-    <li><b>Update check:</b> once per launch the app asks GitHub's public API whether a newer version exists. No
-      personal data is sent; GitHub sees the request (IP address) as with any web request.</li>
-    <li><b>Notifications:</b> when you message a friend or send a friend request, the app asks our notification
-      relay (hosted on Cloudflare) to notify them. The relay checks it's really you, reads the message or request
-      from our database and hands it to Google's Firebase Cloud Messaging for delivery. It stores nothing.</li>
-    <li>The invite web page uses no trackers, ads, analytics or third-party scripts.</li>
+    <li><b>Google Firebase</b> (Authentication, Realtime Database, Cloud Messaging, Hosting).</li>
+    <li><b>Cloudflare</b> (the notification relay and profile-picture storage).</li>
+    <li><b>GitHub</b> (hosts app downloads; the app asks GitHub's public API once per launch whether a newer
+      version exists. No personal data is sent; GitHub sees the request's IP address as with any web request).</li>
   </ul>
-  <p>Vyro contains <b>no ads and no analytics SDKs</b>, and never sells or shares your data.</p>
+  <p>When you message a friend or send a friend request, the app asks our relay to notify them. The relay checks
+    it's really you, reads the message or request from our database and hands it to Firebase Cloud Messaging for
+    delivery. It stores nothing. BingeJam contains <b>no ads and no analytics SDKs</b>, and the web pages use no
+    trackers, ads, analytics or third-party scripts.</p>
 
   <h2>Optional permissions</h2>
   <ul>
@@ -99,19 +107,49 @@
     <li><b>Battery optimisation exemption:</b> only if you allow it, so syncing isn't stopped mid-movie.</li>
   </ul>
 
-  <h2>Your choices and deletion</h2>
+  <h2>How long we keep it</h2>
   <ul>
-    <li>Turn activity sharing off per app, go invisible, unfriend or block anyone at any time.</li>
-    <li>Signing out stops sharing and marks you offline. Uninstalling removes everything stored on your phone.</li>
-    <li>To delete your account and its data (profile, username, friends, messages, activity), contact us at the
-      address below from the email you signed in with.</li>
+    <li>Account data, friends and messages: until you delete them or your account.</li>
+    <li>Activity: only while you're playing; cleared when you stop, go invisible or go offline.</li>
+    <li>Push tokens: until you sign out on that phone or delete your account.</li>
+    <li>Rooms: room state, chat and reactions stay with the room, readable only by its members (a room's preview by
+      anyone with its code). Deleting your account removes you from the room you're in, but not your messages in
+      room chats or older rooms; email us and we'll remove those (<a href="/delete-account">details</a>).</li>
   </ul>
 
-  <h2>Children</h2>
-  <p>Vyro is intended for users aged 18 and over and is not directed at children.</p>
+  <h2>Your rights</h2>
+  <p>Under the DPDP Act you can:</p>
+  <ul>
+    <li><b>access</b> a summary of your data and how it's used (most of it is visible in the app; for the rest,
+      email us);</li>
+    <li><b>correct or update</b> it (edit your profile in the app, or email us);</li>
+    <li><b>erase</b> it: <b>Settings → Delete account</b> in the app deletes your account and data immediately
+      (<a href="/delete-account">how it works</a>);</li>
+    <li><b>withdraw consent</b> for any optional feature by turning it off;</li>
+    <li><b>nominate</b> someone to exercise these rights if you die or become incapacitated (email us);</li>
+    <li><b>raise a grievance</b> with our Grievance Officer (below). If you're not satisfied with our response, you
+      may complain to the Data Protection Board of India.</li>
+  </ul>
 
-  <h2>Contact</h2>
-  <p>Questions or deletion requests: <a href="mailto:aritraditya.roy@gmail.com">aritraditya.roy@gmail.com</a></p>
+  <h2>Security</h2>
+  <p>Data travels over encrypted connections (HTTPS/TLS). Database access rules ensure your private data is
+    readable only by you, messages only by you and the friend, and activity only by friends. No system is perfectly
+    secure; if a breach affecting your data occurs, we'll inform you and the Data Protection Board as the law
+    requires.</p>
+
+  <h2>Age</h2>
+  <p>BingeJam is only for people <b>aged 18 or older</b>. We don't knowingly process data of anyone under 18; if
+    you believe a child has an account, email us and we'll delete it.</p>
+
+  <h2>Grievance Officer</h2>
+  <p>As required by the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021
+    and the DPDP Act:<br>
+    <b>Aritraditya Roy</b>, Grievance Officer, BingeJam<br>
+    Email: <a href="mailto:aritraditya.roy@gmail.com">aritraditya.roy@gmail.com</a><br>
+    We acknowledge complaints within 24 hours and resolve them within 15 days.</p>
+
+  <h2>Changes</h2>
+  <p>If we change this policy we'll update the date above, and tell you in the app if the change is significant.</p>
 </main>
 </body>
 </html>

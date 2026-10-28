@@ -137,6 +137,14 @@ object PushNotifications {
         safely { FirebaseMessaging.getInstance().deleteToken().await() }
     }
 
+    /**
+     * After the account was deleted: rotate this phone's token so nothing addressed to the old
+     * account can reach it. (The eraser already removed it from the account.)
+     */
+    suspend fun deleteLocalToken() {
+        safely { FirebaseMessaging.getInstance().deleteToken().await() }
+    }
+
     private suspend fun currentToken(): String? = try {
         FirebaseMessaging.getInstance().token.await()
     } catch (e: CancellationException) {

@@ -58,6 +58,9 @@ class FirebasePresenceRepository internal constructor(
     private val connectionLock = Any()
     private var running: Running? = null
 
+    /** Set by [retire] while the account is being deleted: nothing is written for this uid. */
+    @Volatile private var retiredUid: String? = null
+
     // ---- Activity state, guarded by [mutex] ----
 
     /** What the tracker wants published (null = nothing). Re-sent after a reconnect. */
@@ -77,6 +80,7 @@ class FirebasePresenceRepository internal constructor(
 
     override fun start() {
         val uid = session.currentUid ?: return
+        if (uid == retiredUid) return
         synchronized(connectionLock) {
             if (running?.uid == uid) return
             stopConnectionLocked(markOffline = false)
@@ -103,6 +107,21 @@ class FirebasePresenceRepository internal constructor(
         }
     }
 
+    /**
+     * Account deletion: stop for good for [uid] so the tracker can't re-create presence/{uid}
+     * after the eraser removed it. [stop] cancels the onDisconnect and its "offline" write lands
+     * before the eraser's update (same connection, writes stay in order).
+     */
+    internal fun retire(uid: String) {
+        retiredUid = uid
+        stop()
+    }
+
+    /** Deletion failed or was cancelled; the account still exists, so [start] works again. */
+    internal fun unretire(uid: String) {
+        if (retiredUid == uid) retiredUid = null
+    }
+
     override fun stop() {
         synchronized(connectionLock) { stopConnectionLocked(markOffline = true) }
         scope.launch {
@@ -127,6 +146,7 @@ class FirebasePresenceRepository internal constructor(
     override suspend fun publishActivity(update: ActivityUpdate?) {
         val uid = session.currentUid ?: return
         mutex.withLock {
+            if (uid == retiredUid) return
             desired = update
             publishLocked(uid)
         }
@@ -135,7 +155,7 @@ class FirebasePresenceRepository internal constructor(
     private suspend fun republish(uid: String) {
         mutex.withLock {
             serverFields = null // gone on the server (onDisconnect), so the next write is a full one
-            if (desired != null && session.currentUid == uid) publishLocked(uid)
+            if (desired != null && session.currentUid == uid && uid != retiredUid) publishLocked(uid)
         }
     }
 

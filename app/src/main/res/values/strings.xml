@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Product name (working name, will change): keep in sync with core/config/Brand.kt and web/. -->
-    <string name="app_name">Vyro</string>
+    <!-- Product name: keep in sync with core/config/Brand.kt and web/. -->
+    <string name="app_name">BingeJam</string>
+
+    <!-- Age line on the sign-in screen. The minimum age lives only here. %1$s = app_name. -->
+    <string name="age_requirement">You must be 18 or older to use %1$s.</string>
 
     <!-- Prominent disclosure for Notification Access (Play policy). %1$s = app_name.
          Keep in sync with PLAY_STORE_READINESS.md. -->

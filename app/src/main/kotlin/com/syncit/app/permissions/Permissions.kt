@@ -31,7 +31,7 @@ object Permissions {
         context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
 
     /**
-     * Opens the battery-optimization list, where the user picks Sync it → "Don't optimize".
+     * Opens the battery-optimization list, where the user picks the app → "Don't optimize".
      * We don't use ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS: it needs an extra permission
      * that Play restricts.
      */

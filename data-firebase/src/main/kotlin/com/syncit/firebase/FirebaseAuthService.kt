@@ -5,12 +5,14 @@ import android.util.Log
 import android.util.Patterns
 import com.google.firebase.auth.ActionCodeSettings
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.syncit.core.auth.AuthService
 import com.syncit.core.auth.EmailRequiredException
+import com.syncit.core.auth.RecentLoginRequiredException
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SignInProvider
 import kotlinx.coroutines.CancellationException
@@ -35,6 +37,10 @@ class FirebaseAuthService internal constructor(
     context: Context,
     private val session: FirebaseSession,
     private val db: FirebaseDatabase,
+    /** Erases the account's database data and profile picture (FirebaseAccountEraser.erase). */
+    private val eraseAccountData: suspend (uid: String) -> Unit,
+    /** Deletion failed or was cancelled after [eraseAccountData] started (FirebaseAccountEraser.abandon). */
+    private val deletionAbandoned: (uid: String) -> Unit,
     /** Runs while still signed in, so presence can mark us offline before the token goes away. */
     private val beforeSignOut: () -> Unit = {},
 ) : AuthService {
@@ -92,6 +98,44 @@ class FirebaseAuthService internal constructor(
     }
 
     /**
+     * Order: check the sign-in is recent enough → erase data while still authenticated (database
+     * rules and the push relay need our token) → delete the Firebase Auth user, which also signs
+     * out. The recency check runs first so a stale sign-in normally fails before anything is
+     * deleted. If Firebase still refuses the last step, the data is already gone; the user signs
+     * in again and retries, and the erase (idempotent) finds nothing or little left.
+     */
+    override suspend fun deleteAccount() {
+        val user = auth.currentUser?.takeUnless { it.isAnonymous } ?: throw NotSignedInException()
+        requireRecentSignIn(user)
+        try {
+            eraseAccountData(user.uid)
+            user.delete().await()
+        } catch (e: Throwable) {
+            deletionAbandoned(user.uid)
+            if (e is FirebaseAuthRecentLoginRequiredException) throw RecentLoginRequiredException()
+            throw e
+        }
+        prefs.edit().remove(KEY_PENDING_EMAIL).apply()
+        auth.signOut()
+        _state.value = AuthState.SignedOut
+    }
+
+    /**
+     * Firebase only deletes an account that signed in within the last few minutes (5 at the time
+     * of writing). Both timestamps come from a freshly minted ID token, so both are Firebase
+     * server time and no device clock is involved: iat = when this token was issued (server
+     * "now"), auth_time = when the user last actually signed in. A margin below Firebase's limit
+     * leaves time for the erase to finish before the final delete.
+     */
+    private suspend fun requireRecentSignIn(user: FirebaseUser) {
+        val token = user.getIdToken(/* forceRefresh = */ true).await()
+        val authTime = token.authTimestamp
+        if (authTime <= 0L || token.issuedAtTimestamp - authTime > RECENT_SIGN_IN_SECONDS) {
+            throw RecentLoginRequiredException()
+        }
+    }
+
+    /**
      * users_private/{uid} {email, provider, createdAt}: owner-only. createdAt is server time and
      * only written the first time. Sign-in still succeeds if this fails (e.g. rules not published).
      */
@@ -129,6 +173,9 @@ class FirebaseAuthService internal constructor(
         private const val PREFS = "vyro_auth"
         private const val KEY_PENDING_EMAIL = "pendingEmail"
         private const val MAX_EMAIL_LENGTH = 254
+
+        /** Our limit for "recent" sign-in before deleting (Firebase's own is 5 minutes). */
+        private const val RECENT_SIGN_IN_SECONDS = 4 * 60L
 
         const val ANDROID_PACKAGE = "com.syncit.app"
 
