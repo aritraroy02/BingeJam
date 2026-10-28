@@ -80,7 +80,6 @@ import com.syncit.app.ui.social.ActivityThumb
 import com.syncit.app.ui.theme.Glass
 import com.syncit.app.ui.theme.Inter
 import com.syncit.core.config.Brand
-import com.syncit.core.model.MediaKind
 
 @Composable
 fun HomeScreen(
@@ -175,7 +174,7 @@ fun HomeScreen(
                     rows.isEmpty() -> GlassPanel(Modifier.fillMaxWidth()) {
                         Text("No friends yet", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
                         Text(
-                            "Add friends by their username to see what they're watching and jump into their watch party.",
+                            "Add friends by their username to see what they're playing and jump into their watch party or jam.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = p.textSecondary,
                         )
@@ -234,9 +233,10 @@ private fun WatchPartyCard(
 ) {
     val p = Glass.palette
     GlassPanel(Modifier.fillMaxWidth()) {
-        Text("Watch party", style = MaterialTheme.typography.titleLarge, color = p.textPrimary)
+        Text("Watch party or jam", style = MaterialTheme.typography.titleLarge, color = p.textPrimary)
         Text(
-            "Everyone plays on their own phone. When anyone plays, pauses or skips, everyone follows.",
+            "Everyone plays on their own phone. When anyone plays, pauses or skips, everyone follows. " +
+                "In a jam, everyone also follows the host from song to song.",
             style = MaterialTheme.typography.bodyMedium,
             color = p.textSecondary,
         )
@@ -321,12 +321,10 @@ private fun FriendRowView(
             }
             if (activity != null) {
                 Spacer(Modifier.height(2.dp))
-                if (activity.app.kind == MediaKind.MOVIE_TV && activity.app.joinable) {
-                    GlassSmallButton(
-                        if (row.joinRequested) "Asked to join" else "Ask to join",
-                        onClick = onAskToJoin,
-                        enabled = !row.joinRequested,
-                    )
+                // Watch parties and jams alike: the room is the point. "Open in …" lives in the sheet.
+                val ask = row.askLabel
+                if (ask != null) {
+                    GlassSmallButton(ask, onClick = onAskToJoin, enabled = !row.joinRequested)
                 } else {
                     GlassSmallButton("Open in ${activity.app.displayName}", onClick = onOpenApp, primary = false)
                 }
@@ -384,15 +382,18 @@ private fun FriendSheetContent(
                     }
                 }
             }
-            if (activity.app.joinable) {
+            val ask = row.askLabel
+            if (ask != null) {
                 GlassButton(
-                    if (row.joinRequested) "Asked to join" else "Ask to join",
+                    ask,
                     onClick = onAskToJoin,
                     enabled = !row.joinRequested,
                     icon = Icons.Filled.PlayArrow,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            } else {
+            }
+            // Jams: still handy to just look the song up on your own (no room, no sync).
+            if (ask == null || row.isJam) {
                 GlassButton("Open in ${activity.app.displayName}", onClick = onOpenApp, style = GlassButtonStyle.Secondary, modifier = Modifier.fillMaxWidth())
             }
         }

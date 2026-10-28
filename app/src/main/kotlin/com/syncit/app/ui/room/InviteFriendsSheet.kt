@@ -27,6 +27,8 @@ import com.syncit.core.model.Friend
 @Composable
 fun InviteFriendsSheet(
     visible: Boolean,
+    /** Music/YouTube room: "Invite to jam". */
+    jam: Boolean,
     friends: List<Friend>,
     invited: Set<String>,
     memberUids: Set<String>,
@@ -36,9 +38,13 @@ fun InviteFriendsSheet(
 ) {
     val p = Glass.palette
     GlassBottomSheet(visible = visible, onDismiss = onDismiss) {
-        Text("Invite friends", style = MaterialTheme.typography.titleLarge, color = p.textPrimary)
+        Text(if (jam) "Invite to jam" else "Invite friends", style = MaterialTheme.typography.titleLarge, color = p.textPrimary)
         Text(
-            "They'll see an invite in the app with what you're watching.",
+            if (jam) {
+                "They'll see an invite in the app. When they join, your track starts on their phone and they follow you from track to track."
+            } else {
+                "They'll see an invite in the app with what you're watching."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = p.textSecondary,
         )

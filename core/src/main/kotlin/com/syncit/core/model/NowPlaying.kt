@@ -16,15 +16,22 @@ class NowPlayingMetadata(
     val durationMs: Long? = null,
     /** Every key the app published, as "key = value" (bitmaps as their size). Diagnostics only. */
     val allFields: List<String> = emptyList(),
+    /**
+     * A public reference that opens this exact item in the same app, e.g. "spotify:track:<id>" or
+     * "https://www.youtube.com/watch?v=<id>". Set only when the app publishes one in a known public
+     * format (see :media); never a private stream/CDN URL (JioHotstar's MEDIA_URI is one).
+     */
+    val playableRef: String? = null,
 ) {
     val isEmpty: Boolean get() = title.isNullOrBlank() && artworkJpeg == null
 
     override fun equals(other: Any?): Boolean =
         other is NowPlayingMetadata && title == other.title && subtitle == other.subtitle &&
-            mediaId == other.mediaId && durationMs == other.durationMs && artworkJpeg.contentEquals(other.artworkJpeg)
+            mediaId == other.mediaId && durationMs == other.durationMs && playableRef == other.playableRef &&
+            artworkJpeg.contentEquals(other.artworkJpeg)
 
     override fun hashCode(): Int =
-        listOf(title, subtitle, mediaId, durationMs).hashCode() * 31 + artworkJpeg.contentHashCode()
+        listOf(title, subtitle, mediaId, durationMs, playableRef).hashCode() * 31 + artworkJpeg.contentHashCode()
 
     override fun toString(): String =
         "NowPlayingMetadata(title=$title, subtitle=$subtitle, mediaId=$mediaId, artwork=${artworkJpeg?.size ?: 0} B)"
@@ -44,6 +51,8 @@ class RoomPreview(
     val artworkJpeg: ByteArray?,
     val updatedAt: Long,
     val durationMs: Long? = null,
+    /** Host's [NowPlayingMetadata.playableRef]: lets jam members start the exact same track. */
+    val playableRef: String? = null,
 ) {
     /**
      * Is [local] the same title/episode the host is playing? Streaming apps don't publish a shared
@@ -70,9 +79,10 @@ class RoomPreview(
     override fun equals(other: Any?): Boolean =
         other is RoomPreview && code == other.code && hostName == other.hostName && service == other.service &&
             title == other.title && subtitle == other.subtitle && updatedAt == other.updatedAt &&
-            durationMs == other.durationMs &&
+            durationMs == other.durationMs && playableRef == other.playableRef &&
             artworkJpeg.contentEquals(other.artworkJpeg)
 
     override fun hashCode(): Int =
-        listOf(code, hostName, service, title, subtitle, updatedAt, durationMs).hashCode() * 31 + artworkJpeg.contentHashCode()
+        listOf(code, hostName, service, title, subtitle, updatedAt, durationMs, playableRef).hashCode() * 31 +
+            artworkJpeg.contentHashCode()
 }

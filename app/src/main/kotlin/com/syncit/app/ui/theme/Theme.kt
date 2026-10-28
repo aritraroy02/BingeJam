@@ -169,4 +169,7 @@ object PlatformColors {
     val Spotify = Color(0xFF1DB954)
     val YouTube = Color(0xFFFF0033)
     val AmazonMusic = Color(0xFF25D1DA)
+
+    /** Text on the light brand chips (Spotify, Amazon Music). */
+    val OnLightBrand = Color(0xFF0A0A0A)
 }

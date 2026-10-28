@@ -8,8 +8,10 @@
     <!-- Optional floating chat bubble over the movie. Special access, user-granted in settings. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Package visibility (Android 11+) for the room's "Play in …" button and friends' "Open in …"
-         buttons. Keep in sync with StreamingConfig / ActivityApp. -->
+    <!-- Package visibility (Android 11+) for the room's "Play in …" button (getLaunchIntentForPackage)
+         and friends' "Open in …" buttons. Keep in sync with StreamingConfig / ActivityApp. Jams open
+         the host's exact item with ACTION_VIEW pinned to the app's package (spotify:… URIs, YouTube
+         watch links); an explicit startActivity needs no extra <intent> query. -->
     <queries>
         <package android:name="com.netflix.mediaclient" />
         <package android:name="in.startv.hotstar" />

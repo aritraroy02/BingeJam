@@ -44,8 +44,12 @@ object ActivityText {
         return if (activity.playing) line else "$line (paused)"
     }
 
-    /** Shown while they're syncing a room for this title. The room code itself is never published. */
-    fun watchPartyLabel(activity: Activity?): String? = if (activity?.inWatchParty == true) "In a watch party" else null
+    /**
+     * "In a watch party" / "In a jam" while they're syncing a room for this title. The room code
+     * itself is never published.
+     */
+    fun watchPartyLabel(activity: Activity?): String? =
+        if (activity?.inWatchParty == true) RoomWording.inRoomLabel(RoomWording.isJam(activity.app)) else null
 
     fun lastSeen(lastSeen: Long?, nowMs: Long): String {
         if (lastSeen == null || lastSeen <= 0) return "Offline"

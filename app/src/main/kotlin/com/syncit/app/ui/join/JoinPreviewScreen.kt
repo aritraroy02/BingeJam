@@ -51,6 +51,7 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
     val join by viewModel.join.collectAsStateWithLifecycle()
     val preview = (state as? JoinPreviewViewModel.PreviewState.Loaded)?.preview
     val artwork = rememberArtwork(preview?.artworkJpeg)
+    val jam = preview?.service?.isJam == true
     LaunchedEffect(join.joined) { if (join.joined) onJoined(viewModel.code) }
 
     GlassScreen(artwork = artwork) {
@@ -71,7 +72,7 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("You're invited to a watch party", style = MaterialTheme.typography.labelLarge, color = p.textSecondary)
+                Text(if (jam) "You're invited to a jam" else "You're invited to a watch party", style = MaterialTheme.typography.labelLarge, color = p.textSecondary)
 
                 if (state is JoinPreviewViewModel.PreviewState.Loading) {
                     Box(Modifier.fillMaxWidth().heightIn(min = 220.dp), contentAlignment = Alignment.Center) {
@@ -101,7 +102,11 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
                             Column(Modifier.weight(1f)) {
                                 Text("Hosted by ${preview.hostName}", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
                                 Text(
-                                    if (preview.title == null) "Hasn't started a movie yet" else "Everyone's playback stays in sync",
+                                    when {
+                                        preview.title == null -> if (jam) "Hasn't started anything yet" else "Hasn't started a movie yet"
+                                        jam -> "Their track starts on your phone and stays in sync"
+                                        else -> "Everyone's playback stays in sync"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = p.textSecondary,
                                 )
@@ -129,7 +134,7 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
 
                 Spacer(Modifier.height(4.dp))
                 GlassButton(
-                    text = "Join watch party",
+                    text = if (jam) "Join the jam" else "Join watch party",
                     icon = Icons.Filled.PlayArrow,
                     loading = join.busy,
                     onClick = viewModel::join,

@@ -88,7 +88,7 @@ Don't use `FontFamily.Monospace`: OPPO maps it to a serif font; use `Inter`.
      sync resumes but presence isn't restarted until the room screen is opened.
    - A host leaving doesn't hand over host or delete the room.
    - `RoomViewModel` is reused if the same room is left and re-entered; `enter()` handles that.
-7. **Tests:** 47 engine tests in `sync-engine/src/test`, all passing. If one fails after a
+7. **Tests:** 75 engine tests in `sync-engine/src/test`, all passing. If one fails after a
    change, check whether the test's expectation or the engine is wrong before changing either.
 8. **Windows build quirk:** `gradlew clean` can fail with "Unable to delete ... lint-cache" while
    a daemon holds the jars. Run `gradlew --stop` first.

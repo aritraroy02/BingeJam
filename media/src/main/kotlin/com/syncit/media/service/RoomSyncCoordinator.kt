@@ -9,13 +9,14 @@ import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.model.SyncCommand
 import com.syncit.core.model.SyncStatus
+import com.syncit.core.session.JamFollow
 import com.syncit.core.session.SyncDependencies
 import com.syncit.core.session.SyncSessionState
 import com.syncit.core.sync.SyncClock
 import com.syncit.core.sync.SyncEngine
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,20 @@ import kotlinx.coroutines.launch
  * Wires the gateway, the transport and a [SyncEngine] together for one room. Runs entirely on
  * the [scope]'s dispatcher (main thread), so the engine is only ever called from one thread.
  * Depends only on :core interfaces.
+ *
+ * Every input (sessions, room, preview, the 1 s tick, "Back to the jam") goes through [evaluate],
+ * which decides which session the engine may see:
+ *  - watch-party member on a different title/app: hidden (OTHER_TITLE), as before jams;
+ *  - jam member: [JamFollower] starts the host's track and hides the app until it's on it;
+ *  - jam host: always visible.
+ * Hiding = the engine sees "no session" (it detaches); un-hiding = re-attach, which the engine
+ * handles as a late join (align to the room's position, ignore the app's start-up changes).
+ *
+ * Jams: a new track is a new timeline. When the host's track changes, the host's engine gets
+ * onItemChanged(leader = true) and, once the app has settled on the new track, broadcasts its
+ * position as the room's. When the host's track (the preview) changes, members' engines get
+ * onItemChanged(leader = false) and align to the host's write for the new track. Watch parties
+ * never call it.
  */
 internal class RoomSyncCoordinator(
     private val deps: SyncDependencies,
@@ -42,10 +57,27 @@ internal class RoomSyncCoordinator(
 ) {
     private var job: Job? = null
     private var roomCode: String? = null
+    private var uid: String? = null
     private var engine: SyncEngine? = null
     private var room: Room? = null
+    private var sessions: List<MediaSessionInfo> = emptyList()
+    private var preview: RoomPreview? = null
+
+    /** The session the engine currently sees (null = none, or hidden). Commands go to it only. */
     private var session: MediaSessionInfo? = null
-    private var onOtherTitle = false
+    private var fedEngine = false
+
+    /** Set by [evaluate] when the engine's own status doesn't tell the story (app hidden). */
+    private var statusOverride: SyncStatus? = null
+    private var jamFollow = JamFollow.IDLE
+
+    /** The room's app, for the UI, while a jam member's app is hidden or missing. */
+    private var serviceHint: StreamingService? = null
+
+    private val follower = JamFollower()
+    /** Host: the host's own jam track. Member: the host's track from the preview. */
+    private val hostItem = ItemKeyTracker()
+    private val previewItem = ItemKeyTracker()
     private var state = SyncSessionState()
 
     fun start(code: String) {
@@ -66,6 +98,7 @@ internal class RoomSyncCoordinator(
                 publish(state)
                 return@launch
             }
+            this@RoomSyncCoordinator.uid = uid
 
             val clock = object : SyncClock {
                 // Local monotonic clock; same base as PlaybackState.getLastPositionUpdateTime().
@@ -84,77 +117,180 @@ internal class RoomSyncCoordinator(
             launch {
                 roomFlow.collect { r ->
                     room = r
+                    // Engine first: a jam host's own timeline-restart write must be the engine's
+                    // room state before evaluate() lets the host's app re-attach.
                     if (r != null) execute(code, engine.onRoom(r.state, r.members))
-                    publishState(engine)
+                    evaluate(code, engine)
                 }
             }
 
-            // The target app follows the room's title once it's set (Phase 4).
-            val targetFlow = roomFlow.map { it?.title?.service }.distinctUntilChanged()
-
-            // What the host is playing. Members only sync when they're on the same title/episode.
-            val previewFlow = transport.observePreview(code)
-                .catch { emit(null) }
-                .shareIn(this, SharingStarted.Eagerly, replay = 1)
-            val isHostFlow = roomFlow.map { it?.hostUid == uid }.distinctUntilChanged()
+            // What the host is playing. Members only sync when they're on the same title/track.
+            val previewFlow = transport.observePreview(code).catch { emit(null) }
 
             launch {
-                combine(deps.gateway.sessions, targetFlow, previewFlow, isHostFlow) { sessions, target, preview, isHost ->
-                    val picked = pickSession(sessions, target)
-                    picked to isOtherTitle(picked, preview, isHost)
+                combine(deps.gateway.sessions, previewFlow) { s, p -> s to p }.collect { (s, p) ->
+                    sessions = s
+                    preview = p
+                    evaluate(code, engine)
                 }
-                    // Metadata (title/artwork) changes aren't playback changes; the engine ignores them.
-                    .distinctUntilChanged { a, b ->
-                        a.first?.sessionKey == b.first?.sessionKey && a.first?.snapshot == b.first?.snapshot && a.second == b.second
-                    }
-                    .collect { (picked, otherTitle) ->
-                        // On a different episode the app is invisible to the engine: none of its
-                        // play/pause/seek is broadcast and no commands are sent to it. Switching to
-                        // the right episode then looks like opening the app, which the engine
-                        // handles as a late join: it jumps to the room's position.
-                        onOtherTitle = otherTitle
-                        session = if (otherTitle) null else picked
-                        execute(code, engine.onLocalSnapshot(session?.snapshot))
-                        publishState(engine)
-                    }
             }
 
-            launch { publishNowPlaying(code, uid, roomFlow, targetFlow) }
+            launch { publishNowPlaying(code, uid, roomFlow) }
 
             launch {
                 while (isActive) {
                     delay(TICK_MS)
                     execute(code, engine.onTick())
-                    publishState(engine)
+                    // Jam timers (start timeout, host settle) advance with time alone.
+                    evaluate(code, engine)
                 }
             }
         }
     }
 
+    /** "Back to the jam": retry starting the host's track here. No-op for hosts and watch parties. */
+    fun followHost() {
+        val code = roomCode ?: return
+        val engine = engine ?: return
+        follower.requestRetry()
+        evaluate(code, engine)
+    }
+
     /**
-     * Host only: mirrors what the host's streaming app says is playing (title, artwork) into the
-     * room preview, so members and invitees see it. Debounced: apps often publish metadata in
-     * several steps (title first, artwork a moment later).
+     * Picks the session, applies the watch-party / jam gates, feeds the engine when what it may
+     * see changed, and publishes the state. Main thread only.
+     */
+    private fun evaluate(code: String, engine: SyncEngine) {
+        val uid = uid ?: return
+        // Local monotonic time for the jam timers; never wall-clock time.
+        val nowMs = SystemClock.elapsedRealtime()
+        val r = room
+        val currentPreview = preview
+        val isHost = r != null && r.hostUid == uid
+        val picked = pickSession(sessions, r, currentPreview, isHost)
+
+        var visible = picked
+        var override: SyncStatus? = null
+        var follow = JamFollow.IDLE
+        var hint: StreamingService? = null
+
+        when {
+            r != null && isHost -> {
+                follower.reset()
+                val hostService = picked?.let { StreamingService.forPackage(it.packageName) }
+                previewItem.reset()
+                if (hostService?.isJam == true) {
+                    // Before feeding the new track's snapshot: the engine then treats its jump to
+                    // ~0 as part of the switch and broadcasts the new timeline itself (at least
+                    // 800 ms later, after our immediate preview write; see publishNowPlaying).
+                    if (hostItem.changed(JamTracks.key(picked?.metadata))) {
+                        execute(code, engine.onItemChanged(leader = true))
+                    }
+                } else if (hostService != null) {
+                    hostItem.reset() // a watch party now
+                }
+                // No session: keep the last track, so reopening the app on another one restarts.
+            }
+
+            isJamForMember(r, currentPreview) -> {
+                hostItem.reset()
+                // The host moved to a new track: room writes from now on are about it. Told whether
+                // or not our app is visible; JamFollower still hides it until it's on that track.
+                if (currentPreview != null && previewItem.changed(JamTracks.key(currentPreview))) {
+                    execute(code, engine.onItemChanged(leader = false))
+                }
+                hint = currentPreview?.service
+                val decision = follower.update(currentPreview, picked, nowMs)
+                follow = decision.follow
+                if (decision.hideSession) {
+                    visible = null
+                    override = when {
+                        decision.otherTitle -> SyncStatus.OTHER_TITLE
+                        follow == JamFollow.NEEDS_APP -> null // engine: APP_NOT_OPEN / SESSION_LOST
+                        else -> SyncStatus.SYNCING // switching to the host's track
+                    }
+                }
+                decision.action?.let { action ->
+                    if (!perform(action)) {
+                        follower.actionNotApplied()
+                        follow = JamFollow.FAILED
+                        override = SyncStatus.OTHER_TITLE
+                    }
+                }
+            }
+
+            else -> {
+                follower.reset()
+                hostItem.reset()
+                previewItem.reset()
+                // On a different episode the app is invisible to the engine: none of its
+                // play/pause/seek is broadcast and no commands are sent to it. Switching to
+                // the right episode then looks like opening the app, which the engine
+                // handles as a late join: it jumps to the room's position.
+                if (isOtherTitle(picked, currentPreview, isHost)) {
+                    visible = null
+                    override = SyncStatus.OTHER_TITLE
+                }
+            }
+        }
+
+        statusOverride = override
+        jamFollow = follow
+        serviceHint = hint
+        feed(code, engine, visible)
+        publishState(engine)
+    }
+
+    /**
+     * Gives the engine [visible]'s snapshot, but only when the session or its PlaybackState
+     * changed: metadata (title/artwork) changes and re-evaluations aren't playback changes.
+     */
+    private fun feed(code: String, engine: SyncEngine, visible: MediaSessionInfo?) {
+        val previous = session
+        session = visible
+        val changed = !fedEngine || visible?.sessionKey != previous?.sessionKey || visible?.snapshot != previous?.snapshot
+        if (!changed) return
+        fedEngine = true
+        execute(code, engine.onLocalSnapshot(visible?.snapshot))
+    }
+
+    /** Asks the member's app to start the host's track. False if the app didn't take the call. */
+    private fun perform(action: JamFollower.Action): Boolean {
+        val ok = when (action) {
+            is JamFollower.Action.PlayFromUri -> deps.gateway.playFromUri(action.sessionKey, action.uri)
+            is JamFollower.Action.PlayFromSearch -> deps.gateway.playFromSearch(action.sessionKey, action.query)
+        }
+        Log.i(TAG, "Jam: ${action::class.simpleName} on ${action.sessionKey}: ${if (ok) "sent" else "not applied"}")
+        return ok
+    }
+
+    /**
+     * Host only: mirrors what the host's streaming app says is playing (title, artwork, public
+     * playableRef) into the room preview, so members and invitees see it. Debounced: apps often
+     * publish metadata in several steps (title first, artwork a moment later). In a jam a NEW
+     * track is published at once, so members learn about it before the host engine's timeline
+     * restart (onItemChanged, broadcast at least 800 ms later) reaches them: writes from one client
+     * arrive in order, so members don't apply the new timeline to the old track.
      */
     @OptIn(FlowPreview::class)
-    private suspend fun publishNowPlaying(
-        code: String,
-        uid: String,
-        roomFlow: Flow<Room?>,
-        targetFlow: Flow<StreamingService?>,
-    ) {
-        val isHost = roomFlow.map { it?.hostUid == uid }.distinctUntilChanged()
-        combine(isHost, deps.gateway.sessions, targetFlow) { host, sessions, target ->
+    private suspend fun publishNowPlaying(code: String, uid: String, roomFlow: Flow<Room?>) {
+        var lastPublishedKey: String? = null
+        val isHostFlow = roomFlow.map { it?.hostUid == uid }.distinctUntilChanged()
+        val titleServiceFlow = roomFlow.map { it?.title?.service }.distinctUntilChanged()
+        combine(isHostFlow, deps.gateway.sessions, titleServiceFlow) { host, sessions, titleService ->
             if (!host) return@combine null
-            val picked = pickSession(sessions, target) ?: return@combine null
+            val picked = pickHostSession(sessions, titleService) ?: return@combine null
             val service = StreamingService.forPackage(picked.packageName) ?: return@combine null
             val metadata = picked.metadata?.takeUnless { it.isEmpty } ?: return@combine null
             service to metadata
         }
             .filterNotNull()
             .distinctUntilChanged()
-            .debounce(NOW_PLAYING_DEBOUNCE_MS)
+            .debounce { (service, metadata) ->
+                if (service.isJam && JamTracks.key(metadata) != lastPublishedKey) 0L else NOW_PLAYING_DEBOUNCE_MS
+            }
             .collect { (service, metadata) ->
+                lastPublishedKey = JamTracks.key(metadata)
                 safely("setNowPlaying") { deps.transport.setNowPlaying(code, service, metadata) }
             }
     }
@@ -163,31 +299,63 @@ internal class RoomSyncCoordinator(
         job?.cancel()
         job = null
         roomCode = null
+        uid = null
         engine = null
         room = null
+        sessions = emptyList()
+        preview = null
         session = null
-        onOtherTitle = false
+        fedEngine = false
+        statusOverride = null
+        jamFollow = JamFollow.IDLE
+        serviceHint = null
+        follower.reset()
+        hostItem.reset()
+        previewItem.reset()
         state = SyncSessionState()
         publish(state)
     }
 
     /**
-     * The session to sync: the room's chosen service if set, otherwise whichever configured
-     * [StreamingService] (Netflix, JioHotstar, Prime Video, ...) has an active session, in the
-     * gateway's order (most recently active first). No per-app special casing: an app that
-     * doesn't report position or accept seekTo is handled by the engine's fallback modes.
+     * The session to sync. The room's chosen service if set. Otherwise: for the host, whichever
+     * supported app has an active session (music starts a jam, a movie a watch party), in the
+     * gateway's order (most recently active first); for a member, the app the host is playing
+     * (from the preview), or until that's known, video apps only, as before jams existed, so a
+     * member's background music can't seed a watch party's timeline. No per-app special casing:
+     * an app that doesn't report position or accept seekTo is handled by the engine's fallbacks.
      */
-    private fun pickSession(sessions: List<MediaSessionInfo>, target: StreamingService?): MediaSessionInfo? {
-        val packages = (if (target != null) listOf(target) else StreamingService.entries)
-            .filter { it.isConfigured }
-            .map { it.packageName }
+    private fun pickSession(
+        sessions: List<MediaSessionInfo>,
+        room: Room?,
+        preview: RoomPreview?,
+        isHost: Boolean,
+    ): MediaSessionInfo? {
+        if (isHost) return pickHostSession(sessions, room?.title?.service)
+        val target = room?.title?.service ?: preview?.service
+        val services = if (target != null) listOf(target) else StreamingService.entries.filter { !it.isJam }
+        return firstSessionOf(sessions, services)
+    }
+
+    private fun pickHostSession(sessions: List<MediaSessionInfo>, titleService: StreamingService?): MediaSessionInfo? =
+        firstSessionOf(sessions, if (titleService != null) listOf(titleService) else StreamingService.entries)
+
+    private fun firstSessionOf(sessions: List<MediaSessionInfo>, services: List<StreamingService>): MediaSessionInfo? {
+        val packages = services.filter { it.isConfigured }.map { it.packageName }
         return sessions.firstOrNull { it.packageName in packages }
     }
 
+    /** A member in a room whose host plays a jam app (and the room's title, if any, agrees). */
+    private fun isJamForMember(room: Room?, preview: RoomPreview?): Boolean {
+        val service = preview?.service ?: return false
+        if (room == null || !service.isJam) return false
+        val titleService = room.title?.service
+        return titleService == null || titleService == service
+    }
+
     /**
-     * True when we're a member (not the host) and our app is playing something other than the
-     * host's title: a different streaming app, or a different title/episode. Unknown (no title on
-     * either side) never blocks syncing.
+     * Watch parties: true when we're a member (not the host) and our app is playing something
+     * other than the host's title: a different streaming app, or a different title/episode.
+     * Unknown (no title on either side) never blocks syncing.
      */
     private fun isOtherTitle(picked: MediaSessionInfo?, preview: RoomPreview?, isHost: Boolean): Boolean {
         if (isHost || picked == null || preview?.title == null || preview.service == null) return false
@@ -217,15 +385,20 @@ internal class RoomSyncCoordinator(
     }
 
     private fun publishState(engine: SyncEngine) {
-        val target = room?.title?.service ?: session?.packageName?.let { StreamingService.forPackage(it) }
+        val target = room?.title?.service ?: session?.packageName?.let { StreamingService.forPackage(it) } ?: serviceHint
         val status = when {
             !deps.gateway.notificationAccessGranted.value -> SyncStatus.NO_NOTIFICATION_ACCESS
             target != null && !target.isConfigured -> SyncStatus.NOT_CONFIGURED
             room == null -> SyncStatus.WAITING_FOR_ROOM
-            onOtherTitle -> SyncStatus.OTHER_TITLE
-            else -> engine.status
+            else -> statusOverride ?: engine.status
         }
-        val next = state.copy(status = status, mode = engine.mode, driftMs = engine.lastDriftMs, service = target)
+        val next = state.copy(
+            status = status,
+            mode = engine.mode,
+            driftMs = engine.lastDriftMs,
+            service = target,
+            jamFollow = jamFollow,
+        )
         if (next != state) {
             state = next
             publish(next)

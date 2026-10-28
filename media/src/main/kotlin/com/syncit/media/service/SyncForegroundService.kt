@@ -16,11 +16,13 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import com.syncit.core.config.Brand
 import com.syncit.core.config.SyncStatusLabels
+import com.syncit.core.session.JamFollow
 import com.syncit.core.session.SyncDependenciesProvider
 import com.syncit.core.session.SyncSessionState
 import com.syncit.media.R
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Keeps the MediaController attached and the room connection alive while the user is in a
@@ -39,6 +41,8 @@ class SyncForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createChannel()
+        // "Back to the jam" from the UI (AndroidSyncSessionController.followHost); main thread.
+        scope.launch { SyncSessionStateHolder.followRequests.collect { coordinator?.followHost() } }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -83,7 +87,12 @@ class SyncForegroundService : Service() {
 
     private fun updateNotification(state: SyncSessionState) {
         val appName = state.service?.displayName ?: "Streaming app"
-        val text = SyncStatusLabels.label(state.status, appName)
+        val text = when (state.jamFollow) {
+            JamFollow.STARTING -> getString(R.string.sync_jam_starting)
+            JamFollow.NEEDS_APP -> getString(R.string.sync_jam_needs_app, appName)
+            JamFollow.FAILED -> getString(R.string.sync_jam_failed)
+            JamFollow.IDLE -> SyncStatusLabels.label(state.status, appName)
+        }
         if (text == lastNotificationText) return
         lastNotificationText = text
         notifyIfAllowed(buildNotification(text))

@@ -12,7 +12,7 @@ object SyncStatusLabels {
         SyncStatus.NOT_CONFIGURED -> "$appName isn't configured yet"
         SyncStatus.APP_NOT_OPEN -> "$appName not open"
         SyncStatus.SESSION_LOST -> "Session not found"
-        SyncStatus.OTHER_TITLE -> "Different episode"
+        SyncStatus.OTHER_TITLE -> "Not on the same title"
         SyncStatus.SYNCING -> "Syncing"
         SyncStatus.CORRECTING -> "Out of sync, correcting"
         SyncStatus.CATCHING_UP -> "Paused briefly so others can catch up"

@@ -116,7 +116,8 @@ internal class ActivityDecider(
         val next: ActivityUpdate? = if (best != null) {
             val (session, s) = best
             lastShown = Shown(s.app, session.metadata)
-            // Only movie/TV apps can be in a watch party; never the room code itself.
+            // Only apps with a room type (watch party or jam, ActivityApp.joinable) count as "in a
+            // room"; never the room code itself.
             ActivityUpdate(s.app, session.metadata, s.playing, inWatchParty && s.app.joinable)
         } else {
             val last = lastShown

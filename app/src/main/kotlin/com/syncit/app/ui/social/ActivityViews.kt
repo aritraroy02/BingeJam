@@ -36,7 +36,7 @@ fun ActivityApp.color(): Color = when (this) {
     ActivityApp.AMAZON_MUSIC -> PlatformColors.AmazonMusic
 }
 
-/** The streaming badge for video apps we sync, a plain coloured chip for the rest. */
+/** The platform badge for apps we sync (all of them since jams), a plain coloured chip otherwise. */
 @Composable
 fun ActivityAppBadge(app: ActivityApp, modifier: Modifier = Modifier) {
     val service = app.syncService

@@ -164,6 +164,20 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
 - Room hero for JioHotstar has no poster (falls back to the aurora backdrop + JioHotstar badge).
 - JioHotstar kept playing while Sync it was in front this time.
 
+## Jams: synced listening (2026-10-15)
+- Asked by the user after testing 0.3.0 ("it's just searching the song in the search bar").
+  Built by media/backend/ui/sync-engine agents; see PLAN.md "Jams".
+- playableRef is validated three times (rules regex, `PlayableRefs` on read, `PlayableRefParser.validFor`
+  before `playFromUri`) and the open-item Intent is pinned to the app's package. JioHotstar's MEDIA_URI
+  is never read. Emulator rules test 332/332 (YouTube ids with `-`/`_`, Spotify episodes, junk refs).
+- Engine: seeks through BUFFERING were silently dropped (also in movies) → fixed with tests;
+  new `onItemChanged(leader)` for track changes (no 4 s settle window).
+- Reviewer findings and fixes: host's background YouTube/Spotify taking over a watch party (blocker:
+  host now sticks to the room's kind, app switches re-attach); end-of-track race restarting the host's
+  song; late-BUFFERING after a freeze broadcasting a backward seek; ref-after-title counted as a new
+  track; members pulled back after leaving the jam; background song shown as "In a jam";
+  "Back to the jam" for apps without play-from actions.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.

@@ -3,6 +3,8 @@ package com.syncit.app.ui.room
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -30,8 +32,8 @@ import com.syncit.app.overlay.ChatBubbleService
 import com.syncit.app.permissions.Permissions
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
+import com.syncit.app.ui.glass.GlassChip
 import com.syncit.app.ui.glass.GlassPanel
-import com.syncit.app.ui.glass.GlassSegmented
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.theme.Glass
@@ -44,9 +46,14 @@ import com.syncit.core.model.SyncMode
 import com.syncit.core.model.SyncStatus
 import com.syncit.core.session.SyncSessionState
 
+/**
+ * [service] is what the room plays (RoomScreen: host preview, else the shared link, else our own
+ * session); it decides watch-party vs jam wording.
+ */
 @Composable
 fun SyncTab(
     room: Room,
+    service: StreamingService?,
     sync: SyncSessionState,
     isHost: Boolean,
     onResume: () -> Unit,
@@ -54,6 +61,7 @@ fun SyncTab(
     onSaveTitle: (StreamingService, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val jam = service?.isJam == true
     Column(
         modifier
             .verticalScroll(rememberScrollState())
@@ -62,33 +70,49 @@ fun SyncTab(
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StatusPanel(sync, onResume)
+        StatusPanel(sync, service, onResume)
         CountdownPanel(prominent = sync.mode == SyncMode.MANUAL_COUNTDOWN, onStart = onStartCountdown)
-        SectionLabel("Movie link (optional)", Modifier.padding(top = 4.dp))
-        TitlePanel(title = room.title, isHost = isHost, onSave = onSaveTitle)
-        SectionLabel("While watching", Modifier.padding(top = 4.dp))
-        BubblePanel(roomCode = room.code)
+        SectionLabel(if (jam) "Link (optional)" else "Movie link (optional)", Modifier.padding(top = 4.dp))
+        TitlePanel(title = room.title, isHost = isHost, jam = jam, roomService = service, onSave = onSaveTitle)
+        SectionLabel(if (jam) "While it plays" else "While watching", Modifier.padding(top = 4.dp))
+        BubblePanel(roomCode = room.code, jam = jam)
     }
 }
 
 @Composable
-private fun StatusPanel(state: SyncSessionState, onResume: () -> Unit) {
+private fun StatusPanel(state: SyncSessionState, roomService: StreamingService?, onResume: () -> Unit) {
     val context = LocalContext.current
     val p = Glass.palette
-    val appName = state.service?.displayName ?: "your streaming app"
+    val service = state.service ?: roomService
+    val jam = service?.isJam == true
+    val appName = service?.displayName ?: "your streaming app"
     GlassPanel {
-        Text(SyncStatusLabels.label(state.status, appName), style = MaterialTheme.typography.titleMedium, color = state.status.color())
+        Text(MemberPrompts.statusLabel(state.status, service), style = MaterialTheme.typography.titleMedium, color = state.status.color())
         when (state.status) {
-            SyncStatus.APP_NOT_OPEN, SyncStatus.SESSION_LOST ->
-                Text("Open the movie in $appName and start it. ${Brand.NAME} picks it up automatically.", color = p.textSecondary, style = MaterialTheme.typography.bodyMedium)
+            SyncStatus.APP_NOT_OPEN, SyncStatus.SESSION_LOST -> Text(
+                if (jam) {
+                    "Open $appName. ${Brand.NAME} starts the host's track and keeps you on it."
+                } else {
+                    "Open the movie in $appName and start it. ${Brand.NAME} picks it up automatically."
+                },
+                color = p.textSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
             SyncStatus.NO_NOTIFICATION_ACCESS ->
                 GlassButton("Turn on Notification Access", onClick = { Permissions.openNotificationAccessSettings(context) }, icon = Icons.Filled.Notifications, modifier = Modifier.fillMaxWidth())
             SyncStatus.NOT_CONFIGURED ->
                 Text("Sync for $appName isn't set up in this version. Use the countdown below.", color = p.textSecondary, style = MaterialTheme.typography.bodyMedium)
             SyncStatus.IDLE ->
                 GlassButton("Resume syncing", onClick = onResume, icon = Icons.Filled.Refresh, modifier = Modifier.fillMaxWidth())
-            SyncStatus.SYNCING ->
-                Text("Play, pause and skips are shared with everyone in the room.", color = p.textSecondary, style = MaterialTheme.typography.bodyMedium)
+            SyncStatus.SYNCING -> Text(
+                if (jam) {
+                    "Play, pause and skips are shared with everyone, and everyone follows the host's track changes."
+                } else {
+                    "Play, pause and skips are shared with everyone in the room."
+                },
+                color = p.textSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
             else -> Unit
         }
         SyncStatusLabels.modeNotice(state.mode, appName)?.let {
@@ -124,11 +148,17 @@ private fun CountdownPanel(prominent: Boolean, onStart: () -> Unit) {
 
 /**
  * Host: pick the service and paste the title's share link. Everyone: "Open movie". Optional
- * now that the hero shows what the host is playing, but handy for getting everyone onto the
- * same title.
+ * now that the hero shows what the host is playing (and jams follow the host's track on their
+ * own), but handy for getting everyone onto the same title.
  */
 @Composable
-private fun TitlePanel(title: RoomTitle?, isHost: Boolean, onSave: (StreamingService, String) -> Unit) {
+private fun TitlePanel(
+    title: RoomTitle?,
+    isHost: Boolean,
+    jam: Boolean,
+    roomService: StreamingService?,
+    onSave: (StreamingService, String) -> Unit,
+) {
     val context = LocalContext.current
     val p = Glass.palette
     var editing by rememberSaveable { mutableStateOf(false) }
@@ -137,7 +167,11 @@ private fun TitlePanel(title: RoomTitle?, isHost: Boolean, onSave: (StreamingSer
     GlassPanel {
         if (title == null) {
             Text(
-                if (isHost) "Share the movie's link so everyone can open the same title." else "The host hasn't shared a link.",
+                when {
+                    !isHost -> "The host hasn't shared a link."
+                    jam -> "Not needed for a jam: everyone follows your track automatically. Share a link only if someone can't start it."
+                    else -> "Share the movie's link so everyone can open the same title."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = p.textSecondary,
             )
@@ -150,6 +184,7 @@ private fun TitlePanel(title: RoomTitle?, isHost: Boolean, onSave: (StreamingSer
             if (editing || title == null) {
                 TitleEditor(
                     initial = title,
+                    defaultService = roomService,
                     onSave = { service, link ->
                         onSave(service, link)
                         editing = false
@@ -163,13 +198,14 @@ private fun TitlePanel(title: RoomTitle?, isHost: Boolean, onSave: (StreamingSer
     }
 
     if (confirmOpen && title != null) {
+        val what = if (title.service.isJam) "song or video" else "movie or episode"
         AlertDialog(
             onDismissRequest = { confirmOpen = false },
             title = { Text("Same title for everyone?") },
             text = {
                 Text(
-                    "This opens ${title.service.displayName} on the room's title. Before pressing play, check you all " +
-                        "see the same movie or episode.",
+                    "This opens ${title.service.displayName} on the room's link. Before pressing play, check you all " +
+                        "see the same $what.",
                 )
             },
             confirmButton = {
@@ -183,18 +219,28 @@ private fun TitlePanel(title: RoomTitle?, isHost: Boolean, onSave: (StreamingSer
     }
 }
 
+/** Seven apps don't fit a segmented control: wrapping chips, grouped into watch parties and jams. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TitleEditor(initial: RoomTitle?, onSave: (StreamingService, String) -> Unit, onCancel: (() -> Unit)?) {
+private fun TitleEditor(
+    initial: RoomTitle?,
+    defaultService: StreamingService?,
+    onSave: (StreamingService, String) -> Unit,
+    onCancel: (() -> Unit)?,
+) {
     val p = Glass.palette
-    var service by rememberSaveable { mutableStateOf(initial?.service ?: StreamingService.NETFLIX) }
+    var service by rememberSaveable { mutableStateOf(initial?.service ?: defaultService ?: StreamingService.NETFLIX) }
     var link by rememberSaveable { mutableStateOf(initial?.deepLink.orEmpty()) }
     val check = TitleLinks.check(service, link)
 
-    GlassSegmented(
-        options = StreamingService.entries.map { it.displayName },
-        selected = service.ordinal,
-        onSelect = { service = StreamingService.entries[it] },
-    )
+    for (jamGroup in listOf(false, true)) {
+        Text(if (jamGroup) "Jam" else "Watch party", style = MaterialTheme.typography.labelMedium, color = p.textTertiary)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (option in StreamingService.entries.filter { it.isJam == jamGroup }) {
+                GlassChip(option.displayName, onClick = { service = option }, selected = option == service)
+            }
+        }
+    }
     GlassTextField(
         value = link,
         onValueChange = { link = it.trim() },
@@ -208,15 +254,15 @@ private fun TitleEditor(initial: RoomTitle?, onSave: (StreamingService, String) 
     }
 }
 
-/** Starts/stops the floating chat bubble shown over Netflix/JioHotstar. */
+/** Starts/stops the floating chat bubble shown over the streaming or music app. */
 @Composable
-private fun BubblePanel(roomCode: String) {
+private fun BubblePanel(roomCode: String, jam: Boolean) {
     val context = LocalContext.current
     val p = Glass.palette
     GlassPanel {
-        Text("Chat bubble over the movie", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
+        Text(if (jam) "Chat bubble over the app" else "Chat bubble over the movie", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
         Text(
-            "Chat and react without leaving the movie." +
+            (if (jam) "Chat and react without leaving the app." else "Chat and react without leaving the movie.") +
                 if (!Permissions.canDrawOverlays(context)) " Needs \"Display over other apps\" for ${Brand.NAME}." else "",
             style = MaterialTheme.typography.bodySmall,
             color = p.textSecondary,

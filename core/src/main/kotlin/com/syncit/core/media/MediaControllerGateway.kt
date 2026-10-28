@@ -21,4 +21,12 @@ interface MediaControllerGateway {
     fun play(sessionKey: String): Boolean
     fun pause(sessionKey: String): Boolean
     fun seekTo(sessionKey: String, positionMs: Long): Boolean
+
+    /**
+     * Jams: start a specific item through the session's public transport controls. Only call when
+     * the snapshot advertises PLAY_FROM_URI / PLAY_FROM_SEARCH. Return false if the session is gone.
+     */
+    fun playFromUri(sessionKey: String, uri: String): Boolean
+
+    fun playFromSearch(sessionKey: String, query: String): Boolean
 }

@@ -115,6 +115,20 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
         }
     }
 
+    /**
+     * JamAutoOpen keys already acted on. Lives with this ViewModel, which is kept per room code
+     * for the activity's lifetime, so coming back to the room screen doesn't reopen the app.
+     */
+    private val autoOpened = mutableSetOf<String>()
+
+    fun autoOpenedKeys(): Set<String> = autoOpened
+
+    /** True the first time for [key]; the caller then opens the app. */
+    fun claimAutoOpen(key: String): Boolean = autoOpened.add(key)
+
+    /** Jams: "Back to the jam" starts the host's current track on this phone. No-op otherwise. */
+    fun followHost() = container.sessionController.followHost()
+
     fun setTitle(service: StreamingService, deepLink: String) = launchAction("Couldn't save the title") {
         transport.setTitle(code, service, deepLink.trim())
     }

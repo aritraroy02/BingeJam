@@ -20,3 +20,6 @@ keystore.properties
 dist/
 # Firebase CLI deploy cache
 .firebase/
+
+# Kotlin compiler session/error logs
+.kotlin/

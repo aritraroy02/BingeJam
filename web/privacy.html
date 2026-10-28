@@ -40,8 +40,9 @@
   <ul>
     <li><b>Media sessions</b> of supported apps (Netflix, JioHotstar, Prime Video, Spotify, YouTube Music, Amazon
       Music, YouTube): whether something is playing or paused, the position, which controls the app supports, and
-      the title, subtitle, length and artwork the app publishes for Android's media controls. In a watch party,
-      Vyro sends the video app play, pause and seek commands. Android only allows this for apps with
+      the title, subtitle, length and artwork the app publishes for Android's media controls. In a watch party or jam,
+      Vyro sends the app play, pause and seek commands, and in a jam asks your music or YouTube app to start the
+      track the host is playing (by its public Spotify or YouTube link, or by searching its title). Android only allows this for apps with
       <b>Notification Access</b>, which is why Vyro asks for it.</li>
     <li>Vyro <b>never reads your notifications</b>, messages or their content, and never records or transmits
       your screen, video or audio.</li>
@@ -55,7 +56,7 @@
     <li>Sharing is <b>off for every app until you turn it on</b>, app by app (for example Netflix on, Spotify off).
       You can change this or go <b>invisible</b> at any time in Settings.</li>
     <li>For the apps you share, your <b>friends only</b> see what you're playing: the app, title, subtitle, a small
-      artwork thumbnail, whether it's playing, and whether you're hosting a watch party. They also see whether
+      artwork thumbnail, whether it's playing, and whether you're hosting a watch party or jam. They also see whether
       you're online and when you were last seen. It's cleared when you stop playing, go invisible or go offline.</li>
   </ul>
 
@@ -67,8 +68,8 @@
     <li><b>messages</b> you send to friends, readable only by you and that friend, and when you last read each chat;</li>
     <li>your online status and, if you share it, your current activity (above);</li>
     <li>"ask to join" requests and room invites between friends;</li>
-    <li>for watch parties: room membership, the room's play/pause state and position, your periodically reported
-      position (used for syncing), the host's now-playing title, length and artwork thumbnail, room chat and
+    <li>for watch parties and jams: room membership, the room's play/pause state and position, your periodically reported
+      position (used for syncing), the host's now-playing title, length, artwork thumbnail and public track link (jams), room chat and
       reactions. A room's contents are readable only by its members; a room's preview can be read by any
       signed-in user who has the room code, so invitees can see what's playing before joining.</li>
   </ul>
@@ -83,7 +84,7 @@
 
   <h2>Optional permissions</h2>
   <ul>
-    <li><b>Notifications:</b> one quiet notification while you're in a watch party, so Android keeps syncing running.</li>
+    <li><b>Notifications:</b> one quiet notification while you're in a watch party or jam, so Android keeps syncing running.</li>
     <li><b>Display over other apps:</b> only if you turn on the floating chat bubble.</li>
     <li><b>Battery optimisation exemption:</b> only if you allow it, so syncing isn't stopped mid-movie.</li>
   </ul>

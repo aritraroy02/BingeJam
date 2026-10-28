@@ -388,21 +388,33 @@ fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
     }
 }
 
-/** NETFLIX / JioHotstar / Prime Video chip. */
+/** NETFLIX / JioHotstar / Prime Video / Spotify / YouTube … chip in the app's brand colour. */
 @Composable
 fun PlatformBadge(service: StreamingService, modifier: Modifier = Modifier) {
+    fun solid(c: Color) = Brush.horizontalGradient(listOf(c, c))
     val bg = when (service) {
-        StreamingService.NETFLIX -> Brush.horizontalGradient(listOf(PlatformColors.Netflix, PlatformColors.Netflix))
+        StreamingService.NETFLIX -> solid(PlatformColors.Netflix)
         StreamingService.JIOHOTSTAR -> Brush.horizontalGradient(listOf(PlatformColors.JioHotstarStart, PlatformColors.JioHotstarEnd))
-        StreamingService.PRIME_VIDEO -> Brush.horizontalGradient(listOf(PlatformColors.PrimeVideo, PlatformColors.PrimeVideo))
+        StreamingService.PRIME_VIDEO -> solid(PlatformColors.PrimeVideo)
+        StreamingService.SPOTIFY -> solid(PlatformColors.Spotify)
+        StreamingService.YOUTUBE_MUSIC, StreamingService.YOUTUBE -> solid(PlatformColors.YouTube)
+        StreamingService.AMAZON_MUSIC -> solid(PlatformColors.AmazonMusic)
     }
     Text(
         text = when (service) {
             StreamingService.NETFLIX -> "NETFLIX"
             StreamingService.JIOHOTSTAR -> "JioHotstar"
             StreamingService.PRIME_VIDEO -> "prime video"
+            StreamingService.SPOTIFY -> "Spotify"
+            StreamingService.YOUTUBE_MUSIC -> "YouTube Music"
+            StreamingService.AMAZON_MUSIC -> "amazon music"
+            StreamingService.YOUTUBE -> "YouTube"
         },
-        color = Color.White,
+        // Dark text on the light brand colours (Spotify green, Amazon Music teal) stays readable.
+        color = when (service) {
+            StreamingService.SPOTIFY, StreamingService.AMAZON_MUSIC -> PlatformColors.OnLightBrand
+            else -> Color.White
+        },
         fontSize = 11.sp,
         fontWeight = FontWeight.ExtraBold,
         letterSpacing = if (service == StreamingService.NETFLIX) 1.2.sp else 0.2.sp,

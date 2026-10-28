@@ -43,14 +43,27 @@ class DefaultSyncEngine(
     /** Last stable play/pause state of the local app (null while buffering/unknown). */
     private var localStatus: PlaybackStatus? = null
     private var everAttached = false
-    private var attachedAt = 0L
+    /**
+     * Elapsed time until which the app's own changes are start-up noise (autoplay, jumping to
+     * its resume point), not user actions: attach time + attachSettleMs.
+     */
+    private var settleUntil = 0L
     /** True until we've lined the local app up with the room after (re)attaching. */
     private var needsAlignment = true
+    /** Elapsed time the app entered its current transient state (buffering, skipping...); null once settled. */
+    private var transientSince: Long? = null
+    /** A position jump seen as the app went transient, decided once it settles. */
+    private var transientJump: TransientJump? = null
 
     // ---- Room ----
     private var roomLoaded = false
     private var roomState: RoomState? = null
     private var members: List<Member> = emptyList()
+
+    // ---- Item change (onItemChanged) ----
+    private var restart: ItemRestart? = null
+    /** Leader only, after its restart broadcast: others' (old-item) writes wait until ours lands. */
+    private var ownWriteGuard: OwnWriteGuard? = null
 
     private val echo = EchoSuppressor(config.echoWindowMs, config.echoMaxHoldMs, config.seekThresholdMs)
     private val capabilities = CapabilityDetector(config)
@@ -76,8 +89,9 @@ class DefaultSyncEngine(
         val previous = this.snapshot
         if (snapshot == null) {
             if (previous != null) detach()
+            val output = advanceRestart(now)
             updateStatus()
-            return EngineOutput.NONE
+            return output
         }
 
         this.snapshot = snapshot
@@ -87,15 +101,22 @@ class DefaultSyncEngine(
         var output = if (previous == null) {
             // (Re)attached: the app was just opened or reopened. Its current state is not a
             // user action. Line it up with the room instead (this is also the late-join path).
+            // During an item change the restart's own rules apply instead (no settle window).
             everAttached = true
-            attachedAt = now
             localStatus = snapshot.state.toRoomStatus()
-            needsAlignment = true
+            transientSince = if (snapshot.state.isTransient()) now else null
+            transientJump = null
+            if (restart == null) {
+                settleUntil = now + config.attachSettleMs
+                needsAlignment = true
+            }
             EngineOutput.NONE
         } else {
+            if (snapshot != previous) restart?.sawNewSnapshot = true
             detectLocalAction(previous, snapshot, now)
         }
-        if (needsAlignment) output += align(now)
+        output += advanceRestart(now)
+        if (needsAlignment && restart == null) output += align(now)
         updateStatus()
         return output
     }
@@ -117,27 +138,42 @@ class DefaultSyncEngine(
             // server-resolved one), so take it but don't act on it again.
             roomState = state
             val isNewWrite = previous == null || state.seq != previous.seq || state.updatedBy != previous.updatedBy
-            // Events we wrote ourselves come back to us too; we've already acted on them.
-            if (!needsAlignment && isNewWrite && state.updatedBy != myUid) {
+            val ours = state.updatedBy == myUid
+
+            // Leader after an item change: our write for the new item has landed (or we've waited
+            // long enough, elapsed time), so others' writes apply normally again.
+            ownWriteGuard?.let { guard ->
+                if ((ours && state.seq > guard.seqFloor) || now >= guard.until) ownWriteGuard = null
+            }
+
+            val r = restart
+            if (r != null) {
+                // Member mid item change: the first write by someone else after the change is the
+                // new item's state. Our own writes never are (we don't write during a restart).
+                if (!r.leader && !ours && state.seq > r.roomSeqFloor) r.roomReady = true
+            } else if (!needsAlignment && isNewWrite && !ours && ownWriteGuard == null) {
+                // Events we wrote ourselves come back to us too; we've already acted on them.
                 output = applyRoomState(state, now)
             }
         }
 
-        if (needsAlignment) output += align(now)
+        output += advanceRestart(now)
+        if (needsAlignment && restart == null) output += align(now)
         updateStatus()
         return output
     }
 
     override fun onTick(): EngineOutput {
         val now = clock.elapsedRealtimeMs()
+        var output = advanceRestart(now)
         val snap = snapshot
         if (snap == null) {
             updateStatus()
-            return EngineOutput.NONE
+            return output
         }
-        var output = EngineOutput.NONE
 
-        if (needsAlignment) output += align(now)
+        output += expireTransientHold(now)
+        if (needsAlignment && restart == null) output += align(now)
 
         catchUpResumeAt?.let { resumeAt ->
             if (now >= resumeAt) {
@@ -148,7 +184,7 @@ class DefaultSyncEngine(
             }
         }
 
-        if (timelineEnabled && due(lastReportAt, config.positionReportIntervalMs, now)) {
+        if (timelineEnabled && restart == null && due(lastReportAt, config.positionReportIntervalMs, now)) {
             lastReportAt = now
             val position = PositionMath.localLivePositionMs(snap, now)
             if (position >= 0) output += EngineOutput(positionReport = position)
@@ -163,32 +199,85 @@ class DefaultSyncEngine(
         return output
     }
 
+    override fun onItemChanged(leader: Boolean): EngineOutput {
+        val now = clock.elapsedRealtimeMs()
+        // Room writes up to the current seq were about the old item. The new item's (from the
+        // leader) can only come later: the leader broadcasts at least itemSettleMinMs after its
+        // own change, and its new now-playing info is written before that.
+        restart = ItemRestart(leader, startedAt = now, roomSeqFloor = roomState?.seq ?: Long.MIN_VALUE)
+        ownWriteGuard = null
+        // Nothing tracked against the old item's timeline applies to the new one.
+        echo.clear()
+        transientJump = null
+        catchUpResumeAt = null
+        consecutiveCorrections = 0
+        lastDriftMs = null
+        needsAlignment = false
+        settleUntil = now // no attach-settle window: the restart has its own rules
+        val output = advanceRestart(now)
+        updateStatus()
+        return output
+    }
+
     // =====================================================================================
     // Local changes → broadcasts
     // =====================================================================================
 
     private fun detectLocalAction(previous: PlaybackSnapshot, current: PlaybackSnapshot, now: Long): EngineOutput {
-        if (current.state.isTransient()) {
-            // Buffering/connecting, often right after our own play or seek. Keep the echo
-            // expectations alive until the app settles.
-            echo.extend(now)
-            return EngineOutput.NONE
-        }
-        val newStatus = current.state.toRoomStatus() ?: return EngineOutput.NONE
-        val statusChanged = newStatus != localStatus
-        localStatus = newStatus
-
         // Seek detection: extrapolate the previous reading to now and compare with what the
         // app reports now. While playing both advance at the same rate, so a gap of more than
-        // the seek threshold can only be a jump: the user scrubbed.
+        // the seek threshold can only be a jump: the user scrubbed. Readings that aren't PLAYING
+        // (buffering included) aren't extrapolated: a stalled app's position doesn't move, so
+        // a network stall (PLAYING@a -> BUFFERING@a ... PLAYING@a) is never a jump.
         val livePosition = PositionMath.localLivePositionMs(current, now)
         val expectedFromPrevious = PositionMath.localLivePositionMs(previous, now)
         val jumped = timelineEnabled && livePosition >= 0 && expectedFromPrevious >= 0 &&
-            abs(livePosition - expectedFromPrevious) > config.seekThresholdMs
+            if (current.state.isTransient()) {
+                // Entering buffering. A video can freeze while the app still says PLAYING, and
+                // only later report BUFFERING at the real (older) position. Anywhere from the last
+                // RAW position to the extrapolated one is therefore a stall, not a scrub; with
+                // the seek threshold as tolerance, but never reaching back more than
+                // stallWindowMaxMs behind the extrapolation (the last raw report may be old):
+                //   lower  = max(previous.positionMs - threshold, extrapolated - stallWindowMax)
+                //   stall <=> lower <= live <= extrapolated + threshold
+                // A scrub lands outside: back before that lower bound, or forward past the
+                // extrapolation. (When previous wasn't PLAYING, raw == extrapolated.)
+                val stallLower = maxOf(
+                    previous.positionMs - config.seekThresholdMs,
+                    expectedFromPrevious - config.stallWindowMaxMs,
+                )
+                livePosition < stallLower || livePosition > expectedFromPrevious + config.seekThresholdMs
+            } else {
+                abs(livePosition - expectedFromPrevious) > config.seekThresholdMs
+            }
 
-        if (!statusChanged && !jumped) return EngineOutput.NONE
+        if (current.state.isTransient()) {
+            // Buffering/skipping, often right after our own play or seek: hold the echo
+            // expectations until the app settles.
+            if (transientSince == null) transientSince = now
+            echo.hold(now)
+            // A scrub usually reads PLAYING@a -> BUFFERING@b -> PLAYING@b: the jump is only
+            // visible on this reading, so remember it and decide once the app settles. (During an
+            // item change, jumps are part of the switch.)
+            if (jumped && restart == null) noteTransientJump(livePosition, now)
+            return EngineOutput.NONE
+        }
+        val newStatus = current.state.toRoomStatus() ?: return EngineOutput.NONE
 
-        if (now - attachedAt < config.attachSettleMs) {
+        // Settled (PLAYING/PAUSED). Close any transient phase.
+        val pendingJump = transientJump
+        if (transientSince != null) echo.release(now)
+        transientSince = null
+        transientJump = null
+        val statusChanged = newStatus != localStatus
+        localStatus = newStatus
+
+        // Mid item change: this is the app switching items; advanceRestart() takes it from here.
+        if (restart != null) return EngineOutput.NONE
+
+        if (!statusChanged && !jumped && pendingJump == null) return EngineOutput.NONE
+
+        if (now < settleUntil || pendingJump == TransientJump.STARTUP) {
             // The app is still starting up (autoplay, jumping to its resume point). That's not
             // the user; pull it back in line with the room instead of broadcasting it.
             needsAlignment = true
@@ -196,10 +285,55 @@ class DefaultSyncEngine(
         }
 
         // Echo suppression: a change we caused by applying a remote command is not a user action.
+        // A jump already judged on the buffering reading (pendingJump == USER) stays a user seek.
         val userStatusChange = statusChanged && !echo.matchesStatus(newStatus, now)
-        val userSeek = jumped && !echo.matchesSeek(livePosition, now)
+        val userSeek = (jumped && !echo.matchesSeek(livePosition, now)) || pendingJump == TransientJump.USER
         if (!userStatusChange && !userSeek) return EngineOutput.NONE
 
+        return broadcastUserChange(newStatus, livePosition, userStatusChange, now)
+    }
+
+    /** A jump seen on entering a transient state: our own seek, app start-up, or the user. */
+    private fun noteTransientJump(livePosition: Long, now: Long) {
+        when {
+            transientJump == TransientJump.STARTUP -> Unit // keep: realigning is the safe outcome
+            now < settleUntil -> transientJump = TransientJump.STARTUP
+            // Buffering at (or, if it extrapolates, near) the target of our own seekTo.
+            echo.matchesSeek(livePosition, now) -> Unit
+            else -> transientJump = TransientJump.USER
+        }
+    }
+
+    /**
+     * The app has been transient (buffering) for transientHoldMs since it entered that state
+     * (elapsed time). Stop waiting for it to settle: broadcast a pending scrub at the position it's
+     * buffering at, keeping our last stable play/pause state, or realign a start-up jump.
+     */
+    private fun expireTransientHold(now: Long): EngineOutput {
+        val since = transientSince ?: return EngineOutput.NONE
+        if (now - since < config.transientHoldMs) return EngineOutput.NONE
+        val jump = transientJump ?: return EngineOutput.NONE
+        transientJump = null
+        return when (jump) {
+            TransientJump.STARTUP -> {
+                needsAlignment = true
+                EngineOutput.NONE // onTick aligns right after this
+            }
+            TransientJump.USER -> {
+                val status = localStatus ?: return EngineOutput.NONE
+                val snap = snapshot ?: return EngineOutput.NONE
+                broadcastUserChange(status, PositionMath.localLivePositionMs(snap, now), userStatusChange = false, now = now)
+            }
+        }
+    }
+
+    /** A user play/pause and/or seek, already told apart from echoes: write it to the room. */
+    private fun broadcastUserChange(
+        newStatus: PlaybackStatus,
+        livePosition: Long,
+        userStatusChange: Boolean,
+        now: Long,
+    ): EngineOutput {
         // A real user action overrides any catch-up pause we were running.
         catchUpResumeAt = null
 
@@ -233,6 +367,75 @@ class DefaultSyncEngine(
     }
 
     // =====================================================================================
+    // Item change (a new track in a jam)
+    // =====================================================================================
+
+    /**
+     * Moves an in-progress item change forward; called after every input. Finishes it once the
+     * app has settled on the new item (and, for a member, the new item's room state is in), or
+     * falls back to the late-join path after itemRestartTimeoutMs.
+     */
+    private fun advanceRestart(now: Long): EngineOutput {
+        val r = restart ?: return EngineOutput.NONE
+        // Timing: all elapsed ms. sinceChange = time since onItemChanged.
+        val sinceChange = now - r.startedAt
+        val snap = snapshot
+        val status = snap?.state?.toRoomStatus()
+
+        // Is the current reading the new item's? Yes if a new PlaybackState arrived after the
+        // change, or if it was sampled (lastPositionUpdateTime, elapsed) no more than
+        // itemFreshToleranceMs before the change: apps often publish the new state a moment before
+        // the new metadata. After itemSettleMaxMs, take whatever settled reading there is.
+        val fresh = snap != null && (
+            r.sawNewSnapshot ||
+                (snap.lastPositionUpdateElapsedMs > 0 && snap.lastPositionUpdateElapsedMs >= r.startedAt - config.itemFreshToleranceMs)
+            )
+        val settled = snap != null && status != null && (fresh || sinceChange >= config.itemSettleMaxMs)
+
+        if (r.leader) {
+            if (settled && sinceChange >= config.itemSettleMinMs) return finishLeaderRestart(snap!!, status!!, now)
+        } else if (settled && r.roomReady) {
+            return finishMemberRestart(now)
+        }
+
+        if (sinceChange >= config.itemRestartTimeoutMs) {
+            // The app never settled on the new item, or (member) no write for it arrived. Fall
+            // back to what a re-attach does: align to the room, start-up changes ignored for a bit.
+            restart = null
+            needsAlignment = true
+            settleUntil = now + config.attachSettleMs
+        }
+        return EngineOutput.NONE
+    }
+
+    /** Leader: the new item's state becomes the room's. */
+    private fun finishLeaderRestart(snap: PlaybackSnapshot, status: PlaybackStatus, now: Long): EngineOutput {
+        restart = null
+        needsAlignment = false
+        localStatus = status
+        // Members extrapolate from the server's updatedAt, a network delay after this sample
+        // (~100 ms); the same small lag every broadcast has.
+        val live = PositionMath.localLivePositionMs(snap, now)
+        val position = if (timelineEnabled && live >= 0) live else 0L
+        // Writes already in flight from others are about the old item: don't apply them until
+        // ours has landed (Firebase delivers our own write to us first), or itemOwnWriteWaitMs.
+        ownWriteGuard = OwnWriteGuard(seqFloor = roomState?.seq ?: Long.MIN_VALUE, until = now + config.itemOwnWriteWaitMs)
+        return broadcast(status, position, BroadcastReason.SEEK, now)
+    }
+
+    /** Member: line the new item up with the leader's state for it. */
+    private fun finishMemberRestart(now: Long): EngineOutput {
+        restart = null
+        val room = roomState
+        if (room == null) {
+            needsAlignment = true // room state was cleared meanwhile: nothing to follow
+            return EngineOutput.NONE
+        }
+        needsAlignment = false
+        return applyRoomState(room, now)
+    }
+
+    // =====================================================================================
     // Room → local commands
     // =====================================================================================
 
@@ -247,7 +450,7 @@ class DefaultSyncEngine(
         if (room == null) {
             // Nobody has played yet. Once our app has settled, seed the room with our state so
             // there's something for everyone else to align to.
-            if (now - attachedAt < config.attachSettleMs) return EngineOutput.NONE
+            if (now < settleUntil) return EngineOutput.NONE
             needsAlignment = false
             val position = if (timelineEnabled) PositionMath.localLivePositionMs(snap, now) else 0L
             val reason = if (status == PlaybackStatus.PLAYING) BroadcastReason.PLAY else BroadcastReason.PAUSE
@@ -266,6 +469,8 @@ class DefaultSyncEngine(
         val snap = snapshot ?: return EngineOutput.NONE
         if (mode == SyncMode.MANUAL_COUNTDOWN) return EngineOutput.NONE
         catchUpResumeAt = null
+        // The room is authoritative: a later write wins over a scrub still buffering here.
+        transientJump = null
 
         val target = PositionMath.roomExpectedPositionMs(room, clock.serverNowMs())
         val local = PositionMath.localLivePositionMs(snap, now)
@@ -310,6 +515,11 @@ class DefaultSyncEngine(
     private fun checkDrift(snap: PlaybackSnapshot, now: Long): EngineOutput {
         val room = roomState ?: return EngineOutput.NONE
         if (needsAlignment || mode == SyncMode.MANUAL_COUNTDOWN || catchUpResumeAt != null) return EngineOutput.NONE
+        // Mid item change, the room's timeline is the old item's.
+        if (restart != null) return EngineOutput.NONE
+        // Buffering/skipping: the position isn't moving and the app may be mid-seek (ours or the
+        // user's). Wait for it to settle, but at most transientHoldMs (elapsed) since it started.
+        if (transientSince?.let { now - it < config.transientHoldMs } == true) return EngineOutput.NONE
         // Let our last command, or our last broadcast, land before judging drift.
         if (echo.hasPending(now)) return EngineOutput.NONE
         if (lastBroadcastAt?.let { now - it < config.broadcastGraceMs } == true) return EngineOutput.NONE
@@ -390,10 +600,13 @@ class DefaultSyncEngine(
     // Helpers
     // =====================================================================================
 
+    /** The session went away. An item change in progress survives it (sessions are hidden while switching). */
     private fun detach() {
         snapshot = null
         localStatus = null
         needsAlignment = true
+        transientSince = null
+        transientJump = null
         echo.clear()
         capabilities.reset()
         catchUpResumeAt = null
@@ -420,6 +633,32 @@ class DefaultSyncEngine(
     }
 
     private fun due(last: Long?, intervalMs: Long, now: Long): Boolean = last == null || now - last >= intervalMs
+
+    /** What a jump seen on a buffering/skipping reading turned out to be. */
+    private enum class TransientJump {
+        /** The user scrubbed: broadcast once the app settles. */
+        USER,
+
+        /** Inside the attach-settle window (app start-up): realign once the app settles. */
+        STARTUP,
+    }
+
+    /** An item change in progress. Times are elapsed ms. */
+    private class ItemRestart(
+        val leader: Boolean,
+        val startedAt: Long,
+        /** Room writes with seq <= this were about the old item. */
+        val roomSeqFloor: Long,
+    ) {
+        /** A new PlaybackState arrived while attached after the change. */
+        var sawNewSnapshot = false
+
+        /** Member: a write by someone else newer than [roomSeqFloor] arrived (the new item's state). */
+        var roomReady = false
+    }
+
+    /** Elapsed [until]; [seqFloor] = room seq when the leader broadcast its restart. */
+    private class OwnWriteGuard(val seqFloor: Long, val until: Long)
 
     private companion object {
         val TRANSIENT_STATES = setOf(
