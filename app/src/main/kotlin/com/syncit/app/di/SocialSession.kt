@@ -2,14 +2,17 @@ package com.syncit.app.di
 
 import com.syncit.app.data.UserPrefs
 import com.syncit.app.push.PushNotifications
+import com.syncit.app.social.ActivityText
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SyncStatus
 import com.syncit.core.session.SyncSessionController
+import com.syncit.core.transport.SyncTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -29,6 +32,7 @@ class SocialSession(
     private val social: SocialServices,
     private val prefs: UserPrefs,
     sessionController: SyncSessionController,
+    transport: SyncTransport,
     scope: CoroutineScope,
 ) {
     /** Set while an account deletion runs, so nothing writes presence/activity for a dying account. */
@@ -42,6 +46,25 @@ class SocialSession(
         .map { it.roomCode != null && it.status in ON_TITLE }
         .distinctUntilChanged()
         .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /** Who else is in our room right now (online members), worded for friends' activity feed. */
+    private val watchingWith: StateFlow<String?> = sessionController.state
+        .map { it.roomCode }
+        .distinctUntilChanged()
+        .flatMapLatest { code ->
+            if (code == null) {
+                flowOf(null)
+            } else {
+                transport.observeRoom(code)
+                    .map { room ->
+                        val me = transport.currentUid.value
+                        ActivityText.watchingWith(room?.members.orEmpty().filter { it.uid != me && it.online }.map { it.name })
+                    }
+                    .catch { emit(null) }
+            }
+        }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, null)
 
     init {
         // Push token: registered for every signed-in account, even invisible ones or before the
@@ -73,7 +96,7 @@ class SocialSession(
                     social.presence.stop()
                     if (activeUid != null) {
                         social.presence.start()
-                        social.activityTracker.start(prefs.sharedApps, inWatchParty)
+                        social.activityTracker.start(prefs.sharedApps, inWatchParty, watchingWith)
                     }
                 }
         }

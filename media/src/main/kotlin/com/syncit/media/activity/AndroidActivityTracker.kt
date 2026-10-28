@@ -60,14 +60,15 @@ class AndroidActivityTracker(
         val shared: Set<ActivityApp>,
         /** The room's app while the user is on the room's title, else null. */
         val roomService: StreamingService?,
+        val watchingWith: String?,
     )
 
-    override fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>) {
+    override fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>, watchingWith: StateFlow<String?>) {
         job?.cancel()
         val decider = ActivityDecider().also { this.decider = it }
         job = scope.launch {
-            val inputs: ReceiveChannel<Inputs> = combine(gateway.sessions, sharedApps, inWatchParty, roomService) { sessions, shared, onTitle, service ->
-                Inputs(sessions, shared, service.takeIf { onTitle })
+            val inputs: ReceiveChannel<Inputs> = combine(gateway.sessions, sharedApps, inWatchParty, roomService, watchingWith) { sessions, shared, onTitle, service, with ->
+                Inputs(sessions, shared, service.takeIf { onTitle }, with)
             }
                 .conflate()
                 .produceIn(this)
@@ -76,7 +77,7 @@ class AndroidActivityTracker(
             // debounce, retry or idle deadline passes (time alone can change the decision).
             while (isActive) {
                 val now = elapsedRealtimeMs()
-                latest?.let { decider.update(it.sessions, it.shared, it.roomService, now) }
+                latest?.let { decider.update(it.sessions, it.shared, it.roomService, now, it.watchingWith) }
                 _current.value = decider.desired?.toActivity()
 
                 decider.due(now)?.let { due -> publish(decider, due.update) }
@@ -126,6 +127,7 @@ class AndroidActivityTracker(
         // Server-stamped by the repository when published; not known locally.
         startedAt = 0L,
         inWatchParty = inWatchParty,
+        watchingWith = watchingWith,
     )
 
     private companion object {

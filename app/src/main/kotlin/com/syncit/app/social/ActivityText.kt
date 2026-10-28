@@ -45,11 +45,30 @@ object ActivityText {
     }
 
     /**
-     * "In a watch party" / "In a jam" while they're syncing a room for this title. The room code
-     * itself is never published.
+     * "In a watch party with Somesh" / "In a jam" while they're syncing a room for this title. The
+     * room code itself is never published.
      */
-    fun watchPartyLabel(activity: Activity?): String? =
-        if (activity?.inWatchParty == true) RoomWording.inRoomLabel(RoomWording.isJam(activity.app)) else null
+    fun watchPartyLabel(activity: Activity?): String? {
+        if (activity?.inWatchParty != true) return null
+        val label = RoomWording.inRoomLabel(RoomWording.isJam(activity.app))
+        val with = activity.watchingWith?.trim()?.takeIf { it.isNotEmpty() } ?: return label
+        return "$label with $with"
+    }
+
+    /**
+     * Others in our room, worded for friends: "Somesh", "Somesh and Ayan", "Somesh, Ayan and 2
+     * others". Null when nobody else is there.
+     */
+    fun watchingWith(names: List<String>): String? {
+        val clean = names.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        return when (clean.size) {
+            0 -> null
+            1 -> clean[0]
+            2 -> "${clean[0]} and ${clean[1]}"
+            3 -> "${clean[0]}, ${clean[1]} and ${clean[2]}"
+            else -> "${clean[0]}, ${clean[1]} and ${clean.size - 2} others"
+        }?.take(100)
+    }
 
     fun lastSeen(lastSeen: Long?, nowMs: Long): String {
         if (lastSeen == null || lastSeen <= 0) return "Offline"

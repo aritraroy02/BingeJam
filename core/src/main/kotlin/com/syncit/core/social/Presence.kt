@@ -23,13 +23,15 @@ interface PresenceRepository {
 
 /**
  * What the tracker publishes; the repository adds the server timestamp. [inWatchParty]: we're in a
- * synced room for this title (the code itself is never published).
+ * synced room for this title (the code itself is never published). [watchingWith]: who else is in
+ * it, already worded ("Somesh and Ayan"); only set while [inWatchParty].
  */
 data class ActivityUpdate(
     val app: ActivityApp,
     val metadata: NowPlayingMetadata?,
     val playing: Boolean,
     val inWatchParty: Boolean,
+    val watchingWith: String? = null,
 )
 
 /**
@@ -40,9 +42,10 @@ interface ActivityTracker {
     /**
      * Apps the user chose to share (ActivitySetup page / Settings). Empty = share nothing.
      * [inWatchParty]: true while the user is syncing a room's title (status SYNCING/CORRECTING/
-     * CATCHING_UP). Start only after the signed-in account has completed the activity setup page.
+     * CATCHING_UP). [watchingWith]: the other room members, worded for friends ("Somesh and
+     * Ayan"), or null. Start only after the signed-in account has completed the activity setup page.
      */
-    fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>)
+    fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>, watchingWith: StateFlow<String?>)
 
     fun stop()
 

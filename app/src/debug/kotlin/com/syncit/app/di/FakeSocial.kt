@@ -375,7 +375,7 @@ object FakeSocial {
         }
 
         val tracker = object : ActivityTracker {
-            override fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>) = Unit
+            override fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>, watchingWith: StateFlow<String?>) = Unit
             override fun stop() = Unit
             override val current: StateFlow<Activity?> = MutableStateFlow(null)
         }

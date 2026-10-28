@@ -2,9 +2,11 @@ package com.syncit.media.service
 
 import android.os.SystemClock
 import android.util.Log
+import com.syncit.core.config.StreamingConfig
 import com.syncit.core.model.EngineOutput
 import com.syncit.core.model.MediaSessionInfo
 import com.syncit.core.model.NowPlayingMetadata
+import com.syncit.core.model.PlaybackStatus
 import com.syncit.core.model.Room
 import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
@@ -409,7 +411,7 @@ internal class RoomSyncCoordinator(
                 val ok = when (command) {
                     SyncCommand.Play -> deps.gateway.play(key)
                     SyncCommand.Pause -> deps.gateway.pause(key)
-                    is SyncCommand.SeekTo -> deps.gateway.seekTo(key, command.positionMs)
+                    is SyncCommand.SeekTo -> deps.gateway.seekTo(key, command.positionMs + seekLeadMs())
                 }
                 if (!ok) Log.w(TAG, "Command $command not applied (session gone)")
             }
@@ -420,6 +422,18 @@ internal class RoomSyncCoordinator(
         output.positionReport?.let { position ->
             scope.launch { safely("reportPosition") { deps.transport.reportPosition(code, position) } }
         }
+    }
+
+    /**
+     * Netflix reports PLAYING from the new spot a moment before the picture moves again after a
+     * seek, so a member it reports as level is really ~1 s behind (2026-10-29, Motorola + host:
+     * "host is a sec ahead"). Aim that much ahead while the room plays. Within the engine's echo
+     * tolerance (seekThresholdMs, 3 s) and drift threshold (1.5 s), so it isn't seen as a scrub or
+     * corrected back.
+     */
+    private fun seekLeadMs(): Long {
+        val playing = room?.state?.status == PlaybackStatus.PLAYING
+        return if (playing && session?.packageName == StreamingConfig.NETFLIX_PACKAGE) NETFLIX_SEEK_LEAD_MS else 0L
     }
 
     private fun publishState(engine: SyncEngine) {
@@ -459,5 +473,6 @@ internal class RoomSyncCoordinator(
         const val TAG = "SyncItCoordinator"
         const val TICK_MS = 1_000L
         const val NOW_PLAYING_DEBOUNCE_MS = 1_500L
+        const val NETFLIX_SEEK_LEAD_MS = 1_000L
     }
 }

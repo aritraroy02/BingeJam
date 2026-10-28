@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.map
 class FirebaseWatchInvites internal constructor(
     private val session: FirebaseSession,
     private val db: FirebaseDatabase,
+    private val pushRelay: PushRelay,
 ) : WatchInvites {
 
     override suspend fun requestToJoin(hostUid: String, app: ActivityApp, title: String?) {
@@ -58,6 +59,7 @@ class FirebaseWatchInvites internal constructor(
                 },
             ).await()
         }
+        pushRelay.joinRequest(hostUid)
     }
 
     override fun observeIncomingJoinRequests(): Flow<List<JoinRequest>> = session.uid.flatMapLatest { me ->
@@ -121,6 +123,7 @@ class FirebaseWatchInvites internal constructor(
                 },
             ).await()
         }
+        pushRelay.invite(friendUid)
     }
 
     override fun observeInvites(): Flow<List<RoomInvite>> = session.uid.flatMapLatest { me ->

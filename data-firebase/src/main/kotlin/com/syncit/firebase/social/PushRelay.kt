@@ -31,6 +31,13 @@ internal class PushRelay(
     fun friendRequest(toUid: String) =
         post(JSONObject().put("type", "friend_request").put("to", toUid))
 
+    /** "Ask to join" / "Ask to jam": pops up on the host's phone even when the app is closed. */
+    fun joinRequest(hostUid: String) =
+        post(JSONObject().put("type", "join_request").put("to", hostUid))
+
+    fun invite(toUid: String) =
+        post(JSONObject().put("type", "invite").put("to", toUid))
+
     private fun post(body: JSONObject) {
         if (url.isBlank()) return
         val user = session.auth.currentUser?.takeUnless { it.isAnonymous } ?: return

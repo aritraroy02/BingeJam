@@ -59,7 +59,8 @@ data class Presence(
  * MediaSession metadata, never notifications. [artworkJpeg] is a small thumbnail (≤ 52 KB).
  * [inWatchParty] is true while they're in a synced room for it. The room code itself is never
  * published (friends join only through "Ask to join", which the host approves). [startedAt] is
- * server time.
+ * server time. [watchingWith]: the other room members' names ("Somesh and Ayan"), while
+ * [inWatchParty]; display names are already visible to every signed-in user.
  */
 class Activity(
     val app: ActivityApp,
@@ -70,18 +71,21 @@ class Activity(
     val durationMs: Long?,
     val startedAt: Long,
     val inWatchParty: Boolean,
+    val watchingWith: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         other is Activity && app == other.app && title == other.title && subtitle == other.subtitle &&
             playing == other.playing && durationMs == other.durationMs && startedAt == other.startedAt &&
-            inWatchParty == other.inWatchParty && artworkJpeg.contentEquals(other.artworkJpeg)
+            inWatchParty == other.inWatchParty && watchingWith == other.watchingWith &&
+            artworkJpeg.contentEquals(other.artworkJpeg)
 
     override fun hashCode(): Int =
-        listOf(app, title, subtitle, playing, durationMs, startedAt, inWatchParty).hashCode() * 31 +
+        listOf(app, title, subtitle, playing, durationMs, startedAt, inWatchParty, watchingWith).hashCode() * 31 +
             artworkJpeg.contentHashCode()
 
     override fun toString(): String =
-        "Activity(app=$app, title=$title, subtitle=$subtitle, playing=$playing, inWatchParty=$inWatchParty, art=${artworkJpeg?.size ?: 0} B)"
+        "Activity(app=$app, title=$title, subtitle=$subtitle, playing=$playing, inWatchParty=$inWatchParty, " +
+            "watchingWith=$watchingWith, art=${artworkJpeg?.size ?: 0} B)"
 }
 
 /** dms/{dmId}/{id}: only the two friends read or write. [sentAt] is server time. */

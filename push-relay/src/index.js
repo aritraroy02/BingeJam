@@ -36,7 +36,55 @@ export default {
     if (path !== '/' || request.method !== 'POST') return new Response('Not found', { status: 404 });
     return notify(request, env);
   },
+
+  /** Cron trigger (wrangler.toml): tell every phone about a new release, once per version. */
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(announceRelease(env).catch((e) => console.error('release check failed', e && e.message)));
+  },
 };
+
+// ---- New version announcements (cron, every 30 min) ----
+//
+// Phones subscribe to the FCM topic "updates". When the latest GitHub release of the public
+// releases repo changes, we send one data-only message with its version; the app shows a
+// notification only if that version is newer than the one installed. KV remembers the last
+// announced version. The very first run only records the current release (no announcement).
+
+const RELEASES_API = 'https://api.github.com/repos/aritraroy02/sync-it-releases/releases/latest';
+const ANNOUNCED_KEY = 'release:announced';
+const UPDATES_TOPIC = 'updates';
+
+async function announceRelease(env) {
+  const res = await fetch(RELEASES_API, {
+    headers: { 'User-Agent': 'bingejam-push-relay', Accept: 'application/vnd.github+json' },
+  });
+  if (!res.ok) throw new Error(`github ${res.status}`);
+  const release = await res.json();
+  const version = String(release.tag_name || '').replace(/^v/, '');
+  if (!/^\d+\.\d+\.\d+$/.test(version) || release.draft || release.prerelease) return;
+
+  const announced = await env.AVATARS.get(ANNOUNCED_KEY);
+  if (announced === version) return;
+  if (announced !== null) {
+    // First non-empty line of the release notes, without its "- " bullet.
+    const notes = String(release.body || '').split('\n').map((l) => l.replace(/^[-*\s]+/, '').trim()).find((l) => l) || '';
+    const accessToken = await getAccessToken(env);
+    const send = await fetch(`https://fcm.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/messages:send`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: {
+          topic: UPDATES_TOPIC,
+          data: { type: 'update', version, notes: clip(notes, 200) },
+          android: { priority: 'HIGH' },
+        },
+      }),
+    });
+    if (!send.ok) throw new Error(`FCM topic send ${send.status}: ${(await send.text()).slice(0, 200)}`);
+    console.log('announced', version);
+  }
+  await env.AVATARS.put(ANNOUNCED_KEY, version);
+}
 
 async function notify(request, env) {
     let sender;
@@ -60,6 +108,8 @@ async function notify(request, env) {
       let note = null;
       if (body.type === 'dm') note = await directMessage(db, sender, to, String(body.messageId ?? ''));
       else if (body.type === 'friend_request') note = await friendRequest(db, sender, to);
+      else if (body.type === 'join_request') note = await joinRequest(db, sender, to);
+      else if (body.type === 'invite') note = await roomInvite(db, sender, to);
       else return new Response('Bad request', { status: 400 });
 
       if (note && !(await db.get(`blocked/${to}/${sender}`))) await sendToAll(db, env, to, note);
@@ -248,6 +298,45 @@ async function friendRequest(db, from, to) {
     body: clip(`${who} wants to be friends`, 240),
     channel: 'friends',
     data: { type: 'friend_request', uid: from },
+  };
+}
+
+/** Music and YouTube rooms are jams; the rest are watch parties (same as ActivityApp in the app). */
+const JAM_APPS = new Set(['spotify', 'ytmusic', 'amazonmusic', 'youtube']);
+const APP_NAMES = {
+  netflix: 'Netflix', jiohotstar: 'JioHotstar', primevideo: 'Prime Video', spotify: 'Spotify',
+  ytmusic: 'YouTube Music', amazonmusic: 'Amazon Music', youtube: 'YouTube',
+};
+
+function whoFrom(item) {
+  return item.fromDisplayName ? `${item.fromDisplayName} (@${item.fromUsername})` : `@${item.fromUsername}`;
+}
+
+/** A friend asked to join what `to` is watching: pop up so the host can let them in. */
+async function joinRequest(db, from, to) {
+  const req = await db.get(`joinRequests/${to}/${from}`);
+  if (!req || req.status !== 'pending' || !isRecent(req.sentAt)) return null;
+  const jam = JAM_APPS.has(req.app);
+  const what = typeof req.title === 'string' && req.title ? req.title : APP_NAMES[req.app] || 'your room';
+  return {
+    title: jam ? 'Wants to jam with you' : 'Wants to join you',
+    body: clip(`${whoFrom(req)} wants to ${jam ? 'jam to' : 'watch'} ${what} with you. Tap to let them in.`, 240),
+    channel: 'requests',
+    data: { type: 'join_request', uid: from },
+  };
+}
+
+/** `from` invited `to` into their room. */
+async function roomInvite(db, from, to) {
+  const inv = await db.get(`invites/${to}/${from}`);
+  if (!inv || !isRecent(inv.sentAt)) return null;
+  const jam = JAM_APPS.has(inv.app);
+  const what = typeof inv.title === 'string' && inv.title ? ` ${jam ? 'to ' : ''}${inv.title}` : '';
+  return {
+    title: jam ? 'Jam invite' : 'Watch party invite',
+    body: clip(`${whoFrom(inv)} invited you to ${jam ? 'jam' : 'watch'}${what}. Tap to join.`, 240),
+    channel: 'requests',
+    data: { type: 'invite', uid: from },
   };
 }
 

@@ -50,6 +50,7 @@ internal object SocialParser {
             durationMs = s.child("durationMs").long(),
             startedAt = s.child("startedAt").long() ?: 0L,
             inWatchParty = s.child("inWatchParty").bool() ?: false,
+            watchingWith = s.child("watchingWith").string()?.takeIf { it.isNotBlank() },
         )
     }
 

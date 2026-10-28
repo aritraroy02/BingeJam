@@ -26,7 +26,7 @@ import kotlinx.coroutines.sync.withLock
  * presence/{uid}: written by the owner, readable by friends only.
  *
  *   online, lastSeen                    connection state (server time)
- *   activity { app, title?, subtitle?, artwork?, playing, durationMs?, startedAt, inWatchParty }
+ *   activity { app, title?, subtitle?, artwork?, playing, durationMs?, startedAt, inWatchParty, watchingWith? }
  *
  * The room code is never published: [ActivityUpdate.inWatchParty] only says "in a synced room";
  * friends get in through "Ask to join", which the host approves.
@@ -238,12 +238,17 @@ class FirebasePresenceRepository internal constructor(
             put("playing", update.playing)
             meta?.durationMs?.takeIf { it > 0 }?.let { put("durationMs", it) }
             put("inWatchParty", update.inWatchParty)
+            update.watchingWith?.trim()?.take(MAX_WITH_LENGTH)?.takeIf { update.inWatchParty && it.isNotEmpty() }
+                ?.let { put("watchingWith", it) }
         }
     }
 
     companion object {
         private const val TAG = "SyncItPresence"
         private const val MAX_META_LENGTH = 200
+
+        /** Matches the rules' limit on activity/watchingWith. */
+        private const val MAX_WITH_LENGTH = 100
 
         /** Base64 grows 4/3, so this stays under the rules' 70,000-character limit. */
         private const val MAX_ARTWORK_BYTES = 52_000

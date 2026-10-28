@@ -46,6 +46,7 @@ internal class ActivityDecider(
         val subtitle: String?,
         val playing: Boolean,
         val inWatchParty: Boolean,
+        val watchingWith: String?,
         val hasArtwork: Boolean,
     )
 
@@ -79,8 +80,15 @@ internal class ActivityDecider(
      * [roomService]: the app of the room the user is syncing right now (null = not in a room, or
      * not on the room's title). Only an activity in that same app is flagged "in a room", so a
      * background Spotify isn't shown as "in a jam" while the user is in a Netflix room.
+     * [watchingWith]: the other room members, worded; attached only to that "in a room" activity.
      */
-    fun update(sessions: List<MediaSessionInfo>, sharedApps: Set<ActivityApp>, roomService: StreamingService?, nowMs: Long) {
+    fun update(
+        sessions: List<MediaSessionInfo>,
+        sharedApps: Set<ActivityApp>,
+        roomService: StreamingService?,
+        nowMs: Long,
+        watchingWith: String? = null,
+    ) {
         shared = sharedApps
         val present = HashSet<String>()
         val candidates = ArrayList<Pair<MediaSessionInfo, Seen>>()
@@ -126,11 +134,11 @@ internal class ActivityDecider(
             val (session, s) = best
             lastShown = Shown(s.app, session.metadata)
             // Only the room's own app counts as "in a room"; never the room code itself.
-            ActivityUpdate(s.app, session.metadata, s.playing, inRoom(s.app, roomService))
+            roomUpdate(s.app, session.metadata, s.playing, roomService, watchingWith)
         } else {
             val last = lastShown
             if (last != null && last.app in sharedApps && playedRecently(last.app, nowMs)) {
-                ActivityUpdate(last.app, last.metadata, false, inRoom(last.app, roomService))
+                roomUpdate(last.app, last.metadata, false, roomService, watchingWith)
             } else {
                 lastShown = null
                 null
@@ -185,6 +193,17 @@ internal class ActivityDecider(
         return wait.coerceIn(MIN_WAIT_MS, MAX_WAIT_MS)
     }
 
+    private fun roomUpdate(
+        app: ActivityApp,
+        metadata: NowPlayingMetadata?,
+        playing: Boolean,
+        roomService: StreamingService?,
+        watchingWith: String?,
+    ): ActivityUpdate {
+        val inRoom = inRoom(app, roomService)
+        return ActivityUpdate(app, metadata, playing, inRoom, watchingWith?.takeIf { inRoom && it.isNotBlank() })
+    }
+
     private fun playedRecently(app: ActivityApp, nowMs: Long): Boolean {
         val at = lastPlayedAtMs[app] ?: return false
         return nowMs - at < idleTimeoutMs
@@ -196,6 +215,7 @@ internal class ActivityDecider(
         subtitle = metadata?.subtitle,
         playing = playing,
         inWatchParty = inWatchParty,
+        watchingWith = watchingWith,
         hasArtwork = metadata?.artworkJpeg != null,
     )
 

@@ -55,7 +55,7 @@ class FirebaseServices private constructor(context: Context) {
     val push: PushRegistry = FirebasePushRegistry(session, db)
     val avatars: AvatarStore = avatarsImpl
     val presence: PresenceRepository = presenceImpl
-    val watchInvites: WatchInvites = FirebaseWatchInvites(session, db)
+    val watchInvites: WatchInvites = FirebaseWatchInvites(session, db, pushRelay)
     val transport: SyncTransport = transportImpl
 
     /** Netflix title IDs for "Play in Netflix" (relay + Watchmode). */

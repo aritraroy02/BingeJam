@@ -12,13 +12,20 @@ import kotlinx.coroutines.launch
 
 /**
  * FCM entry point. Messages from push-relay/ carry a notification payload, so in the background
- * Android shows them itself; this only runs for messages that arrive while the app is open.
+ * Android shows them itself; this only runs for messages that arrive while the app is open, and
+ * for data-only new-version announcements (always).
  */
 class VyroMessagingService : FirebaseMessagingService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessageReceived(message: RemoteMessage) {
+        // New-version announcements are data-only, so they arrive here even in the background.
+        if (message.data[PushNotifications.EXTRA_TYPE] == PushNotifications.TYPE_UPDATE) {
+            val version = message.data["version"] ?: return
+            PushNotifications.showUpdate(this, version, message.data["notes"])
+            return
+        }
         val notification = message.notification ?: return
         val body = notification.body.orEmpty()
         val type = message.data[PushNotifications.EXTRA_TYPE]

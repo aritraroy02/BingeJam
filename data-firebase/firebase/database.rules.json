@@ -156,6 +156,9 @@
           "inWatchParty": {
             ".validate": "newData.isBoolean()"
           },
+          "watchingWith": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+          },
           "$other": {
             ".validate": false
           }

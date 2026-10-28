@@ -59,5 +59,5 @@ class AppContainer(app: Application) : SyncDependencies {
     } ?: DebugSocial.createFake(now = transport.serverClock::serverNowMs)
 
     /** Presence + activity tracker while signed in. */
-    val socialSession = SocialSession(social, prefs, sessionController, appScope)
+    val socialSession = SocialSession(social, prefs, sessionController, transport, appScope)
 }

@@ -31,6 +31,7 @@ class SyncItApplication : Application(), SyncDependenciesProvider, AppQuitHandle
         super.onCreate()
         // Before any push can arrive: background FCM notifications name these channels.
         PushNotifications.createChannels(this)
+        PushNotifications.subscribeToUpdates()
         container = AppContainer(this)
     }
 

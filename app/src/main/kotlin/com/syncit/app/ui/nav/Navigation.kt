@@ -126,6 +126,8 @@ fun SyncItApp(
         pendingNotification.value = null
         when (target.type) {
             PushNotifications.TYPE_DM -> nav.reset(Screen.Home, Screen.Chat(target.uid))
+            // Join requests and invites are answered from the banner shown over Home.
+            PushNotifications.TYPE_JOIN_REQUEST, PushNotifications.TYPE_INVITE -> nav.reset(Screen.Home)
             else -> nav.reset(Screen.Home, Screen.Friends)
         }
     }
