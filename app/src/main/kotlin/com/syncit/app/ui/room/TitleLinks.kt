@@ -136,3 +136,30 @@ private fun openInPackage(context: Context, service: StreamingService, url: Stri
 } catch (_: ActivityNotFoundException) {
     false
 }
+
+/**
+ * Netflix started cold drops the movie link: it closes its start-up screen about 2 s later and the
+ * user lands back in the room (Motorola, Netflix 9.89, 2026-10-29). Already running, the same link
+ * plays at once. So after "Play in Netflix", if the room screen is back in front within [windowMs]
+ * and Netflix isn't playing on this phone, open the link once more: Netflix is running by then.
+ * Times are SystemClock.elapsedRealtime().
+ */
+internal class NetflixRetry(private val windowMs: Long = WINDOW_MS) {
+    private var openedAtMs: Long? = null
+
+    /** "Play in Netflix" was tapped (not called for the retry itself, so there's only one). */
+    fun opened(nowMs: Long) {
+        openedAtMs = nowMs
+    }
+
+    /** The room screen is in front again. True at most once per tap. */
+    fun shouldRetry(nowMs: Long, netflixPlayingHere: Boolean): Boolean {
+        val at = openedAtMs ?: return false
+        openedAtMs = null
+        return !netflixPlayingHere && nowMs - at in 0..windowMs
+    }
+
+    companion object {
+        const val WINDOW_MS = 12_000L
+    }
+}

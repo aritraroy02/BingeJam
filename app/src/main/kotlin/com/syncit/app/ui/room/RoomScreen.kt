@@ -1,6 +1,7 @@
 package com.syncit.app.ui.room
 
 import android.content.Intent
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -79,12 +80,16 @@ import com.syncit.core.model.Room
 import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.model.SyncStatus
+import kotlinx.coroutines.delay
 import com.syncit.core.session.JamFollow
 import com.syncit.core.session.SyncSessionState
 import com.syncit.sync.PositionMath
 
 /** How long "PLAY NOW" stays up after the target time. */
 private const val PLAY_NOW_VISIBLE_MS = 2_000L
+
+/** Give Netflix a moment after it closed itself before sending the movie link again. */
+private const val NETFLIX_RETRY_DELAY_MS = 500L
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -125,6 +130,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
             openJamItem(context, service, ref, currentRoom?.title)
         } else {
             if (service == StreamingService.NETFLIX) {
+                viewModel.netflixRetry.opened(SystemClock.elapsedRealtime())
                 openNetflix(context, netflixId, NetflixLinks.query(preview), currentRoom?.title)
             } else {
                 openForPlay(context, service, currentRoom?.title)
@@ -140,6 +146,17 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
     // the room so the host is never mistaken for a member.
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+    // Netflix started cold closes itself and drops the movie link; when that brings us back here,
+    // send the link once more (Netflix is running now). Not if Netflix is playing on this phone.
+    LaunchedEffect(resumed) {
+        if (!resumed) return@LaunchedEffect
+        val notPlayingHere = sync.status == SyncStatus.APP_NOT_OPEN || sync.status == SyncStatus.SESSION_LOST
+        if (viewModel.netflixRetry.shouldRetry(SystemClock.elapsedRealtime(), netflixPlayingHere = !notPlayingHere)) {
+            delay(NETFLIX_RETRY_DELAY_MS)
+            openNetflix(context, netflixId, NetflixLinks.query(preview), currentRoom?.title)
+        }
+    }
+
     val autoKey = JamAutoOpen.key(viewModel.code, preview?.playableRef, preview?.title)
     val roomLoaded = currentRoom != null
     LaunchedEffect(resumed, roomLoaded, isHost, roomService, sync.jamFollow, autoKey) {

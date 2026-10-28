@@ -143,6 +143,9 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
 
     fun autoOpenedKeys(): Set<String> = autoOpened
 
+    /** Re-sends "Play in Netflix" once if Netflix, started cold, drops the link (see [NetflixRetry]). */
+    internal val netflixRetry = NetflixRetry()
+
     /** True the first time for [key]; the caller then opens the app. */
     fun claimAutoOpen(key: String): Boolean = autoOpened.add(key)
 
