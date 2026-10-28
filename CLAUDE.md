@@ -4,7 +4,9 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-29):** **v0.5.0 released** (versionCode 8): renamed **BingeJam**, in-app account deletion,
+**Status (2026-10-29):** **v0.5.1 released** (versionCode 9): "Quit BingeJam" action in the sync notification
+(stops sync, bubble, presence/activity and unbinds the notification listener until the app is opened again)
+and no more leftover "Not in a room" notification; released from the Asus laptop (somesh118). v0.5.0 (versionCode 8): renamed **BingeJam**, in-app account deletion,
 Terms/Privacy/delete-account pages (DPDP Act + IT Rules 2021 grievance officer, 18+); rules 399/399 and
 hosting deployed first; 459 tests green. v0.4.0 (versionCode 7) added the items below.
 v0.3.0 was the v2 "Vyro" social restructure (Google/email-link accounts, unique usernames, friends,
