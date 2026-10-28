@@ -32,8 +32,10 @@
     <li>You sign in with <b>Google</b> or with a <b>one-time sign-in link</b> sent to your email. We receive your
       email address, and from Google also your name and profile photo address.</li>
     <li>Your <b>email address is private</b>: it's stored only for your own account and is never shown to other users.</li>
-    <li>You choose a unique <b>username</b>, a <b>display name</b> and optionally a short <b>bio</b>. These form your
-      public profile, which other signed-in Vyro users can see and find by username.</li>
+    <li>You choose a unique <b>username</b>, a <b>display name</b> and optionally a short <b>bio</b> and a
+      <b>profile picture</b> (a photo or GIF you pick). These form your public profile, which other signed-in Vyro
+      users can see and find by username. If you sign in with Google, your Google profile photo may be used until
+      you change or remove it.</li>
   </ul>
 
   <h2>What Vyro reads on your phone</h2>
@@ -60,7 +62,9 @@
   </ul>
 
   <h2>What is stored, and where</h2>
-  <p>Data is stored in Google Firebase (Realtime Database, Singapore region):</p>
+  <p>Profile pictures you upload are stored on Cloudflare (Workers KV) and served from a public link that only
+    appears on your profile; removing your picture deletes it. Everything else is stored in Google Firebase
+    (Realtime Database, Singapore region):</p>
   <ul>
     <li>your profile (username, display name, photo address, bio) and private account record (email, sign-in method);</li>
     <li>your <b>friends</b>, friend requests you send or receive, and people you've <b>blocked</b>;</li>

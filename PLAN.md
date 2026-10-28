@@ -157,6 +157,8 @@ presence/{uid}:           { online, lastSeen, activity? { app, title, subtitle, 
 joinRequests/{host}/{from}: { fromUsername, fromDisplayName, app, title, status, roomCode?, sentAt }
 invites/{to}/{from}:      { fromUsername, fromDisplayName, roomCode, app?, title?, sentAt }
 pushTokens/{uid}/{fcmToken}: { updatedAt }                                            owner only; read by push-relay (admin)
+users/{uid}/photoUrl:     push-relay avatar URL (…/avatar/{uid}?v=…) or a Google photo; rules allow only those
+KV avatar:{uid} (Cloudflare, not RTDB): picture bytes, GIF ≤ 1 MB, still ≤ 300 KB, one upload per 20 s
 rooms/…, previews/…, chats/…, reactions/… (v1, unchanged; previews.service also allows PRIME_VIDEO)
 ```
 All v2 social paths require a real (non-anonymous) account; v1 room paths still accept anonymous
