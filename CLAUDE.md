@@ -4,12 +4,33 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-15):** v2 "Vyro" social restructure built (accounts via Google/email link, unique
-usernames, friends, DMs, per-app activity sharing, ask-to-join/invites, Prime Video) by the
-backend/media/ui agents and integrated on the real Firebase backend (`USE_FAKE_SOCIAL = false` in
-`app/.../di/AppContainer.kt`). `./gradlew assembleDebug lint test` passes (195 tests, 0 lint issues);
-rules emulator test 215/215. Not yet: rules deployed, device-tested, released. See PLAN.md "v2".
+**Status (2026-10-28):** v0.3.0 (v2 "Vyro" social restructure: Google/email-link accounts, unique
+usernames, friends, DMs, per-app activity sharing, ask-to-join/invites, Prime Video) is released.
+Built on `main` since, **not released yet** (next release = 0.4.0):
+- Push notifications for new DMs and friend requests: FCM, sent by `push-relay/` (Cloudflare
+  Worker, free) because Cloud Functions need Blaze. Tested on the user's OPPO with a test bot.
+- Profile pictures (photo or GIF ≤ 1 MB) stored in the same Worker's KV namespace `AVATARS`;
+  shown with Coil. Photo upload tested on the phone; GIF not yet confirmed.
+- "News & updates" channel so Firebase-console announcements also show while the app is open.
+- Already **live** in production: Worker (notify + avatars), RTDB rules (`pushTokens`, `photoUrl`
+  prefix), hosting (privacy policy). Old app versions keep working; the new features need 0.4.0 on
+  both the sender's and the receiver's phone.
 Working name **Vyro** lives in `core/config/Brand.kt`, `app_name`, web/ (will be renamed again).
+
+## Next steps (as of 2026-10-28)
+1. **Release 0.4.0 from the dev machine** (it has the release key; never create a new key, since installs
+   couldn't update): `git pull`, `gh auth status`, `bash scripts/release.sh 0.4.0 "Notifications for
+   messages and friend requests; profile pictures and GIFs"`, then `git push --follow-tags`.
+   Users on 0.3.0 then see the "update available" banner on Home (UpdateChecker → GitHub releases).
+2. On the user's OPPO: it currently runs a **debug build signed on the work laptop**. Uninstall it
+   before installing the release (`adb uninstall com.syncit.app`); the user signs in again.
+3. Confirm a GIF profile picture animates (Edit profile → Change).
+4. Known open items: web/index.html and web/join.html still say "Sync it" (app and privacy say
+   Vyro); Google sign-in on a non-release build failed with "[16] Account reauth failed" while the
+   phone's mobile data was unvalidated (works in releases; `SyncItAuth` logs Google's reason now);
+   no cleanup job for old rooms/chats; rooms/previews/chats still allow anonymous v1 users.
+5. The work laptop's debug signing fingerprints (SHA-1 `CB:AC:27:…`, SHA-256 `C1:6B:F2:…`) were added
+   to the Firebase Android app for testing; remove them in Project settings if no longer needed.
 
 Read these before changing anything:
 - `PLAN.md`: architecture, module ownership, sync rules, Firebase data model.
