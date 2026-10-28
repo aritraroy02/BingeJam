@@ -4,6 +4,7 @@ import com.syncit.core.model.LocalPlaybackState
 import com.syncit.core.model.NowPlayingMetadata
 import com.syncit.core.model.PlaybackSnapshot
 import com.syncit.core.model.RoomPreview
+import com.syncit.core.model.StreamingService
 
 /** Small pure helpers for jams: track identity and matching. */
 internal object JamTracks {
@@ -77,17 +78,29 @@ internal object JamTracks {
 }
 
 /**
- * Detects a change from one known track to another. The first track seen isn't a change (that's
- * joining / opening the app, handled as a late join); readings with neither ref nor title are
- * ignored; and a ref that shows up after the title (same title) is the same track, not a new one.
+ * Detects a change from one known item (track, title or episode) to another. The first item seen
+ * isn't a change (that's joining / opening the app, handled as a late join); readings with neither
+ * ref nor title are ignored; a ref that shows up after the title (same title) is the same item,
+ * not a new one; and a different app (when the caller passes one) is always a new item.
  */
 internal class ItemKeyTracker {
+    private var service: StreamingService? = null
     private var ref: String? = null
     private var title: String? = null
     private var known = false
 
-    /** True when this reading is a different track from the previous known one. */
-    fun changed(newRef: String?, newTitle: String?): Boolean {
+    /** True when this reading is a different item from the previous known one. */
+    fun changed(newRef: String?, newTitle: String?): Boolean = changed(null, newRef, newTitle)
+
+    /** As above; [newService] (if given) different from the last known one is always a new item. */
+    fun changed(newService: StreamingService?, newRef: String?, newTitle: String?): Boolean {
+        if (known && newService != null && service != null && newService != service) {
+            service = newService
+            ref = newRef
+            title = newTitle
+            return true
+        }
+        if (newService != null) service = newService
         if (newRef == null && JamTracks.normalizedTitle(newTitle) == null) return false
         if (!known) {
             known = true
@@ -96,7 +109,7 @@ internal class ItemKeyTracker {
             return false
         }
         val same = JamTracks.sameItem(ref, title, newRef, newTitle) ?: true // can't tell: same
-        // Remember the most complete reading of the track (keep a ref we already had).
+        // Remember the most complete reading of the item (keep a ref we already had).
         ref = if (same) newRef ?: ref else newRef
         title = newTitle ?: title.takeIf { same }
         return !same
@@ -104,9 +117,13 @@ internal class ItemKeyTracker {
 
     fun changed(metadata: NowPlayingMetadata?): Boolean = changed(metadata?.playableRef, metadata?.title)
 
-    fun changed(preview: RoomPreview): Boolean = changed(preview.playableRef, preview.title)
+    fun changed(newService: StreamingService, metadata: NowPlayingMetadata?): Boolean =
+        changed(newService, metadata?.playableRef, metadata?.title)
+
+    fun changed(preview: RoomPreview): Boolean = changed(preview.service, preview.playableRef, preview.title)
 
     fun reset() {
+        service = null
         ref = null
         title = null
         known = false

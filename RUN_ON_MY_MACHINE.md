@@ -304,3 +304,6 @@ rules reject jam previews and jam join requests. Logs: `adb logcat -s SyncItDiag
 | J8 | Netflix room (no link), host pauses, plays a YouTube video, returns to Netflix | Members never seek and never switch to a jam |
 | J9 | Netflix room, throttle one phone's network mid-movie | Others are not pulled backwards |
 | J10 | Scrub in Netflix while it buffers | Everyone follows the scrub |
+| J11 | Spotify playing in the background, host taps Start, opens Netflix and plays | Room syncs Netflix (watch party), not Spotify |
+| J12 | Watch party with no title, host switches Netflix → Prime Video | Host's Prime doesn't jump or pause; members show "Not on the same title" until they switch, then align |
+| J13 | Jam: host presses "next" mid-track | Members never replay the old song from 0 (an app whose metadata lags > 0.8 s may still cause one blip) |

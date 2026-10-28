@@ -2,6 +2,7 @@ package com.syncit.media.service
 
 import com.syncit.core.model.LocalPlaybackState
 import com.syncit.core.model.MediaSessionInfo
+import com.syncit.core.model.Member
 import com.syncit.core.model.NowPlayingMetadata
 import com.syncit.core.model.PlaybackSnapshot
 import com.syncit.core.model.Room
@@ -23,13 +24,21 @@ class SessionSelectorTest {
         metadata = NowPlayingMetadata("Title", null, null),
     )
 
-    private fun room(title: StreamingService? = null) =
-        Room("ABC123", "host", 0L, title?.let { RoomTitle(it, "https://example.com", "host") }, null, emptyList(), null)
+    /** [joined] = another member has joined (locks the room's kind). */
+    private fun room(title: StreamingService? = null, joined: Boolean = false) = Room(
+        "ABC123", "host", 0L, title?.let { RoomTitle(it, "https://example.com", "host") }, null,
+        listOfNotNull(Member("host", "Host", online = true), Member("friend", "Friend", online = true).takeIf { joined }),
+        null,
+    )
 
     private fun preview(service: StreamingService) = RoomPreview("ABC123", "Host", service, "Title", null, null, 0L)
 
-    private fun hostPick(vararg sessions: MediaSessionInfo, preview: RoomPreview? = null, title: StreamingService? = null) =
-        selector.pick(sessions.toList(), room(title), preview, isHost = true)?.packageName
+    private fun hostPick(
+        vararg sessions: MediaSessionInfo,
+        preview: RoomPreview? = null,
+        title: StreamingService? = null,
+        joined: Boolean = true,
+    ) = selector.pick(sessions.toList(), room(title, joined), preview, isHost = true)?.packageName
 
     @Test fun watchPartyHostIgnoresMusicAndYouTube() {
         val netflix = StreamingService.NETFLIX.packageName
@@ -63,20 +72,56 @@ class SessionSelectorTest {
     }
 
     @Test fun emptyRoom_pausedBackgroundAppCantDecideTheKind() {
-        assertNull(hostPick(session(StreamingService.SPOTIFY, LocalPlaybackState.PAUSED)))
+        assertNull(hostPick(session(StreamingService.SPOTIFY, LocalPlaybackState.PAUSED), joined = false))
         assertNull(selector.roomIsJam(room(), null))
     }
 
-    @Test fun emptyRoom_firstPlayedAppDecidesTheKind() {
+    @Test fun aloneHost_kindFollowsTheAppMostRecentlyPlayed() {
+        // Spotify already playing when the room starts: a jam for now...
+        assertEquals(StreamingService.SPOTIFY.packageName, hostPick(session(StreamingService.SPOTIFY), joined = false))
+        assertEquals(true, selector.roomIsJam(room(), preview(StreamingService.SPOTIFY)))
+        // ...the host pauses it and plays Netflix: a watch party, even though the preview still says Spotify.
         assertEquals(
             StreamingService.NETFLIX.packageName,
-            hostPick(session(StreamingService.NETFLIX), session(StreamingService.SPOTIFY, LocalPlaybackState.PAUSED)),
+            hostPick(
+                session(StreamingService.NETFLIX),
+                session(StreamingService.SPOTIFY, LocalPlaybackState.PAUSED),
+                preview = preview(StreamingService.SPOTIFY),
+                joined = false,
+            ),
         )
-        assertEquals(false, selector.roomIsJam(room(), null))
-        // Netflix paused, Spotify now playing and first in order: still a watch party.
+        assertEquals(false, selector.roomIsJam(room(), preview(StreamingService.SPOTIFY)))
+        // Nothing playing: the last kind holds.
         assertEquals(
             StreamingService.NETFLIX.packageName,
-            hostPick(session(StreamingService.SPOTIFY), session(StreamingService.NETFLIX, LocalPlaybackState.PAUSED)),
+            hostPick(
+                session(StreamingService.SPOTIFY, LocalPlaybackState.PAUSED),
+                session(StreamingService.NETFLIX, LocalPlaybackState.PAUSED),
+                joined = false,
+            ),
+        )
+    }
+
+    @Test fun kindLocksOnceSomeoneJoinedAndStaysLocked() {
+        assertEquals(StreamingService.NETFLIX.packageName, hostPick(session(StreamingService.NETFLIX), joined = false))
+        assertEquals(
+            StreamingService.NETFLIX.packageName,
+            hostPick(session(StreamingService.SPOTIFY), session(StreamingService.NETFLIX, LocalPlaybackState.PAUSED), joined = true),
+        )
+        // The friend left: still locked (they joined a watch party).
+        assertEquals(
+            StreamingService.NETFLIX.packageName,
+            hostPick(session(StreamingService.SPOTIFY), session(StreamingService.NETFLIX, LocalPlaybackState.PAUSED), joined = false),
+        )
+    }
+
+    @Test fun joinedBeforeHostPlayed_firstPlayedAppDecides() {
+        assertNull(hostPick(session(StreamingService.SPOTIFY, LocalPlaybackState.PAUSED), joined = true))
+        assertEquals(StreamingService.SPOTIFY.packageName, hostPick(session(StreamingService.SPOTIFY), joined = true))
+        assertEquals(
+            "now locked as a jam",
+            StreamingService.SPOTIFY.packageName,
+            hostPick(session(StreamingService.NETFLIX), session(StreamingService.SPOTIFY, LocalPlaybackState.PAUSED), joined = true),
         )
     }
 

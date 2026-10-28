@@ -65,7 +65,8 @@ Firebase rooms/{code}  ──► observeRoom ──┤
 | Conflicts | room state is authoritative; last write wins. The server stamps `updatedAt` and increments `seq` in the same write, so seq order = server-timestamp order. Lower seq than what we've seen is ignored as stale. |
 | Late join / reopen app | on first snapshot from the app, seek to room expected position, then match play/pause. For 4 s after attach, the app's own start-up changes (autoplay, resume point) are not broadcast; we re-align instead. |
 | Empty room | if nobody has played yet, the first member whose app settles seeds the room state. |
-| Item change (jams) | `onItemChanged(leader)`: host waits ≥ 800 ms for a settled reading of the new track, then broadcasts it as SEEK with no settle window; a member treats the next room write by someone else as the new track's state and aligns. Falls back to late-join after 8 s. Never used in watch parties. |
+| Room kind | watch party vs jam = the title's app, else the preview's app, else what the host plays. While the host is alone it follows the app the host most recently started playing; it locks once anyone joins. The host never syncs an app of the other kind. |
+| Item change | Host's app or title changes (new track, next episode, Netflix → Prime): preview published at once, then `onItemChanged(leader = true)`: host waits ≥ 800 ms for a settled reading, then broadcasts it as SEEK with no settle window. Members call `onItemChanged(false)` when the preview's item changes and align to the next room write (hidden by OTHER_TITLE / JamFollower until their app is on it). Falls back to late-join after 8 s. |
 
 ### Fallbacks (chosen automatically per attach)
 

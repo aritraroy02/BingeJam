@@ -39,20 +39,24 @@ import kotlinx.coroutines.launch
  * Depends only on :core interfaces.
  *
  * Every input (sessions, room, preview, the 1 s tick, "Back to the jam") goes through [evaluate],
- * which picks the session ([SessionSelector]: a room never switches between watch party and jam
- * by itself) and decides what the engine may see:
+ * which picks the session ([SessionSelector]: once someone has joined, a room never switches
+ * between watch party and jam by itself) and decides what the engine may see:
  *  - watch-party member on a different title/app: hidden (OTHER_TITLE), as before jams;
  *  - jam member: [JamFollower] starts the host's track and hides the app until it's on it;
- *  - jam host: always visible.
+ *  - host: always visible.
  * Hiding = the engine sees "no session" (it detaches); un-hiding = re-attach, which the engine
  * handles as a late join (align to the room's position, ignore the app's start-up changes).
  *
- * Jams: a new track is a new timeline. When the host's track changes, the host's engine gets
- * onItemChanged(leader = true) and, once the app has settled on the new track, broadcasts its
- * position as the room's. When the host's track (the preview) changes, members' engines get
- * onItemChanged(leader = false) and align to the host's write for the new track. Watch parties
- * never call it. A jump to the start of the same track is held back briefly ([JumpHold]) in case
- * it's really a track change whose metadata hasn't arrived yet.
+ * A new item is a new timeline: a new track in a jam, and in a watch party another title or
+ * episode (Netflix autoplaying the next one) or another app (Netflix -> Prime Video). When the
+ * host's item changes, its preview is published at once and the host's engine gets
+ * onItemChanged(leader = true): once the app has settled on the new item (>= 800 ms later, so
+ * after the preview write), it broadcasts its own state as the room's, instead of re-attaching to
+ * the old item's room state. When the host's item (the preview) changes, members' engines get
+ * onItemChanged(leader = false) and align to the host's write for the new item; until they're on
+ * it they're hidden (watch party: OTHER_TITLE; jam: JamFollower). A jump to the start of the same
+ * track in a jam is held back briefly ([JumpHold]) in case it's really a track change whose
+ * metadata hasn't arrived yet.
  *
  * [elapsedRealtimeMs], [tickMs] and [recheckDelay] are injectable for tests only.
  */
@@ -92,7 +96,7 @@ internal class RoomSyncCoordinator(
     private val hostItem = ItemKeyTracker()
     private val previewItem = ItemKeyTracker()
 
-    /** Host: generation of its own jam track, so a new track's preview is published at once. */
+    /** Host: generation of its own item (app + track/title), so a new item's preview is published at once. */
     private var hostItemGeneration = 0
 
     /** Host: what to mirror into the room preview (null = nothing / not the host). */
@@ -210,19 +214,18 @@ internal class RoomSyncCoordinator(
                 follower.reset()
                 val hostService = picked?.let { StreamingService.forPackage(it.packageName) }
                 previewItem.reset()
-                if (hostService?.isJam == true) {
-                    jam = true
-                    // Before feeding the new track's snapshot: the engine then treats its jump to
-                    // ~0 as part of the switch and broadcasts the new timeline itself (at least
-                    // 800 ms later, after our immediate preview write; see publishNowPlaying).
-                    if (hostItem.changed(picked?.metadata)) {
+                if (hostService != null) {
+                    jam = hostService.isJam
+                    // A new item (another app, title, episode or track). Before feeding its first
+                    // reading: the engine then treats the switch (and the app's jump) as the new
+                    // item's start and broadcasts the host's own state for it, at least 800 ms
+                    // later, after our immediate preview write (see publishNowPlaying).
+                    if (hostItem.changed(hostService, picked?.metadata)) {
                         hostItemGeneration++
                         execute(code, engine.onItemChanged(leader = true))
                     }
-                } else if (hostService != null) {
-                    hostItem.reset() // a watch party
                 }
-                // No session: keep the last track, so reopening the app on another one restarts.
+                // No session: keep the last item, so reopening the app on another one restarts.
                 val metadata = picked?.metadata?.takeUnless { it.isEmpty }
                 if (hostService != null && metadata != null) {
                     nowPlaying = HostNowPlaying(hostService, metadata, hostItemGeneration)
@@ -260,7 +263,12 @@ internal class RoomSyncCoordinator(
             else -> {
                 follower.reset()
                 hostItem.reset()
-                previewItem.reset()
+                // Watch party: the host moved to another title/episode/app. Room writes from now on
+                // are about it; we stay hidden (OTHER_TITLE, below) until we're on it too, then the
+                // engine aligns to the host's write for it.
+                if (r != null && currentPreview?.service != null && previewItem.changed(currentPreview)) {
+                    execute(code, engine.onItemChanged(leader = false))
+                }
                 // On a different episode the app is invisible to the engine: none of its
                 // play/pause/seek is broadcast and no commands are sent to it. Switching to
                 // the right episode then looks like opening the app, which the engine
@@ -329,10 +337,10 @@ internal class RoomSyncCoordinator(
      * Host only: mirrors what the host's streaming app says is playing (title, artwork, public
      * playableRef) into the room preview, so members and invitees see it. Driven by [evaluate], so
      * it's always the session being synced. Debounced: apps often publish metadata in several
-     * steps (title first, artwork a moment later). In a jam a NEW track is published at once, so
-     * members learn about it before the host engine's timeline restart (onItemChanged, broadcast
-     * at least 800 ms later) reaches them: writes from one client arrive in order, so members
-     * don't apply the new timeline to the old track.
+     * steps (title first, artwork a moment later). A NEW item (app, title, episode or track) is
+     * published at once, so members learn about it before the host engine's timeline restart
+     * (onItemChanged, broadcast at least 800 ms later) reaches them: writes from one client arrive
+     * in order, so members don't apply the new timeline to the old item.
      */
     @OptIn(FlowPreview::class)
     private suspend fun publishNowPlaying(code: String) {
@@ -340,7 +348,8 @@ internal class RoomSyncCoordinator(
         hostNowPlaying
             .filterNotNull()
             .distinctUntilChanged()
-            .debounce { if (it.service.isJam && it.item != lastPublishedItem) 0L else NOW_PLAYING_DEBOUNCE_MS }
+            // A new item goes out at once; later updates of the same item (artwork) are debounced.
+            .debounce { if (it.item != lastPublishedItem) 0L else NOW_PLAYING_DEBOUNCE_MS }
             .collect { (service, metadata, item) ->
                 lastPublishedItem = item
                 safely("setNowPlaying") { deps.transport.setNowPlaying(code, service, metadata) }
@@ -364,6 +373,7 @@ internal class RoomSyncCoordinator(
         follower.reset()
         selector.reset()
         jumpHold.reset()
+        holdRecheck?.cancel()
         holdRecheck = null
         hostItem.reset()
         previewItem.reset()

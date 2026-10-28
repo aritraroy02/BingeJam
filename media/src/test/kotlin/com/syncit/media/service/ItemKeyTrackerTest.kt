@@ -1,5 +1,6 @@
 package com.syncit.media.service
 
+import com.syncit.core.model.StreamingService
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -43,6 +44,16 @@ class ItemKeyTrackerTest {
         assertFalse(tracker.changed(null, "  "))
         assertFalse("same track after a metadata gap", tracker.changed(refA, "Song A"))
         assertTrue(tracker.changed(refB, "Song B"))
+    }
+
+    @Test fun anotherAppIsAlwaysANewItem() {
+        tracker.changed(StreamingService.NETFLIX, null, "Movie")
+        assertTrue("same title, other app", tracker.changed(StreamingService.PRIME_VIDEO, null, "Movie"))
+        assertFalse(tracker.changed(StreamingService.PRIME_VIDEO, null, "Movie"))
+        // Even before the new app publishes any metadata.
+        assertTrue(tracker.changed(StreamingService.NETFLIX, null, null))
+        assertFalse("its title arriving later is the same item", tracker.changed(StreamingService.NETFLIX, null, "Ep 1"))
+        assertTrue(tracker.changed(StreamingService.NETFLIX, null, "Ep 2"))
     }
 
     @Test fun resetMakesTheNextTrackAFirstTrack() {

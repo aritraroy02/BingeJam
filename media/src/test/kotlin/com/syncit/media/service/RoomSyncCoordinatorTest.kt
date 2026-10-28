@@ -98,15 +98,17 @@ class RoomSyncCoordinatorTest {
         metadata = NowPlayingMetadata(title, null, null, playableRef = ref),
     )
 
-    private fun room(host: String = HOST) = Room(CODE, host, 0L, null, null, emptyList(), null)
+    /** [others] = members besides the host who have joined. */
+    private fun room(host: String = HOST, others: List<String> = emptyList()) =
+        Room(CODE, host, 0L, null, null, (listOf(host) + others).map { Member(it, it, online = true) }, null)
 
     private fun preview(service: StreamingService, title: String = "Song A", ref: String? = null) =
         RoomPreview(CODE, "Host", service, title, null, null, 0L, null, ref)
 
     // ---- Item 1: the room's kind ----
 
-    @Test fun watchPartyHost_youtubeOrSpotifyCantTakeOver() {
-        transport.room.value = room()
+    @Test fun watchPartyHost_youtubeOrSpotifyCantTakeOverOnceSomeoneJoined() {
+        transport.room.value = room(others = listOf(MEMBER))
         transport.preview.value = preview(StreamingService.NETFLIX, title = "Movie")
         val c = coordinator(HOST)
         val netflix = session(StreamingService.NETFLIX, 600_000, LocalPlaybackState.PAUSED, title = "Movie")
@@ -126,7 +128,73 @@ class RoomSyncCoordinatorTest {
         coordinator(HOST)
         gateway.sessions.value = listOf(session(StreamingService.SPOTIFY, 200_000))
         gateway.sessions.value = listOf(session(StreamingService.YOUTUBE_MUSIC, 5_000, title = "Song A"))
-        assertEquals(listOf("snap:200000", "snap:null", "snap:5000"), engine.events)
+        // Another app is a new item for the host (its own state becomes the room's), and the
+        // engine sees it as a re-attach, never as a jump in the old app.
+        assertEquals(listOf("snap:200000", "item:leader", "snap:null", "snap:5000"), engine.events)
+    }
+
+    @Test fun aloneHost_spotifyAlreadyPlayingThenNetflix_isAWatchParty() {
+        transport.room.value = room()
+        val c = coordinator(HOST)
+        gateway.sessions.value = listOf(session(StreamingService.SPOTIFY, 90_000))
+        assertEquals(StreamingService.SPOTIFY, c.hostNowPlaying.value?.service)
+
+        // Host pauses Spotify and starts Netflix: the room follows, and the preview changes at once.
+        val spotifyPaused = session(StreamingService.SPOTIFY, 95_000, LocalPlaybackState.PAUSED)
+        gateway.sessions.value = listOf(session(StreamingService.NETFLIX, 0, title = "Movie"), spotifyPaused)
+        assertEquals(listOf("snap:90000", "item:leader", "snap:null", "snap:0"), engine.events)
+        assertEquals(StreamingService.NETFLIX, c.hostNowPlaying.value?.service)
+        assertEquals("new item: published without the debounce", 1, c.hostNowPlaying.value?.item)
+
+        // Netflix paused, Spotify paused too: still the watch party (Netflix first in order or not).
+        gateway.sessions.value = listOf(spotifyPaused, session(StreamingService.NETFLIX, 1_000, LocalPlaybackState.PAUSED, title = "Movie"))
+        assertEquals(StreamingService.NETFLIX, c.hostNowPlaying.value?.service)
+    }
+
+    @Test fun afterAMemberJoined_switchingToSpotifyDoesntChangeTheKind() {
+        transport.room.value = room()
+        val c = coordinator(HOST)
+        gateway.sessions.value = listOf(session(StreamingService.NETFLIX, 10_000, title = "Movie"))
+        transport.room.value = room(others = listOf(MEMBER))
+
+        val netflixPaused = session(StreamingService.NETFLIX, 12_000, LocalPlaybackState.PAUSED, title = "Movie")
+        gateway.sessions.value = listOf(session(StreamingService.SPOTIFY, 50_000), netflixPaused)
+        assertEquals(listOf("snap:10000", "snap:12000"), engine.events)
+        assertEquals(StreamingService.NETFLIX, c.hostNowPlaying.value?.service)
+    }
+
+    @Test fun memberJoinedBeforeHostPlayed_firstPlayedAppStillDecides() {
+        transport.room.value = room(others = listOf(MEMBER))
+        val c = coordinator(HOST)
+        gateway.sessions.value = listOf(session(StreamingService.SPOTIFY, 1_000, LocalPlaybackState.PAUSED))
+        assertEquals("a paused app doesn't decide", emptyList<String>(), engine.events)
+        gateway.sessions.value = listOf(session(StreamingService.PRIME_VIDEO, 0, title = "Film"))
+        assertEquals(StreamingService.PRIME_VIDEO, c.hostNowPlaying.value?.service)
+    }
+
+    @Test fun watchPartyHost_netflixToPrime_isALeaderItemChange() {
+        transport.room.value = room(others = listOf(MEMBER))
+        transport.preview.value = preview(StreamingService.NETFLIX, title = "Movie")
+        val c = coordinator(HOST)
+        gateway.sessions.value = listOf(session(StreamingService.NETFLIX, 600_000, title = "Movie"))
+        assertEquals(0, c.hostNowPlaying.value?.item)
+
+        val netflixPaused = session(StreamingService.NETFLIX, 601_000, LocalPlaybackState.PAUSED, title = "Movie")
+        gateway.sessions.value = listOf(session(StreamingService.PRIME_VIDEO, 30_000, title = "Film"), netflixPaused)
+        // Not a plain re-attach (which would align Prime to Netflix's room state): the engine
+        // restarts the timeline and broadcasts the host's Prime state.
+        assertEquals(listOf("snap:600000", "item:leader", "snap:null", "snap:30000"), engine.events)
+        assertEquals(StreamingService.PRIME_VIDEO, c.hostNowPlaying.value?.service)
+        assertEquals(1, c.hostNowPlaying.value?.item)
+    }
+
+    @Test fun watchPartyHost_nextEpisodeIsALeaderItemChange() {
+        transport.room.value = room(others = listOf(MEMBER))
+        transport.preview.value = preview(StreamingService.NETFLIX, title = "Ep 1")
+        coordinator(HOST)
+        gateway.sessions.value = listOf(session(StreamingService.NETFLIX, 2_900_000, title = "Ep 1"))
+        gateway.sessions.value = listOf(session(StreamingService.NETFLIX, 0, title = "Ep 2"))
+        assertEquals(listOf("snap:2900000", "item:leader", "snap:0"), engine.events)
     }
 
     // ---- Item 2: jump to the start before the new track's metadata ----
@@ -202,13 +270,21 @@ class RoomSyncCoordinatorTest {
         assertEquals(SyncStatus.SYNCING, published.last().status)
     }
 
-    @Test fun watchPartyNeverCallsOnItemChanged() {
-        transport.room.value = room()
+    @Test fun watchPartyMember_hostsNextEpisode_hiddenUntilOnItThenAligns() {
+        transport.room.value = room(others = listOf(MEMBER))
         transport.preview.value = preview(StreamingService.NETFLIX, title = "Ep 1")
         coordinator(MEMBER)
         gateway.sessions.value = listOf(session(StreamingService.NETFLIX, 10_000, title = "Ep 1"))
+
         transport.preview.value = preview(StreamingService.NETFLIX, title = "Ep 2")
-        assertTrue(engine.events.none { it.startsWith("item") })
+        assertEquals(listOf("snap:10000", "item:member", "snap:null"), engine.events)
+        assertEquals(SyncStatus.OTHER_TITLE, published.last().status)
+
+        // Member's Netflix moves on to Ep 2: attached again; the engine aligns to the host's write.
+        gateway.sessions.value = listOf(session(StreamingService.NETFLIX, 0, title = "Ep 2"))
+        assertEquals(listOf("snap:10000", "item:member", "snap:null", "snap:0"), engine.events)
+        assertEquals(SyncStatus.SYNCING, published.last().status)
+        assertEquals("only once per new item", 1, engine.events.count { it.startsWith("item") })
     }
 
     // ---- Fakes ----
