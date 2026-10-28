@@ -6,6 +6,8 @@
     <!-- %1$s = Brand.NAME, %2$s = room code. -->
     <string name="sync_notification_title">%1$s · room %2$s</string>
     <string name="sync_notification_stop">Stop syncing</string>
+    <!-- %1$s = Brand.NAME. Stops all background work until the app is opened again. -->
+    <string name="sync_notification_quit">Quit %1$s</string>
     <string name="sync_jam_starting">Starting the host\'s track…</string>
     <!-- %1$s = the jam's app, e.g. Spotify. -->
     <string name="sync_jam_needs_app">Open %1$s to join the jam</string>

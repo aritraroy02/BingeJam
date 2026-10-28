@@ -47,6 +47,20 @@ class UserPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_CLIPBOARD_CHECKED, false)
         set(value) = prefs.edit { putBoolean(KEY_CLIPBOARD_CHECKED, value) }
 
+    private val _quit = MutableStateFlow(prefs.getBoolean(KEY_QUIT, false))
+
+    /**
+     * The user tapped "Quit" and hasn't opened the app since. Presence and activity sharing stay
+     * off even if something (a push message) starts the process in the background.
+     */
+    val quit: StateFlow<Boolean> = _quit.asStateFlow()
+
+    fun setQuit(value: Boolean) {
+        // commit(): quitApp() ends the process right after, so the write mustn't be deferred.
+        prefs.edit(commit = true) { putBoolean(KEY_QUIT, value) }
+        _quit.value = value
+    }
+
     private val _themeMode = MutableStateFlow(
         runCatching { ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: "") }.getOrDefault(ThemeMode.SYSTEM),
     )
@@ -144,6 +158,7 @@ class UserPrefs(context: Context) {
         const val KEY_PENDING_JOIN = "pending_join"
         const val KEY_CLIPBOARD_CHECKED = "invite_clipboard_checked"
         const val KEY_THEME = "theme_mode"
+        const val KEY_QUIT = "quit"
         const val KEY_SHARED_APPS = "shared_apps_"
         const val KEY_INVISIBLE = "invisible_"
         const val KEY_ACTIVITY_SETUP_UIDS = "activity_setup_uids"

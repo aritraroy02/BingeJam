@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Runs presence and the activity tracker while an account is signed in, has finished the
- * activity-sharing setup page on this phone, and isn't invisible (process lifetime, not tied to a
+ * activity-sharing setup page on this phone, isn't invisible and hasn't quit (process lifetime, not tied to a
  * screen). Also points [UserPrefs]' per-account sharing settings at the signed-in account.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -62,8 +62,8 @@ class SocialSession(
                     if (uid == null) {
                         flowOf(null)
                     } else {
-                        combine(prefs.activitySetupDone, prefs.invisible, paused) { setupDone, invisible, isPaused ->
-                            uid.takeIf { it in setupDone && !invisible && !isPaused }
+                        combine(prefs.activitySetupDone, prefs.invisible, paused, prefs.quit) { setupDone, invisible, isPaused, quit ->
+                            uid.takeIf { it in setupDone && !invisible && !isPaused && !quit }
                         }
                     }
                 }

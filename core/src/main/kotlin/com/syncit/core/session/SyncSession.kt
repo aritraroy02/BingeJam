@@ -50,3 +50,11 @@ interface SyncDependencies {
 interface SyncDependenciesProvider {
     val syncDependencies: SyncDependencies
 }
+
+/**
+ * Implemented by the Application: "Quit" from the sync notification. Stops everything that runs
+ * in the background (sync, chat bubble, presence, activity sharing) until the app is opened again.
+ */
+interface AppQuitHandler {
+    fun quitApp()
+}

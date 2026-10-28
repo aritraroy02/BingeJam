@@ -16,6 +16,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import com.syncit.core.config.Brand
 import com.syncit.core.config.SyncStatusLabels
+import com.syncit.core.session.AppQuitHandler
 import com.syncit.core.session.JamFollow
 import com.syncit.core.session.SyncDependenciesProvider
 import com.syncit.core.session.SyncSessionState
@@ -35,6 +36,7 @@ class SyncForegroundService : Service() {
     private var coordinator: RoomSyncCoordinator? = null
     private var roomCode: String? = null
     private var lastNotificationText: String? = null
+    private var destroyed = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -48,6 +50,11 @@ class SyncForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             stopSelf()
+            return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_QUIT) {
+            stopSelf()
+            (application as? AppQuitHandler)?.quitApp()
             return START_NOT_STICKY
         }
 
@@ -82,7 +89,12 @@ class SyncForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        // The system has already removed our foreground notification. coordinator.stop() publishes
+        // an IDLE state; without this flag that would re-post it as a plain notification that
+        // outlives the service ("room ABC123 · Not in a room").
+        destroyed = true
         coordinator?.stop()
+        NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
         coordinator = null
         scope.cancel()
         SyncSessionStateHolder.state.value = SyncSessionState()
@@ -90,6 +102,7 @@ class SyncForegroundService : Service() {
     }
 
     private fun updateNotification(state: SyncSessionState) {
+        if (destroyed) return
         val appName = state.service?.displayName ?: "Streaming app"
         val text = when (state.jamFollow) {
             JamFollow.STARTING -> getString(R.string.sync_jam_starting)
@@ -119,6 +132,12 @@ class SyncForegroundService : Service() {
             Intent(this, SyncForegroundService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        val quit = PendingIntent.getService(
+            this,
+            2,
+            Intent(this, SyncForegroundService::class.java).setAction(ACTION_QUIT),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_sync_notification)
             .setContentTitle(getString(R.string.sync_notification_title, Brand.NAME, roomCode.orEmpty()))
@@ -130,6 +149,7 @@ class SyncForegroundService : Service() {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(open)
             .addAction(0, getString(R.string.sync_notification_stop), stop)
+            .addAction(0, getString(R.string.sync_notification_quit, Brand.NAME), quit)
             .build()
     }
 
@@ -144,6 +164,7 @@ class SyncForegroundService : Service() {
         private const val NOTIFICATION_ID = 42
         private const val ACTION_START = "com.syncit.media.START"
         private const val ACTION_STOP = "com.syncit.media.STOP"
+        private const val ACTION_QUIT = "com.syncit.media.QUIT"
         private const val EXTRA_ROOM_CODE = "room_code"
 
         fun startIntent(context: Context, roomCode: String): Intent =

@@ -17,6 +17,7 @@ import com.syncit.app.ui.nav.SyncItApp
 import com.syncit.app.ui.theme.SyncItTheme
 import com.syncit.app.ui.theme.isDark
 import com.syncit.core.config.RoomLinks
+import com.syncit.media.MediaListenerService
 
 class MainActivity : ComponentActivity() {
 
@@ -33,6 +34,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val container = (application as SyncItApplication).container
+        // Opening the app undoes "Quit" (see SyncItApplication.quitApp).
+        if (container.prefs.quit.value) {
+            container.prefs.setQuit(false)
+            MediaListenerService.rebind(this)
+        }
         // Only the launching intent: after rotation/recreation it was already handled.
         if (savedInstanceState == null) handleLink(intent)
         // Opened from the link itself, so the clipboard fallback isn't needed.
