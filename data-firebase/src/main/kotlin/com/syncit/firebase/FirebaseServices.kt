@@ -49,7 +49,7 @@ class FirebaseServices private constructor(context: Context) {
     )
     val profiles: ProfileRepository = FirebaseProfileRepository(session, db)
     val friends: FriendsRepository = FirebaseFriendsRepository(session, db, pushRelay)
-    val dms: DirectMessages = FirebaseDirectMessages(session, db, pushRelay)
+    val dms: DirectMessages = FirebaseDirectMessages(session, db, clock, pushRelay)
     val push: PushRegistry = FirebasePushRegistry(session, db)
     val avatars: AvatarStore = avatarsImpl
     val presence: PresenceRepository = presenceImpl

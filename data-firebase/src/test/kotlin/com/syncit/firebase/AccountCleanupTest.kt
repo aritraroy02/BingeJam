@@ -29,7 +29,7 @@ class AccountCleanupTest {
     }
 
     @Test
-    fun `every related uid gets its mirror entries and the DM thread`() {
+    fun `every related uid gets its mirror entries, the DM thread and its typing node`() {
         val paths = AccountCleanup.deletionPaths(me, null, listOf(bob, zed))
         for (other in listOf(bob, zed)) {
             for (root in AccountCleanup.MIRROR_ROOTS) assertTrue("$root/$other/$me", paths.containsKey("$root/$other/$me"))
@@ -37,7 +37,12 @@ class AccountCleanupTest {
         // dmId = the two uids sorted, joined with '_' (same as DmIds and the push relay).
         assertTrue(paths.containsKey("dms/${bob}_$me"))
         assertTrue(paths.containsKey("dms/${me}_$zed"))
-        assertEquals(AccountCleanup.OWN_ROOTS.size + 2 * (AccountCleanup.MIRROR_ROOTS.size + 1), paths.size)
+        assertTrue(paths.containsKey("typing/${bob}_$me"))
+        assertTrue(paths.containsKey("typing/${me}_$zed"))
+        assertEquals(
+            AccountCleanup.OWN_ROOTS.size + 2 * (AccountCleanup.MIRROR_ROOTS.size + AccountCleanup.THREAD_ROOTS.size),
+            paths.size,
+        )
     }
 
     @Test
@@ -53,7 +58,7 @@ class AccountCleanupTest {
         val longer = "x${me}y"
         val paths = AccountCleanup.deletionPaths(me, null, listOf(longer))
         assertTrue(paths.containsKey("friends/$longer/$me"))
-        assertFalse(paths.keys.any { it.startsWith("dms/") })
+        assertFalse(paths.keys.any { it.startsWith("dms/") || it.startsWith("typing/") })
     }
 
     @Test

@@ -42,10 +42,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.syncit.app.ui.chat.ChatTimes
+import com.syncit.app.ui.chat.DaySeparator
+import com.syncit.app.ui.chat.messageGap
+import com.syncit.app.ui.chat.rememberChatRows
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.PillShape
@@ -63,13 +73,15 @@ fun ChatTab(
     reactions: List<Reaction>,
     onSend: (String) -> Unit,
     onReact: (String) -> Unit,
+    serverNowMs: () -> Long,
     modifier: Modifier = Modifier,
 ) {
     val p = Glass.palette
+    val rows = rememberChatRows(chat, { it.id }, { it.uid }, { it.sentAt }, serverNowMs)
     Column(modifier) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val listState = rememberLazyListState()
-            LaunchedEffect(chat.size) { if (chat.isNotEmpty()) listState.animateScrollToItem(chat.lastIndex) }
+            LaunchedEffect(chat.size) { if (rows.isNotEmpty()) listState.animateScrollToItem(rows.lastIndex) }
             if (chat.isEmpty()) {
                 Text(
                     "Say hi 👋\nMessages show up for everyone in the room.",
@@ -81,11 +93,22 @@ fun ChatTab(
             }
             LazyColumn(
                 state = listState,
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                items(chat, key = { it.id }) { msg -> MessageBubble(msg.text, senderName = msg.name, isMine = msg.uid == myUid) }
+                items(rows, key = { it.key }) { row ->
+                    when (row) {
+                        is ChatTimes.Row.Day -> DaySeparator(row.label)
+                        is ChatTimes.Row.Message -> MessageBubble(
+                            row.item.text,
+                            senderName = row.item.name,
+                            isMine = row.item.uid == myUid,
+                            time = row.time,
+                            grouped = row.grouped,
+                            modifier = Modifier.padding(top = messageGap(row.grouped)),
+                        )
+                    }
+                }
             }
             FloatingReactions(reactions, Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp))
         }
@@ -105,46 +128,98 @@ fun ChatTab(
     }
 }
 
-/** Speech bubble shared by room chat and direct messages. [senderName] null hides avatar and name (DMs). */
+/**
+ * Speech bubble shared by room chat and direct messages. [senderName] null hides avatar and name
+ * (DMs). [time] sits bottom-right after the text, WhatsApp-style. [grouped] continues the previous
+ * message from the same sender: no repeated name or avatar.
+ */
 @Composable
-internal fun MessageBubble(text: String, senderName: String?, isMine: Boolean) {
+internal fun MessageBubble(
+    text: String,
+    senderName: String?,
+    isMine: Boolean,
+    time: String,
+    modifier: Modifier = Modifier,
+    grouped: Boolean = false,
+) {
     val p = Glass.palette
     // The corner nearest the sender is tighter, like a speech bubble's tail.
     val shape = if (isMine) RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp) else RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp)
+    val timeStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.2.sp)
+    val textColor = if (isMine) p.onAccent else p.textPrimary
+    val timeColor = if (isMine) p.onAccent.copy(alpha = 0.72f) else p.textTertiary
+    val showName = !isMine && senderName != null && !grouped
+    // An invisible copy of the time at the end of the text reserves room for the real one, so it
+    // shares the last line when there's space and wraps to its own line when there isn't.
+    val body = remember(text, time, timeStyle) {
+        buildAnnotatedString {
+            append(text)
+            withStyle(timeStyle.toSpanStyle().copy(color = Color.Transparent)) {
+                append(" \u00A0\u00A0" + time.replace(' ', '\u00A0'))
+            }
+        }
+    }
     Row(
-        Modifier.fillMaxWidth(),
+        modifier.fillMaxWidth(),
         horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom,
     ) {
         if (!isMine && senderName != null) {
-            Avatar(senderName, size = 28.dp)
-            Spacer(Modifier.width(8.dp))
+            if (grouped) {
+                Spacer(Modifier.width(36.dp))
+            } else {
+                Avatar(senderName, size = 28.dp)
+                Spacer(Modifier.width(8.dp))
+            }
         }
         val bubble = if (isMine) {
             Modifier.clip(shape).background(Brush.linearGradient(listOf(p.accent, p.accent2)))
         } else {
             Modifier.glass(shape)
         }
-        Column(bubble.widthIn(max = 280.dp).padding(horizontal = 14.dp, vertical = 9.dp)) {
-            if (!isMine && senderName != null) Text(senderName, style = MaterialTheme.typography.labelMedium, color = p.accent2)
-            Text(text, style = MaterialTheme.typography.bodyMedium, color = if (isMine) p.onAccent else p.textPrimary)
+        Box(
+            bubble
+                .widthIn(max = 280.dp)
+                .padding(start = 14.dp, end = 12.dp, top = 9.dp, bottom = 7.dp)
+                // Read as one item ("Asha, see you at 9, 10:42 pm"), without the invisible copy.
+                .clearAndSetSemantics {
+                    contentDescription = listOfNotNull(senderName.takeIf { showName }, text, time).joinToString(", ")
+                },
+        ) {
+            Column {
+                if (showName) Text(senderName.orEmpty(), style = MaterialTheme.typography.labelMedium, color = p.accent2)
+                Text(body, style = MaterialTheme.typography.bodyMedium, color = textColor)
+            }
+            Text(time, style = timeStyle, color = timeColor, maxLines = 1, modifier = Modifier.align(Alignment.BottomEnd))
         }
     }
 }
 
 @Composable
-internal fun ChatInputBar(onSend: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
+internal fun ChatInputBar(
+    onSend: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    onTextChange: (String) -> Unit = {},
+) {
     val p = Glass.palette
     var text by rememberSaveable { mutableStateOf("") }
+    // Reported only when the text really changes (typing indicator), never on recomposition.
+    val update = { value: String ->
+        if (value != text) {
+            text = value
+            onTextChange(value)
+        }
+    }
     val send = {
         if (text.isNotBlank()) {
             onSend(text)
-            text = ""
+            update("")
         }
     }
     GlassTextField(
         value = text,
-        onValueChange = { text = it.take(500) },
+        onValueChange = { update(it.take(500)) },
         placeholder = placeholder,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
         keyboardActions = KeyboardActions(onSend = { send() }),

@@ -11,9 +11,10 @@ import com.syncit.firebase.social.DmIds
  * - [OWN_ROOTS]: `{root}/{uid}` deleted as a whole node. The rules allow the owner to set these
  *   to null (and only to null) at the parent level.
  * - `usernames/{key}`: only when the caller checked it still points at us (rules: data === uid).
- * - For every related uid: their entries that name us ([MIRROR_ROOTS], `{root}/{other}/{uid}`)
- *   and the DM thread `dms/{dmId}` (rules: participant only, and only while our own profile is
- *   gone in the same update, i.e. only as part of account deletion).
+ * - For every related uid: their entries that name us ([MIRROR_ROOTS], `{root}/{other}/{uid}`),
+ *   the DM thread `dms/{dmId}` and its typing indicators `typing/{dmId}` ([THREAD_ROOTS]; rules:
+ *   participant only, and only while our own profile is gone in the same update, i.e. only as
+ *   part of account deletion).
  *
  * Deleting a path that doesn't exist is fine, so a retry after a fresh sign-in completes cleanly.
  */
@@ -36,6 +37,9 @@ internal object AccountCleanup {
      */
     val MIRROR_ROOTS = listOf("friends", "friendRequests", "sentFriendRequests", "joinRequests", "invites")
 
+    /** Per-DM-thread nodes keyed by dmId, deleted whole: the messages and both typing entries. */
+    val THREAD_ROOTS = listOf("dms", "typing")
+
     /** Firebase uids (same check as the push relay). Anything else isn't a user and is skipped. */
     private val UID = Regex("^[A-Za-z0-9]{1,128}$")
 
@@ -55,7 +59,10 @@ internal object AccountCleanup {
             // The rules find the other participant with dmId.replace(auth.uid, ''), which only
             // works if neither uid contains the other. Real Firebase uids (28 random characters)
             // never do; skipping keeps one odd id from failing the whole atomic update.
-            if (uid !in other && other !in uid) paths["dms/${DmIds.dmId(uid, other)}"] = null
+            if (uid !in other && other !in uid) {
+                val dmId = DmIds.dmId(uid, other)
+                for (root in THREAD_ROOTS) paths["$root/$dmId"] = null
+            }
         }
         return paths
     }

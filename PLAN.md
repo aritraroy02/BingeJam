@@ -154,6 +154,7 @@ friends/{uid}/{friendUid}: { since }                                            
 blocked/{uid}/{otherUid}: true                                                        owner only
 dms/{dmId}/{msgId}:       { from, text, sentAt }     dmId = sorted uids "a_b"; only the two, only friends
 dmReads/{uid}/{friendUid}: lastReadAt                                                owner only
+typing/{dmId}/{uid}:      server timestamp while typing (≤ every 3 s); readers treat > 6 s as stopped; onDisconnect removes
 presence/{uid}:           { online, lastSeen, activity? { app, title, subtitle, artwork, playing,
                             durationMs, startedAt, roomCode? } }                      friends read, owner write
                           onDisconnect clears online AND activity (re-published on reconnect)
@@ -168,7 +169,7 @@ rooms/…, previews/…, chats/…, reactions/… (v1; service also allows PRIME
 ```
 Account deletion (2026-10-29, `AuthService.deleteAccount`, `FirebaseAccountEraser`): one atomic multi-path
 null update of the user's own nodes, mirror entries on connected users, whole DM threads and the active room
-membership/preview, then the avatar (Worker DELETE /avatar) and the Auth user. Rules: owner-only delete-only
+membership/preview and `typing/{dmId}`, then the avatar (Worker DELETE /avatar) and the Auth user. Rules: owner-only delete-only
 rules on whole own nodes; `dms/$dmId` may be nulled by a participant only in the same write that deletes their
 `users/{uid}`; `usernames/$name` deletable when the owner's profile goes in the same write. Sign-in must be
 < 4 min old (ID-token auth_time) or `RecentLoginRequiredException`. Room chats/reactions/older rooms remain.

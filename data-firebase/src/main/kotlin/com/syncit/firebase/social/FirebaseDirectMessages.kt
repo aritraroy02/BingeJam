@@ -1,9 +1,16 @@
 package com.syncit.firebase.social
 
+import android.os.SystemClock
+import android.util.Log
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
+import com.google.firebase.database.ValueEventListener
 import com.syncit.core.model.DirectMessage
 import com.syncit.core.social.DirectMessages
+import com.syncit.core.sync.ServerClock
 import com.syncit.firebase.FirebaseSession
 import com.syncit.firebase.NotFriendsException
 import com.syncit.firebase.await
@@ -14,9 +21,11 @@ import com.syncit.firebase.snapshots
 import com.syncit.firebase.string
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
@@ -27,13 +36,39 @@ import kotlinx.coroutines.flow.map
  * Unread counts: dmReads/{me}/{friend} holds the server time we last opened the chat; messages
  * from the friend with a later sentAt are unread. Both are server timestamps, so device clocks
  * play no part.
+ *
+ * Typing indicator: typing/{dmId}/{uid} = server timestamp ([TypingIndicator] has the timing).
+ * The writer refreshes it at most every 3 s (monotonic throttle) and removes it on stop, on
+ * [send] and, through onDisconnect, when the connection drops. Readers compare its age with
+ * [clock] (server time), so an entry left behind by a killed app stops counting after 6 s.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FirebaseDirectMessages internal constructor(
     private val session: FirebaseSession,
     private val db: FirebaseDatabase,
+    private val clock: ServerClock,
     private val push: PushRelay? = null,
+    elapsedRealtime: () -> Long = SystemClock::elapsedRealtime,
 ) : DirectMessages {
+
+    private val typingThrottle = TypingThrottle(elapsedRealtime)
+
+    /**
+     * dmIds whose typing entry has an onDisconnect removal registered on the current connection.
+     * Firebase runs onDisconnect once, when the connection drops, and doesn't re-register it on
+     * reconnect, so this is cleared whenever .info/connected goes false.
+     */
+    private val disconnectArmed = HashSet<String>()
+
+    init {
+        db.getReference(".info/connected").addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.getValue(Boolean::class.java) != true) synchronized(disconnectArmed) { disconnectArmed.clear() }
+            }
+
+            override fun onCancelled(error: DatabaseError) = Unit
+        })
+    }
 
     override fun observe(friendUid: String, limit: Int): Flow<List<DirectMessage>> =
         session.uid.flatMapLatest { me ->
@@ -47,8 +82,10 @@ class FirebaseDirectMessages internal constructor(
             }
         }
 
+    /** Also clears our typing indicator for this chat (callers needn't call setTyping(false)). */
     override suspend fun send(friendUid: String, text: String) {
         val me = session.requireUid()
+        if (me != friendUid) stopTyping(DmIds.dmId(me, friendUid), me)
         val trimmed = text.trim().take(MAX_TEXT_LENGTH)
         if (trimmed.isEmpty()) return
         val ref = db.getReference("dms").child(DmIds.dmId(me, friendUid)).push()
@@ -88,7 +125,71 @@ class FirebaseDirectMessages internal constructor(
         db.getReference("dmReads").child(me).child(friendUid).setValue(ServerValue.TIMESTAMP).await()
     }
 
+    /**
+     * Fire-and-forget: the writes are queued locally and never awaited, so a keystroke while
+     * offline doesn't leave a coroutine hanging. Failures (e.g. no longer friends) are only logged.
+     */
+    override suspend fun setTyping(friendUid: String, typing: Boolean) {
+        val me = session.currentUid ?: return
+        if (me == friendUid || friendUid.isEmpty()) return
+        val dmId = DmIds.dmId(me, friendUid)
+        if (!typing) {
+            stopTyping(dmId, me)
+            return
+        }
+        if (!typingThrottle.shouldWrite(dmId)) return
+        val ref = typingRef(dmId, me)
+        // Arm the removal before the first write on this connection, so the entry can't outlive
+        // the connection. Both requests go out in this order.
+        val arm = synchronized(disconnectArmed) { disconnectArmed.add(dmId) }
+        if (arm) {
+            ref.onDisconnect().removeValue().addOnFailureListener { e ->
+                synchronized(disconnectArmed) { disconnectArmed.remove(dmId) }
+                Log.d(TAG, "Typing onDisconnect not registered", e)
+            }
+        }
+        ref.setValue(ServerValue.TIMESTAMP).addOnFailureListener { e -> Log.d(TAG, "Typing write failed", e) }
+    }
+
+    /** Removes our entry if we wrote one since the last stop (the throttle remembers). */
+    private fun stopTyping(dmId: String, me: String) {
+        if (!typingThrottle.clear(dmId)) return
+        typingRef(dmId, me).removeValue().addOnFailureListener { e -> Log.d(TAG, "Typing removal failed", e) }
+    }
+
+    override fun observeTyping(friendUid: String): Flow<Boolean> = session.uid.flatMapLatest { me ->
+        if (me == null || me == friendUid || friendUid.isEmpty()) return@flatMapLatest flowOf(false)
+        // Only the friend's own entry is read, so ours never counts. A cancelled listener (no
+        // longer friends) emits null: not typing.
+        typingRef(DmIds.dmId(me, friendUid), friendUid).snapshots()
+            .map { it?.long() }
+            .distinctUntilChanged()
+            .flatMapLatest { stampMs ->
+                if (stampMs == null) {
+                    flowOf(false)
+                } else {
+                    // Ticker: re-check the same entry until it's stale, comparing server time
+                    // (clock.serverNowMs) with the server-written stamp. A refresh from the friend
+                    // restarts this with the new stamp.
+                    flow {
+                        while (true) {
+                            val now = clock.serverNowMs()
+                            val fresh = TypingIndicator.isFresh(stampMs, now)
+                            emit(fresh)
+                            if (!fresh && now >= stampMs) break
+                            delay(TypingIndicator.nextCheckDelayMs(stampMs, now))
+                        }
+                    }
+                }
+            }
+            .distinctUntilChanged()
+    }
+
+    private fun typingRef(dmId: String, uid: String): DatabaseReference =
+        db.getReference("typing").child(dmId).child(uid)
+
     companion object {
+        private const val TAG = "SyncItDms"
         const val MAX_TEXT_LENGTH = 1000
         private const val MAX_LIMIT = 500
 

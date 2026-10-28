@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -331,16 +332,28 @@ object FakeSocial {
         val dmsRepo = object : DirectMessages {
             private var nextId = 0
 
+            /** Friends currently "typing" to us. The fake friend types for a moment, then replies. */
+            private val typingFriends = MutableStateFlow<Set<String>>(emptySet())
+
             override fun observe(friendUid: String, limit: Int): Flow<List<DirectMessage>> =
                 messages.map { it[friendUid].orEmpty().takeLast(limit) }
 
             override suspend fun send(friendUid: String, text: String) {
                 add(friendUid, DirectMessage("local-${nextId++}", ME, text, now()))
                 scope.launch {
-                    delay(1_500)
+                    delay(400)
+                    typingFriends.update { it + friendUid }
+                    delay(2_000)
+                    typingFriends.update { it - friendUid }
                     add(friendUid, DirectMessage("reply-${nextId++}", friendUid, "😄", now()))
                 }
             }
+
+            // Our own typing state isn't shown anywhere, so the fake ignores it.
+            override suspend fun setTyping(friendUid: String, typing: Boolean) = Unit
+
+            override fun observeTyping(friendUid: String): Flow<Boolean> =
+                typingFriends.map { friendUid in it }.distinctUntilChanged()
 
             private fun add(friendUid: String, message: DirectMessage) =
                 messages.update { it + (friendUid to it[friendUid].orEmpty() + message) }

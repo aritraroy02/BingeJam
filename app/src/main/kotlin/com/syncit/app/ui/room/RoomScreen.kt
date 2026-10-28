@@ -201,6 +201,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                             reactions = reactions,
                             onSend = viewModel::sendChat,
                             onReact = viewModel::sendReaction,
+                            serverNowMs = viewModel::serverNowMs,
                             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).navigationBarsPadding(),
                         )
                         1 -> PeopleTab(

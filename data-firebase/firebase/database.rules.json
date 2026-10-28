@@ -190,6 +190,16 @@
         }
       }
     },
+    "typing": {
+      "$dmId": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !newData.exists() && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && !newData.parent().parent().child('users').child(auth.uid).exists()",
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists()",
+        "$uid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && (!newData.exists() || root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists())",
+          ".validate": "newData.isNumber() && newData.val() === now"
+        }
+      }
+    },
     "dmReads": {
       "$uid": {
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",

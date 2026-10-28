@@ -50,4 +50,14 @@ interface DirectMessages {
     fun observeUnreadCounts(): Flow<Map<String, Int>>
 
     suspend fun markRead(friendUid: String)
+
+    /**
+     * Typing indicator, WhatsApp-style (user's request, 2026-10-29). Call with true as the user
+     * types (implementations throttle the writes) and false when the box is cleared, the message
+     * is sent or the chat closes. Short-lived: stored with a server timestamp, removed on disconnect.
+     */
+    suspend fun setTyping(friendUid: String, typing: Boolean)
+
+    /** True while [friendUid] is typing in our chat (their entry is only a few seconds old, in server time). */
+    fun observeTyping(friendUid: String): Flow<Boolean>
 }

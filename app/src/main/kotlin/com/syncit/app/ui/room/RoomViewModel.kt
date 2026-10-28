@@ -45,6 +45,9 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Server time now, read on demand (chat times; [serverNow] ticks too often for that). */
+    fun serverNowMs(): Long = transport.serverClock.serverNowMs()
+
     /** Server time, ticking so countdowns and drift readouts refresh. */
     val serverNow: StateFlow<Long> = flow {
         while (true) {
