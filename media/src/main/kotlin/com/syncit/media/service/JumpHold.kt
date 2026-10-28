@@ -26,8 +26,8 @@ internal class JumpHold(
 ) {
     private var heldSinceMs: Long? = null
 
-    /** When a hold is active, how long until it ends (for scheduling a re-check). */
-    fun remainingMs(nowMs: Long): Long? = heldSinceMs?.let { (it + holdMs - nowMs).coerceAtLeast(0) }
+    /** While a hold is active, how long until it ends (for scheduling a re-check); else null. */
+    fun remainingMs(nowMs: Long): Long? = heldSinceMs?.let { it + holdMs - nowMs }?.takeIf { it > 0 }
 
     /**
      * Should [next] be kept from the engine for now? [previous] is the reading the engine last got.

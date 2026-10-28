@@ -108,11 +108,50 @@ class JamFollowerTest {
         assertTrue(d.action is JamFollower.Action.PlayFromSearch)
     }
 
-    @Test fun noUsableActionFailsImmediately() {
-        val d = update(preview(), session(title = "Old", ref = refC, actions = setOf(MediaAction.PLAY, MediaAction.PAUSE)))
-        assertEquals(JamFollow.FAILED, d.follow)
-        assertTrue(d.otherTitle)
+    @Test fun appThatCantBeToldWhatToPlayNeedsTheUiToOpenIt() {
+        val noPlayFrom = setOf(MediaAction.PLAY, MediaAction.PAUSE)
+        val d = update(preview(), session(title = "Old", ref = refC, actions = noPlayFrom))
+        assertEquals("UI opens the app on the exact item", JamFollow.NEEDS_APP, d.follow)
+        assertTrue(d.hideSession)
+        assertFalse(d.otherTitle)
         assertNull(d.action)
+
+        now += 10_000
+        assertEquals(JamFollow.NEEDS_APP, update(preview(), session(title = "Old", ref = refC, actions = noPlayFrom)).follow)
+        // "Back to the jam" can't do more than ask the UI again.
+        follower.requestRetry()
+        assertEquals(JamFollow.NEEDS_APP, update(preview(), session(title = "Old", ref = refC, actions = noPlayFrom)).follow)
+        // The UI opened the track: following works.
+        assertEquals(JamFollow.IDLE, update(preview(), session(actions = noPlayFrom)).follow)
+    }
+
+    @Test fun optedOutMemberIsNotPulledBackOnLaterHostTracks() {
+        update(preview(), session())
+        now += 1_000
+        update(preview(), session(title = "Song C", ref = refC))
+        now += 5_000
+        assertEquals(JamFollow.FAILED, update(preview(), session(title = "Song C", ref = refC)).follow)
+
+        // The host moves on: no automatic attempt for a member who chose something else.
+        now += 60_000
+        val next = update(preview(title = "Song B", ref = refB), session(title = "Song C", ref = refC))
+        assertEquals(JamFollow.FAILED, next.follow)
+        assertNull(next.action)
+
+        // "Back to the jam" opts back in.
+        follower.requestRetry()
+        assertEquals(refB, (update(preview(title = "Song B", ref = refB), session(title = "Song C", ref = refC)).action as JamFollower.Action.PlayFromUri).uri)
+    }
+
+    @Test fun refArrivingAfterTitleIsTheSameTrack() {
+        // Host's app published the title first (no ref yet): we start it by search.
+        val first = update(preview(ref = null), session(title = "Old", ref = refC))
+        assertTrue(first.action is JamFollower.Action.PlayFromSearch)
+        // The ref arrives a moment later: same track, so no second attempt.
+        now += 500
+        val second = update(preview(), session(title = "Old", ref = refC))
+        assertEquals(JamFollow.STARTING, second.follow)
+        assertNull(second.action)
     }
 
     @Test fun timesOutToFailedAfterStartWindow() {

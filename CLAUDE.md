@@ -12,6 +12,10 @@ Built on `main` since, **not released yet** (next release = 0.4.0):
 - Profile pictures (photo or GIF ≤ 1 MB) stored in the same Worker's KV namespace `AVATARS`;
   shown with Coil. Photo upload tested on the phone; GIF not yet confirmed.
 - "News & updates" channel so Firebase-console announcements also show while the app is open.
+- **Jams** (synced listening) for Spotify, YouTube Music, Amazon Music, YouTube: friend asks to
+  jam / is invited, the same track starts on their phone (playFromUri/playFromSearch or the app opens
+  on the exact item), play/pause/seek sync, members follow the host's track changes. See PLAN.md
+  "Jams" and RUN_ON_MY_MACHINE.md J1–J10 (not yet tried on two phones). Needs the jam rules deployed.
 - Already **live** in production: Worker (notify + avatars), RTDB rules (`pushTokens`, `photoUrl`
   prefix), hosting (privacy policy). Old app versions keep working; the new features need 0.4.0 on
   both the sender's and the receiver's phone.
@@ -111,7 +115,7 @@ Don't use `FontFamily.Monospace`: OPPO maps it to a serif font; use `Inter`.
      sync resumes but presence isn't restarted until the room screen is opened.
    - A host leaving doesn't hand over host or delete the room.
    - `RoomViewModel` is reused if the same room is left and re-entered; `enter()` handles that.
-7. **Tests:** 75 engine tests in `sync-engine/src/test`, all passing. If one fails after a
+7. **Tests:** 83 engine tests in `sync-engine/src/test`, all passing. If one fails after a
    change, check whether the test's expectation or the engine is wrong before changing either.
 8. **Windows build quirk:** `gradlew clean` can fail with "Unable to delete ... lint-cache" while
    a daemon holds the jars. Run `gradlew --stop` first.

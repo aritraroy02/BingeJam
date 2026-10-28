@@ -6,18 +6,23 @@ import com.syncit.core.media.MediaControllerGateway
 import com.syncit.core.model.Activity
 import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.MediaSessionInfo
+import com.syncit.core.model.StreamingService
 import com.syncit.core.social.ActivityTracker
 import com.syncit.core.social.ActivityUpdate
 import com.syncit.core.social.PresenceRepository
+import com.syncit.media.service.SyncSessionStateHolder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -37,6 +42,11 @@ class AndroidActivityTracker(
     private val presence: PresenceRepository,
     private val scope: CoroutineScope,
     private val elapsedRealtimeMs: () -> Long = { SystemClock.elapsedRealtime() },
+    /**
+     * The app of the room being synced, from this module's running sync session (the same
+     * session [inWatchParty] is derived from). Injectable for tests.
+     */
+    private val roomService: Flow<StreamingService?> = SyncSessionStateHolder.state.map { it.service }.distinctUntilChanged(),
 ) : ActivityTracker {
 
     private val _current = MutableStateFlow<Activity?>(null)
@@ -48,14 +58,17 @@ class AndroidActivityTracker(
     private class Inputs(
         val sessions: List<MediaSessionInfo>,
         val shared: Set<ActivityApp>,
-        val inWatchParty: Boolean,
+        /** The room's app while the user is on the room's title, else null. */
+        val roomService: StreamingService?,
     )
 
     override fun start(sharedApps: StateFlow<Set<ActivityApp>>, inWatchParty: StateFlow<Boolean>) {
         job?.cancel()
         val decider = ActivityDecider().also { this.decider = it }
         job = scope.launch {
-            val inputs: ReceiveChannel<Inputs> = combine(gateway.sessions, sharedApps, inWatchParty, ::Inputs)
+            val inputs: ReceiveChannel<Inputs> = combine(gateway.sessions, sharedApps, inWatchParty, roomService) { sessions, shared, onTitle, service ->
+                Inputs(sessions, shared, service.takeIf { onTitle })
+            }
                 .conflate()
                 .produceIn(this)
             var latest: Inputs? = null
@@ -63,7 +76,7 @@ class AndroidActivityTracker(
             // debounce, retry or idle deadline passes (time alone can change the decision).
             while (isActive) {
                 val now = elapsedRealtimeMs()
-                latest?.let { decider.update(it.sessions, it.shared, it.inWatchParty, now) }
+                latest?.let { decider.update(it.sessions, it.shared, it.roomService, now) }
                 _current.value = decider.desired?.toActivity()
 
                 decider.due(now)?.let { due -> publish(decider, due.update) }

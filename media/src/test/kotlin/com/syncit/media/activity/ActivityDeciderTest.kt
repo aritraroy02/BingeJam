@@ -5,6 +5,7 @@ import com.syncit.core.model.LocalPlaybackState
 import com.syncit.core.model.MediaSessionInfo
 import com.syncit.core.model.NowPlayingMetadata
 import com.syncit.core.model.PlaybackSnapshot
+import com.syncit.core.model.StreamingService
 import com.syncit.core.social.ActivityUpdate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,8 +35,9 @@ class ActivityDeciderTest {
         metadata = NowPlayingMetadata(title, null, art),
     )
 
-    private fun update(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, party: Boolean = false) =
-        decider.update(sessions.toList(), shared, party, now)
+    /** [room] = the app of the room being synced (null = not in a room). */
+    private fun update(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, room: StreamingService? = null) =
+        decider.update(sessions.toList(), shared, room, now)
 
     /** Publishes whatever is due and returns it (wrapped so "publish null" is visible). */
     private fun publishDue(): ActivityDecider.Due? = decider.due(now)?.also { decider.onPublished(it.update) }
@@ -45,10 +47,10 @@ class ActivityDeciderTest {
     }
 
     /** Sets inputs, waits out the debounce and publishes. */
-    private fun settle(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, party: Boolean = false): ActivityUpdate? {
-        update(*sessions, shared = shared, party = party)
+    private fun settle(vararg sessions: MediaSessionInfo, shared: Set<ActivityApp> = allApps, room: StreamingService? = null): ActivityUpdate? {
+        update(*sessions, shared = shared, room = room)
         advance(ActivityDecider.DEBOUNCE_MS)
-        update(*sessions, shared = shared, party = party)
+        update(*sessions, shared = shared, room = room)
         return publishDue()?.update
     }
 
@@ -158,21 +160,27 @@ class ActivityDeciderTest {
         assertNull(due!!.update)
     }
 
-    @Test fun roomFlagForJoinableAppsAndRepublishedOnChange() {
-        // Music is joinable too since jams (2026-10-15): a Spotify jam is a room friends can join.
-        val music = settle(session(ActivityApp.SPOTIFY, LocalPlaybackState.PLAYING), party = true)
+    @Test fun roomFlagOnlyForTheRoomsAppAndRepublishedOnChange() {
+        // A Spotify jam is a room friends can join (jams, 2026-10-15).
+        val music = settle(session(ActivityApp.SPOTIFY, LocalPlaybackState.PLAYING), room = StreamingService.SPOTIFY)
         assertTrue(music!!.inWatchParty)
-        assertTrue(ActivityApp.entries.all { it.joinable == (it.syncService != null) })
 
         settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"))
-        val withRoom = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), party = true)
+        val withRoom = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), room = StreamingService.NETFLIX)
         assertTrue("flag change republishes", withRoom!!.inWatchParty)
-        val left = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), party = false)
+        val left = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), room = null)
         assertFalse("leaving republishes", left!!.inWatchParty)
     }
 
+    @Test fun backgroundMusicIsNotInAWatchParty() {
+        // In a Netflix room, Spotify playing in the background is not "in a jam".
+        val update = settle(session(ActivityApp.SPOTIFY, LocalPlaybackState.PLAYING, "Song"), room = StreamingService.NETFLIX)
+        assertEquals(ActivityApp.SPOTIFY, update!!.app)
+        assertFalse(update.inWatchParty)
+    }
+
     @Test fun primeVideoIsJoinable() {
-        val update = settle(session(ActivityApp.PRIME_VIDEO, LocalPlaybackState.PLAYING, "Film"), party = true)
+        val update = settle(session(ActivityApp.PRIME_VIDEO, LocalPlaybackState.PLAYING, "Film"), room = StreamingService.PRIME_VIDEO)
         assertEquals(ActivityApp.PRIME_VIDEO, update!!.app)
         assertTrue(update.inWatchParty)
     }

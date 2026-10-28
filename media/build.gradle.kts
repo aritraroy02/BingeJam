@@ -17,6 +17,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    // Coordinator tests run on the JVM; android.util.Log calls there just return defaults.
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 kotlin {

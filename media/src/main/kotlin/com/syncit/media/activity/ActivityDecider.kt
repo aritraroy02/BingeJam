@@ -4,6 +4,7 @@ import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.LocalPlaybackState
 import com.syncit.core.model.MediaSessionInfo
 import com.syncit.core.model.NowPlayingMetadata
+import com.syncit.core.model.StreamingService
 import com.syncit.core.social.ActivityUpdate
 
 /**
@@ -68,10 +69,18 @@ internal class ActivityDecider(
     private var publishedApp: ActivityApp? = null
     private var retryAtMs = Long.MIN_VALUE
 
+    private fun inRoom(app: ActivityApp, roomService: StreamingService?): Boolean =
+        roomService != null && app.syncService == roomService
+
     /** Something the caller should publish now; [update] null means "clear". */
     class Due(val update: ActivityUpdate?)
 
-    fun update(sessions: List<MediaSessionInfo>, sharedApps: Set<ActivityApp>, inWatchParty: Boolean, nowMs: Long) {
+    /**
+     * [roomService]: the app of the room the user is syncing right now (null = not in a room, or
+     * not on the room's title). Only an activity in that same app is flagged "in a room", so a
+     * background Spotify isn't shown as "in a jam" while the user is in a Netflix room.
+     */
+    fun update(sessions: List<MediaSessionInfo>, sharedApps: Set<ActivityApp>, roomService: StreamingService?, nowMs: Long) {
         shared = sharedApps
         val present = HashSet<String>()
         val candidates = ArrayList<Pair<MediaSessionInfo, Seen>>()
@@ -116,13 +125,12 @@ internal class ActivityDecider(
         val next: ActivityUpdate? = if (best != null) {
             val (session, s) = best
             lastShown = Shown(s.app, session.metadata)
-            // Only apps with a room type (watch party or jam, ActivityApp.joinable) count as "in a
-            // room"; never the room code itself.
-            ActivityUpdate(s.app, session.metadata, s.playing, inWatchParty && s.app.joinable)
+            // Only the room's own app counts as "in a room"; never the room code itself.
+            ActivityUpdate(s.app, session.metadata, s.playing, inRoom(s.app, roomService))
         } else {
             val last = lastShown
             if (last != null && last.app in sharedApps && playedRecently(last.app, nowMs)) {
-                ActivityUpdate(last.app, last.metadata, false, inWatchParty && last.app.joinable)
+                ActivityUpdate(last.app, last.metadata, false, inRoom(last.app, roomService))
             } else {
                 lastShown = null
                 null

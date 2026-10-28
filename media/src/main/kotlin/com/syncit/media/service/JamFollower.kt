@@ -18,12 +18,16 @@ import com.syncit.media.PlayableRefParser
  *  - Otherwise start the host's track automatically, at most ONCE per host track:
  *    PLAY_FROM_URI with the host's playableRef if the app advertises it, else PLAY_FROM_SEARCH
  *    "<title> <subtitle>" if advertised. STARTING until it matches; FAILED after [startTimeoutMs].
- *  - Was on the host's track and moved off it (the member skipped, or their app reached the end of
- *    the track a moment before the host's did): wait [leftGraceMs] for the host's next track, then
- *    FAILED. We don't fight a member who chose something else; [requestRetry] ("Back to the jam")
- *    allows one more attempt.
+ *    If the app advertises neither, NEEDS_APP: the UI opens the app on the exact item instead.
+ *  - Was on the host's track and moved off it: wait [leftGraceMs] for the host's next track (the
+ *    member's app may simply have reached the end a moment before the host's). If none comes, the
+ *    member chose something else: FAILED and opted out, with no automatic attempts on later host
+ *    tracks either, until [requestRetry] ("Back to the jam") or they return to the host's track.
  *  - While not on the host's track the session is hidden from the engine, so the member's other
  *    track never moves the room (same idea as the watch-party "other title" gate).
+ *
+ * "Host track" = an [ItemKeyTracker] generation: a playableRef arriving after the title is the
+ * same track, so it doesn't trigger a second attempt.
  */
 internal class JamFollower(
     /** How long the app gets to switch to the host's track after we asked it to. */
@@ -48,19 +52,27 @@ internal class JamFollower(
         val action: Action? = null,
     )
 
+    private val hostTrack = ItemKeyTracker()
+    /** Generation of the host's current track; goes up on every host track change. */
+    private var item = 0
+
     /** Host track we've already tried to start automatically, and when (elapsedRealtime ms). */
-    private var attemptedKey: String? = null
+    private var attemptedItem: Int? = null
     private var attemptAtMs = 0L
     private var attemptRejected = false
+    /** Host track the member's app can't be told to play (no PLAY_FROM_URI/SEARCH): NEEDS_APP. */
+    private var noRemoteStartItem: Int? = null
 
     /** Host track the member's app was last seen playing. */
-    private var matchedKey: String? = null
-    /** When the member's app left [matchedKey] (elapsedRealtime ms). */
+    private var matchedItem: Int? = null
+    /** When the member's app left [matchedItem] (elapsedRealtime ms). */
     private var leftAtMs: Long? = null
+    /** The member deliberately left the jam's track: no automatic attempts until they opt back in. */
+    private var optedOut = false
 
     private var retryRequested = false
 
-    /** "Back to the jam": forget the attempt for the current host track so the next update retries. */
+    /** "Back to the jam": opt back in and try the current host track again on the next update. */
     fun requestRetry() {
         retryRequested = true
     }
@@ -71,11 +83,15 @@ internal class JamFollower(
     }
 
     fun reset() {
-        attemptedKey = null
+        hostTrack.reset()
+        item = 0
+        attemptedItem = null
         attemptAtMs = 0L
         attemptRejected = false
-        matchedKey = null
+        noRemoteStartItem = null
+        matchedItem = null
         leftAtMs = null
+        optedOut = false
         retryRequested = false
     }
 
@@ -85,24 +101,25 @@ internal class JamFollower(
      */
     fun update(preview: RoomPreview?, session: MediaSessionInfo?, nowMs: Long): Decision {
         val service = preview?.service
-        val key = preview?.let(JamTracks::key)
         // The host isn't playing anything identifiable yet: nothing to follow.
-        if (service == null || key == null) return VISIBLE
+        if (service == null || JamTracks.key(preview) == null) return VISIBLE
+        if (hostTrack.changed(preview)) item++
         if (session == null || session.packageName != service.packageName) {
             return Decision(JamFollow.NEEDS_APP, hideSession = true)
         }
 
         val match = JamTracks.matches(preview, session.metadata)
-        val attempted = attemptedKey == key
+        val attempted = attemptedItem == item
         // Timing: both values are elapsedRealtime, so this is the time since we asked the app.
         val startWindowOpen = attempted && !attemptRejected && nowMs - attemptAtMs < startTimeoutMs
         if (match == true) {
-            matchedKey = key
+            matchedItem = item
             leftAtMs = null
+            optedOut = false
             retryRequested = false
             return VISIBLE
         }
-        if (match == null && (matchedKey == key || (attempted && !startWindowOpen))) {
+        if (match == null && (matchedItem == item || (attempted && !startWindowOpen))) {
             // The app publishes no title right now, so we can't check. It was on the host's track,
             // or we asked it to play it and gave it time: don't block syncing on what we can't see.
             retryRequested = false
@@ -112,34 +129,37 @@ internal class JamFollower(
         // Not (or not yet) on the host's track.
         if (retryRequested) {
             retryRequested = false
-            attemptedKey = null
-            matchedKey = null
+            attemptedItem = null
+            noRemoteStartItem = null
+            matchedItem = null
             leftAtMs = null
+            optedOut = false
         }
+        if (optedOut) return FAILED
 
-        if (matchedKey == key) {
+        if (matchedItem == item) {
             val leftAt = leftAtMs ?: nowMs.also { leftAtMs = it }
-            return if (nowMs - leftAt < leftGraceMs) {
-                Decision(JamFollow.IDLE, hideSession = true)
-            } else {
-                Decision(JamFollow.FAILED, hideSession = true, otherTitle = true)
-            }
+            if (nowMs - leftAt < leftGraceMs) return Decision(JamFollow.IDLE, hideSession = true)
+            optedOut = true
+            return FAILED
         }
 
-        if (attemptedKey != key) {
-            attemptedKey = key
+        if (attemptedItem != item) {
+            attemptedItem = item
             attemptAtMs = nowMs
             attemptRejected = false
             val action = chooseAction(preview, session)
-                ?: return Decision(JamFollow.FAILED, hideSession = true, otherTitle = true).also { attemptRejected = true }
+            if (action == null) {
+                // The app can't be told what to play: the UI opens it on the exact item.
+                noRemoteStartItem = item
+                attemptRejected = true
+                return Decision(JamFollow.NEEDS_APP, hideSession = true)
+            }
             return Decision(JamFollow.STARTING, hideSession = true, action = action)
         }
+        if (noRemoteStartItem == item) return Decision(JamFollow.NEEDS_APP, hideSession = true)
 
-        return if (startWindowOpen) {
-            Decision(JamFollow.STARTING, hideSession = true)
-        } else {
-            Decision(JamFollow.FAILED, hideSession = true, otherTitle = true)
-        }
+        return if (startWindowOpen) Decision(JamFollow.STARTING, hideSession = true) else FAILED
     }
 
     /** PLAY_FROM_URI with the exact track if possible, else PLAY_FROM_SEARCH, else nothing. */
@@ -155,5 +175,6 @@ internal class JamFollower(
 
     private companion object {
         val VISIBLE = Decision(JamFollow.IDLE, hideSession = false)
+        val FAILED = Decision(JamFollow.FAILED, hideSession = true, otherTitle = true)
     }
 }

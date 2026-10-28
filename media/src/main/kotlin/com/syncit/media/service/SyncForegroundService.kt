@@ -67,10 +67,14 @@ class SyncForegroundService : Service() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0,
         )
 
-        val c = coordinator ?: RoomSyncCoordinator(deps, scope) { state ->
-            SyncSessionStateHolder.state.value = state
-            updateNotification(state)
-        }.also { coordinator = it }
+        val c = coordinator ?: RoomSyncCoordinator(
+            deps = deps,
+            scope = scope,
+            publish = { state ->
+                SyncSessionStateHolder.state.value = state
+                updateNotification(state)
+            },
+        ).also { coordinator = it }
         c.start(code)
 
         // If the system kills us, come back with the same room.
