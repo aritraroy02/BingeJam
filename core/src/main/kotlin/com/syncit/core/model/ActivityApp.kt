@@ -2,13 +2,13 @@ package com.syncit.core.model
 
 import com.syncit.core.config.StreamingConfig
 
-/** What kind of thing an app plays. Only [MOVIE_TV] apps can be joined as a synced watch party. */
+/** What an app plays: MOVIE_TV rooms are watch parties, MUSIC/VIDEO rooms are jams. */
 enum class MediaKind { MOVIE_TV, MUSIC, VIDEO }
 
 /**
  * Every app whose "now playing" friends can see, if the user chose to share that app.
- * [syncService] is set for apps a friend can join in a synced room. Music and YouTube are
- * "see + open" only (the user's decision, 2026-10-15). [wire] is the value stored in Firebase.
+ * [syncService] is the room type a friend can join: a watch party for video apps, a jam for music
+ * and YouTube (jams added 2026-10-15 at the user's request). [wire] is the value stored in Firebase.
  */
 enum class ActivityApp(
     val wire: String,
@@ -20,10 +20,10 @@ enum class ActivityApp(
     NETFLIX("netflix", "Netflix", StreamingConfig.NETFLIX_PACKAGE, MediaKind.MOVIE_TV, StreamingService.NETFLIX),
     JIOHOTSTAR("jiohotstar", "JioHotstar", StreamingConfig.JIOHOTSTAR_PACKAGE, MediaKind.MOVIE_TV, StreamingService.JIOHOTSTAR),
     PRIME_VIDEO("primevideo", "Prime Video", StreamingConfig.PRIME_VIDEO_PACKAGE, MediaKind.MOVIE_TV, StreamingService.PRIME_VIDEO),
-    SPOTIFY("spotify", "Spotify", StreamingConfig.SPOTIFY_PACKAGE, MediaKind.MUSIC, null),
-    YOUTUBE_MUSIC("ytmusic", "YouTube Music", StreamingConfig.YOUTUBE_MUSIC_PACKAGE, MediaKind.MUSIC, null),
-    AMAZON_MUSIC("amazonmusic", "Amazon Music", StreamingConfig.AMAZON_MUSIC_PACKAGE, MediaKind.MUSIC, null),
-    YOUTUBE("youtube", "YouTube", StreamingConfig.YOUTUBE_PACKAGE, MediaKind.VIDEO, null);
+    SPOTIFY("spotify", "Spotify", StreamingConfig.SPOTIFY_PACKAGE, MediaKind.MUSIC, StreamingService.SPOTIFY),
+    YOUTUBE_MUSIC("ytmusic", "YouTube Music", StreamingConfig.YOUTUBE_MUSIC_PACKAGE, MediaKind.MUSIC, StreamingService.YOUTUBE_MUSIC),
+    AMAZON_MUSIC("amazonmusic", "Amazon Music", StreamingConfig.AMAZON_MUSIC_PACKAGE, MediaKind.MUSIC, StreamingService.AMAZON_MUSIC),
+    YOUTUBE("youtube", "YouTube", StreamingConfig.YOUTUBE_PACKAGE, MediaKind.VIDEO, StreamingService.YOUTUBE);
 
     val joinable: Boolean get() = syncService != null
 

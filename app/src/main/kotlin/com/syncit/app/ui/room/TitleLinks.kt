@@ -50,6 +50,27 @@ internal fun openTitle(context: Context, title: RoomTitle): Boolean {
 }
 
 /**
+ * Jams: open the host's exact item ([ref] = RoomPreview.playableRef, e.g. "spotify:track:…" or a
+ * YouTube watch URL) in [service]'s own app; both open in-app and start that item. Falls back to
+ * [openForPlay] (the host's link or just the app) when there's no usable ref. False if the app
+ * isn't installed.
+ */
+internal fun openJamItem(context: Context, service: StreamingService, ref: String?, title: RoomTitle?): Boolean {
+    val safe = MemberPrompts.safePlayableRef(service, ref)
+    if (safe != null && service.isConfigured) {
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, safe.toUri()).setPackage(service.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            return true
+        } catch (_: ActivityNotFoundException) {
+            // Not installed, or this version doesn't take the link: try the fallbacks.
+        }
+    }
+    return openForPlay(context, service, title)
+}
+
+/**
  * The room's Play button: the host's link if it's for this service (opens the show page),
  * otherwise just the streaming app. False if the app isn't installed.
  */

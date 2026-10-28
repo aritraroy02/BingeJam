@@ -7,7 +7,7 @@ import com.syncit.core.model.MediaSessionInfo
  * Logs session changes under the tag "SyncItDiag" so they can be read with
  * `adb logcat -s SyncItDiag` next to `adb shell dumpsys media_session`.
  * Logged: package, state, position, speed, actions, and the session's own metadata (title,
- * artwork size), which is what the room preview shows.
+ * artwork size, public playableRef), which is what the room preview shows.
  */
 internal object DiagnosticsLog {
     private const val TAG = "SyncItDiag"
@@ -30,6 +30,6 @@ internal object DiagnosticsLog {
         return "${session.packageName} [${session.sessionKey}] state=${PlaybackStateMapper.stateLabel(s.rawState)} " +
             "position=${s.positionMs} lastPositionUpdateTime=${s.lastPositionUpdateElapsedMs} speed=${s.speed} " +
             "actions=0x${s.rawActions.toString(16)} ${s.actions.joinToString(",")} " +
-            "title=${session.metadata?.title} subtitle=${session.metadata?.subtitle} art=${session.metadata?.artworkJpeg?.size ?: 0}B"
+            "title=${session.metadata?.title} subtitle=${session.metadata?.subtitle} ref=${session.metadata?.playableRef} art=${session.metadata?.artworkJpeg?.size ?: 0}B"
     }
 }

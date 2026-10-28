@@ -162,7 +162,8 @@ private fun Welcome(busy: Boolean, onGoogle: () -> Unit, onEmail: () -> Unit) {
     BrandWordmark(style = MaterialTheme.typography.displaySmall.copy(fontSize = MaterialTheme.typography.displaySmall.fontSize * 1.4f))
     Text(Brand.TAGLINE, style = MaterialTheme.typography.headlineSmall, color = p.textPrimary)
     Text(
-        "Watch Netflix, JioHotstar or Prime Video together, each on your own phone, and see what your friends are playing.",
+        "Watch Netflix, JioHotstar or Prime Video together, jam to Spotify, YouTube and more, each on your own phone, " +
+            "and see what your friends are playing.",
         style = MaterialTheme.typography.bodyLarge,
         color = p.textSecondary,
     )

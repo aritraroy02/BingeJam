@@ -17,6 +17,7 @@ import com.syncit.core.model.SignInProvider
 import com.syncit.core.model.UserProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -95,5 +96,31 @@ class GateAndRowsTest {
         assertFalse(rows[1].joinRequested)
         assertEquals(2, rows[1].unread)
         assertEquals("Last seen 1m ago", rows[2].status)
+        assertEquals("Asked to join", rows[0].askLabel)
+        assertFalse(rows[0].isJam)
+        // Nothing playing: nothing to join.
+        assertNull(rows[1].askLabel)
+    }
+
+    @Test fun musicAndYouTubeFriendsGetAskToJam() {
+        val now = 10_000_000L
+        val song = Activity(ActivityApp.SPOTIFY, "Blinding Lights", "The Weeknd", null, true, null, 0L, false)
+        val video = Activity(ActivityApp.YOUTUBE, "Lo-fi beats", null, null, false, null, 0L, true)
+        val rows = HomeViewModel.buildRows(
+            friends = listOf(
+                friend("riya", "Riya", Presence(true, now, song)),
+                friend("sam", "Sam", Presence(true, now, video)),
+            ),
+            unread = emptyMap(),
+            myRequests = listOf(
+                JoinRequest("sam", "me", "me", "Me", ActivityApp.YOUTUBE, "Lo-fi beats", JoinStatus.PENDING, null, now),
+            ),
+            nowMs = now,
+        ).associateBy { it.uid }
+        assertTrue(rows.getValue("riya").isJam)
+        assertEquals("Ask to jam", rows.getValue("riya").askLabel)
+        assertEquals("Listening to Blinding Lights on Spotify", rows.getValue("riya").status)
+        assertTrue(rows.getValue("sam").isJam)
+        assertEquals("Asked to jam", rows.getValue("sam").askLabel)
     }
 }

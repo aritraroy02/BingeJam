@@ -57,6 +57,8 @@ class ActivityTextTest {
 
     @Test fun watchPartyLabel() {
         assertEquals("In a watch party", ActivityText.watchPartyLabel(activity(ActivityApp.NETFLIX, "Dune", inWatchParty = true)))
+        assertEquals("In a jam", ActivityText.watchPartyLabel(activity(ActivityApp.SPOTIFY, "Song", inWatchParty = true)))
+        assertEquals("In a jam", ActivityText.watchPartyLabel(activity(ActivityApp.YOUTUBE, "Video", inWatchParty = true)))
         assertNull(ActivityText.watchPartyLabel(activity(ActivityApp.NETFLIX, "Dune")))
         assertNull(ActivityText.watchPartyLabel(null))
     }

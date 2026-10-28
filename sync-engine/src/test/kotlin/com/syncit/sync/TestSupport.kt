@@ -35,6 +35,14 @@ fun FakeClock.playing(positionMs: Long, actions: Set<MediaAction> = ALL_ACTIONS,
 fun FakeClock.paused(positionMs: Long, actions: Set<MediaAction> = ALL_ACTIONS) =
     snapshot(LocalPlaybackState.PAUSED, 2, positionMs, actions, 0f)
 
+/** A BUFFERING reading sampled "now" (position not advancing). */
+fun FakeClock.buffering(positionMs: Long, actions: Set<MediaAction> = ALL_ACTIONS) =
+    snapshot(LocalPlaybackState.BUFFERING, 6, positionMs, actions, 0f)
+
+/** A SKIPPING_TO_NEXT reading sampled "now" (the app is changing tracks). */
+fun FakeClock.skippingToNext(positionMs: Long, actions: Set<MediaAction> = ALL_ACTIONS) =
+    snapshot(LocalPlaybackState.SKIPPING_TO_NEXT, 10, positionMs, actions, 0f)
+
 fun FakeClock.snapshot(
     state: LocalPlaybackState,
     rawState: Int,

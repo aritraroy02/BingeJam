@@ -158,9 +158,11 @@ class ActivityDeciderTest {
         assertNull(due!!.update)
     }
 
-    @Test fun watchPartyOnlyForJoinableAppsAndRepublishedOnChange() {
+    @Test fun roomFlagForJoinableAppsAndRepublishedOnChange() {
+        // Music is joinable too since jams (2026-10-15): a Spotify jam is a room friends can join.
         val music = settle(session(ActivityApp.SPOTIFY, LocalPlaybackState.PLAYING), party = true)
-        assertFalse(music!!.inWatchParty)
+        assertTrue(music!!.inWatchParty)
+        assertTrue(ActivityApp.entries.all { it.joinable == (it.syncService != null) })
 
         settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"))
         val withRoom = settle(session(ActivityApp.NETFLIX, LocalPlaybackState.PLAYING, "Movie"), party = true)

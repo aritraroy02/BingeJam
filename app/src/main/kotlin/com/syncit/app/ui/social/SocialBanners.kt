@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.syncit.app.social.RoomWording
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
@@ -53,8 +54,7 @@ fun SocialBanners(viewModel: SocialEventsViewModel) {
                 request != null -> Banner(
                     username = request.fromUsername,
                     displayName = request.fromDisplayName,
-                    text = "@${request.fromUsername} wants to join you" +
-                        (request.title?.let { " watching $it" } ?: " on ${request.app.displayName}"),
+                    text = RoomWording.joinRequestText(request),
                     more = (requests.size - 1).takeIf { it > 0 }?.let { "+$it more" },
                     accept = "Accept",
                     decline = "Decline",
@@ -65,8 +65,7 @@ fun SocialBanners(viewModel: SocialEventsViewModel) {
                 invite != null -> Banner(
                     username = invite.fromUsername,
                     displayName = invite.fromDisplayName,
-                    text = "@${invite.fromUsername} invited you to watch" +
-                        (invite.title?.let { " $it" } ?: invite.app?.let { " on ${it.displayName}" } ?: " together"),
+                    text = RoomWording.inviteText(invite),
                     more = (invites.size - 1).takeIf { it > 0 }?.let { "+$it more" },
                     accept = "Join",
                     decline = "Not now",

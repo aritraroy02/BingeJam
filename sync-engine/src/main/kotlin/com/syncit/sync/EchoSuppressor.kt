@@ -20,6 +20,8 @@ internal class EchoSuppressor(
         val positionMs: Long?,
         val issuedAt: Long,
         var expiresAt: Long,
+        /** True while the app is buffering/skipping: kept alive until it settles (see [hold]). */
+        var held: Boolean = false,
     )
 
     private val pending = mutableListOf<Expectation>()
@@ -52,12 +54,34 @@ internal class EchoSuppressor(
     }
 
     /**
-     * The app is buffering/connecting: it hasn't finished applying our command yet, so keep
-     * waiting a little longer, but never past [maxHoldMs] after the command.
+     * The app is buffering/skipping: it hasn't finished applying our commands yet. Keep every
+     * live expectation until the app settles, however long one buffering callback lasts, but
+     * never past [maxHoldMs] after the command was issued:
+     *
+     *   expiresAt = issuedAt + maxHoldMs        while held
      */
-    fun extend(now: Long) {
+    fun hold(now: Long) {
+        prune(now)
         for (e in pending) {
-            e.expiresAt = maxOf(e.expiresAt, minOf(now + windowMs, e.issuedAt + maxHoldMs))
+            e.held = true
+            e.expiresAt = maxOf(e.expiresAt, e.issuedAt + maxHoldMs)
+        }
+    }
+
+    /**
+     * The app settled (PLAYING/PAUSED again). Held expectations get one normal window from now,
+     * so repeated callbacks right after settling still match, still capped at [maxHoldMs]:
+     *
+     *   expiresAt = min(issuedAt + maxHoldMs, now + windowMs)
+     *
+     * Releasing before matching the settling callback is fine: a held expectation still has
+     * windowMs to go (unless it's already past maxHoldMs, when it should expire anyway).
+     */
+    fun release(now: Long) {
+        for (e in pending) {
+            if (!e.held) continue
+            e.held = false
+            e.expiresAt = minOf(e.issuedAt + maxHoldMs, now + windowMs)
         }
     }
 

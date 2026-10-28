@@ -94,15 +94,26 @@ internal object RoomParser {
 
     fun preview(code: String, s: DataSnapshot): RoomPreview? {
         if (!s.exists()) return null
+        val values = s.value as? Map<*, *> ?: return null
+        return preview(code, values) { runCatching { Base64.decode(it, Base64.DEFAULT) }.getOrNull() }
+    }
+
+    /**
+     * previews/{code} from its raw values (what DataSnapshot.value returns), so it can be unit
+     * tested without Android. A service this build doesn't know (an older client reading a jam, or
+     * a future app) parses to null rather than failing; a playableRef in an unknown format is dropped.
+     */
+    internal fun preview(code: String, values: Map<*, *>, decodeArtwork: (String) -> ByteArray?): RoomPreview? {
         return RoomPreview(
             code = code,
-            hostName = s.child("hostName").string() ?: return null,
-            service = StreamingService.fromId(s.child("service").string()),
-            title = s.child("title").string(),
-            subtitle = s.child("subtitle").string(),
-            artworkJpeg = s.child("artwork").string()?.let { runCatching { Base64.decode(it, Base64.DEFAULT) }.getOrNull() },
-            updatedAt = s.child("updatedAt").long() ?: 0L,
-            durationMs = s.child("durationMs").long(),
+            hostName = values["hostName"] as? String ?: return null,
+            service = StreamingService.fromId(values["service"] as? String),
+            title = values["title"] as? String,
+            subtitle = values["subtitle"] as? String,
+            artworkJpeg = (values["artwork"] as? String)?.let(decodeArtwork),
+            updatedAt = (values["updatedAt"] as? Number)?.toLong() ?: 0L,
+            durationMs = (values["durationMs"] as? Number)?.toLong(),
+            playableRef = (values["playableRef"] as? String)?.takeIf(PlayableRefs::isValid),
         )
     }
 

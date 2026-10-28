@@ -184,7 +184,7 @@ fun SettingsScreen(
                     GlassRow(
                         title = "${Brand.NAME} ${BuildConfig.VERSION_NAME}",
                         subtitle = "${Brand.TAGLINE} Shared with your room: play, pause, position, and the title and " +
-                            "artwork of what you're watching. Shared with friends: only the apps you turn on above. " +
+                            "artwork of what you're playing. Shared with friends: only the apps you turn on above. " +
                             "Never video, audio or notifications.",
                         icon = Icons.Filled.Info,
                     )
@@ -201,7 +201,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
             title = { Text("Sign out?") },
-            text = { Text("You'll leave any watch party you're in. Your friends and chats stay with your account.") },
+            text = { Text("You'll leave any watch party or jam you're in. Your friends and chats stay with your account.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmSignOut = false

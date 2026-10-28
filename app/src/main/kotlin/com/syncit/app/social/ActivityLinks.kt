@@ -8,7 +8,10 @@ import com.syncit.core.model.Activity
 import com.syncit.core.model.ActivityApp
 import java.net.URLEncoder
 
-/** "Open in Spotify/YouTube/…" for a friend's music or video activity (see + open only, no sync). */
+/**
+ * "Open in Spotify/YouTube/…": a secondary action on a friend's music or video activity (the
+ * primary one is "Ask to jam"). Opens a search, since presence doesn't carry the exact item.
+ */
 object ActivityLinks {
 
     /**

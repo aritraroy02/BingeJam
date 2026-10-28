@@ -203,6 +203,9 @@ class FirebaseSyncTransport internal constructor(
                 "title" to metadata.title?.take(MAX_META_LENGTH),
                 "subtitle" to metadata.subtitle?.take(MAX_META_LENGTH),
                 "durationMs" to metadata.durationMs,
+                // Jams: the exact track for members to start. Only the public formats the rules
+                // accept are sent (anything else would reject the whole update); null clears it.
+                "playableRef" to metadata.playableRef?.takeIf(PlayableRefs::isValid),
                 "artwork" to metadata.artworkJpeg
                     ?.takeIf { it.size <= MAX_ARTWORK_BYTES }
                     ?.let { Base64.encodeToString(it, Base64.NO_WRAP) },

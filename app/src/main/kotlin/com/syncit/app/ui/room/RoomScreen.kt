@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,11 +53,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import com.syncit.app.overlay.ChatBubbleService
+import com.syncit.app.social.RoomWording
 import com.syncit.app.ui.common.ArtworkCard
 import com.syncit.app.ui.common.rememberArtwork
 import com.syncit.app.ui.glass.GlassButton
+import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSegmented
@@ -67,21 +73,13 @@ import com.syncit.app.ui.glass.StatusPill
 import com.syncit.app.ui.glass.glass
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.config.Brand
-import com.syncit.core.config.RoomLinks
-import com.syncit.core.config.SyncStatusLabels
 import com.syncit.core.model.Room
 import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.model.SyncStatus
+import com.syncit.core.session.JamFollow
 import com.syncit.core.session.SyncSessionState
 import com.syncit.sync.PositionMath
-
-/**
- * Invite text built here so it carries the current product name (core's RoomLinks.shareText
- * still says the old one).
- */
-internal fun shareText(code: String): String =
-    "Join my ${Brand.NAME} watch party! Room code: $code\n${RoomLinks.shareLink(code)}"
 
 /** How long "PLAY NOW" stays up after the target time. */
 private const val PLAY_NOW_VISIBLE_MS = 2_000L
@@ -109,6 +107,43 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
 
     val artwork = rememberArtwork(preview?.artworkJpeg)
     val currentRoom = room
+    // What the room plays: the host's live preview first, then the shared link, then our own session.
+    val roomService = preview?.service ?: currentRoom?.title?.service ?: sync.service
+    val jam = roomService?.isJam == true
+    // Invite text built here so it carries the current product name (core's RoomLinks.shareText
+    // still says the old one) and says "jam" for music/YouTube rooms.
+    val inviteText = RoomWording.shareText(viewModel.code, jam)
+    val isHost = currentRoom != null && currentRoom.hostUid == myUid
+
+    // "Play in <app>": jams open the host's exact track/video; watch parties the link or the app.
+    val openInApp: (StreamingService) -> Unit = { service ->
+        val opened = if (service.isJam) {
+            val ref = preview?.takeIf { it.service == service }?.playableRef
+            openJamItem(context, service, ref, currentRoom?.title)
+        } else {
+            openForPlay(context, service, currentRoom?.title)
+        }
+        if (!opened) {
+            Toast.makeText(context, "${service.displayName} isn't installed", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Jams: open the member's app by itself when it has no media session yet (NEEDS_APP), only
+    // while this screen is in front, and once per room + host track (see JamAutoOpen). Waits for
+    // the room so the host is never mistaken for a member.
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+    val autoKey = JamAutoOpen.key(viewModel.code, preview?.playableRef, preview?.title)
+    val roomLoaded = currentRoom != null
+    LaunchedEffect(resumed, roomLoaded, isHost, roomService, sync.jamFollow, autoKey) {
+        val service = roomService ?: return@LaunchedEffect
+        if (roomLoaded &&
+            JamAutoOpen.shouldOpen(resumed, isHost, service, sync.jamFollow, autoKey, viewModel.autoOpenedKeys()) &&
+            autoKey != null && viewModel.claimAutoOpen(autoKey)
+        ) {
+            openInApp(service)
+        }
+    }
 
     GlassScreen(artwork = artwork) {
         Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
@@ -119,7 +154,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                     GlassIconButton(Icons.Filled.Share, "Share invite link", onClick = {
                         val send = Intent(Intent.ACTION_SEND)
                             .setType("text/plain")
-                            .putExtra(Intent.EXTRA_TEXT, shareText(viewModel.code))
+                            .putExtra(Intent.EXTRA_TEXT, inviteText)
                         context.startActivity(Intent.createChooser(send, "Invite to ${Brand.NAME}"))
                     })
                     GlassIconButton(Icons.AutoMirrored.Filled.ExitToApp, "Leave room", onClick = { confirmLeave = true })
@@ -132,15 +167,13 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                     code = viewModel.code,
                     artwork = artwork,
                     preview = preview,
+                    service = roomService,
                     room = currentRoom,
                     sync = sync,
-                    isHost = currentRoom != null && currentRoom.hostUid == myUid,
+                    isHost = isHost,
                     serverNow = serverNow,
-                    onPlay = { service ->
-                        if (!openForPlay(context, service, currentRoom?.title)) {
-                            Toast.makeText(context, "${service.displayName} isn't installed", Toast.LENGTH_LONG).show()
-                        }
-                    },
+                    onPlay = openInApp,
+                    onFollowHost = viewModel::followHost,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -179,6 +212,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                         )
                         else -> SyncTab(
                             room = currentRoom,
+                            service = roomService,
                             sync = sync,
                             isHost = currentRoom.hostUid == myUid,
                             onResume = viewModel::enter,
@@ -195,13 +229,14 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
 
         InviteFriendsSheet(
             visible = inviteOpen,
+            jam = jam,
             friends = friends,
             invited = invited,
             memberUids = currentRoom?.members.orEmpty().filter { it.online }.map { it.uid }.toSet(),
             onInvite = viewModel::inviteFriend,
             onShareLink = {
                 inviteOpen = false
-                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, shareText(viewModel.code))
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, inviteText)
                 context.startActivity(Intent.createChooser(send, "Invite to ${Brand.NAME}"))
             },
             onDismiss = { inviteOpen = false },
@@ -233,25 +268,39 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
     }
 }
 
-/** Now playing: artwork, platform, title, sync status. */
+/** Now playing: artwork, platform, title, sync status, and a nudge for members who aren't on it. */
 @Composable
 private fun RoomHero(
     code: String,
     artwork: ImageBitmap?,
     preview: RoomPreview?,
+    service: StreamingService?,
     room: Room?,
     sync: SyncSessionState,
     isHost: Boolean,
     serverNow: Long,
     onPlay: (StreamingService) -> Unit,
+    onFollowHost: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val p = Glass.palette
-    val service = preview?.service ?: room?.title?.service ?: sync.service
-    val title = preview?.title ?: if (service != null) "Start the movie in ${service.displayName}" else "Nothing playing yet"
-    val subtitle = preview?.subtitle
-        ?: if (preview?.title == null) "Open Netflix, JioHotstar or Prime Video and press play. Everyone follows." else null
-    val statusText = SyncStatusLabels.label(sync.status, service?.displayName ?: "your streaming app")
+    val jam = service?.isJam == true
+    val title = preview?.title ?: when {
+        service == null -> "Nothing playing yet"
+        jam && isHost -> "Play something in ${service.displayName}"
+        jam -> "Waiting for the host's track"
+        else -> "Start the movie in ${service.displayName}"
+    }
+    val subtitle = preview?.subtitle ?: when {
+        preview?.title != null -> null
+        service == null -> "Press play in Netflix, Prime Video, Spotify, YouTube or another supported app. Everyone follows."
+        jam -> "Everyone follows the host from track to track."
+        else -> "Open ${service.displayName} and press play. Everyone follows."
+    }
+    val statusText = MemberPrompts.statusLabel(sync.status, service)
+    // Jams: "Jam with Riya" next to the platform badge (just "Jam" for the host).
+    val jamLabel = if (jam) preview?.hostName?.takeIf { it.isNotBlank() && !isHost }?.let { "Jam with $it" } ?: "Jam" else null
+    val prompt = MemberPrompts.of(isHost, service, sync.status, sync.jamFollow)
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (artwork != null && artwork.width >= artwork.height) {
@@ -268,7 +317,7 @@ private fun RoomHero(
                         ),
                 )
                 Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (service != null) PlatformBadge(service)
+                    HeroBadges(service, jamLabel, labelColor = Color.White.copy(alpha = 0.85f))
                     Text(title, color = Color.White, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall, maxLines = 1) }
                 }
@@ -280,7 +329,7 @@ private fun RoomHero(
                     Spacer(Modifier.width(16.dp))
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (service != null) PlatformBadge(service)
+                    HeroBadges(service, jamLabel, labelColor = p.accent2)
                     Text(title, color = p.textPrimary, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, color = p.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
                 }
@@ -296,31 +345,117 @@ private fun RoomHero(
                 modifier = Modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 7.dp),
             )
         }
-        // Members who aren't watching the host's title yet get one tap into it. Netflix doesn't
-        // share an episode ID, so we open the app (or the host's link) and say which episode to
-        // start; once it matches, the coordinator joins it to the room's position.
-        if (!isHost && service != null && sync.status in PLAY_PROMPT_STATUSES) {
-            val episode = listOfNotNull(preview?.subtitle, preview?.title).joinToString(" · ")
-            val at = room?.state?.let { formatClock(PositionMath.roomExpectedPositionMs(it, serverNow)) }
-            GlassButton(
-                text = "Play in ${service.displayName}",
-                icon = Icons.Filled.PlayArrow,
-                onClick = { onPlay(service) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            val start = if (episode.isNotEmpty()) "Start $episode" else "Start what the host is watching"
-            val jump = if (at != null) " and ${Brand.NAME} jumps you to $at." else ", and ${Brand.NAME} lines you up with the room."
-            Text(
-                (if (sync.status == SyncStatus.OTHER_TITLE) "You're on a different episode. " else "") + start + jump,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (sync.status == SyncStatus.OTHER_TITLE) p.warning else p.textSecondary,
-            )
+        if (service != null) {
+            if (jam) {
+                JamPrompt(prompt, service, preview, sync, onPlay, onFollowHost)
+            } else if (prompt == MemberPrompt.OPEN_APP) {
+                WatchPartyPrompt(service, preview, room, sync, serverNow, onPlay)
+            }
         }
     }
 }
 
-/** States where a member isn't on the host's title yet. */
-private val PLAY_PROMPT_STATUSES = setOf(SyncStatus.APP_NOT_OPEN, SyncStatus.SESSION_LOST, SyncStatus.OTHER_TITLE)
+@Composable
+private fun HeroBadges(service: StreamingService?, jamLabel: String?, labelColor: Color) {
+    if (service == null) return
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        PlatformBadge(service)
+        jamLabel?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = labelColor, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+    }
+}
+
+/**
+ * Watch parties: members who aren't watching the host's title yet get one tap into it. Netflix
+ * doesn't share an episode ID, so we open the app (or the host's link) and say which episode to
+ * start; once it matches, the coordinator joins it to the room's position.
+ */
+@Composable
+private fun WatchPartyPrompt(
+    service: StreamingService,
+    preview: RoomPreview?,
+    room: Room?,
+    sync: SyncSessionState,
+    serverNow: Long,
+    onPlay: (StreamingService) -> Unit,
+) {
+    val p = Glass.palette
+    val episode = listOfNotNull(preview?.subtitle, preview?.title).joinToString(" · ")
+    val at = room?.state?.let { formatClock(PositionMath.roomExpectedPositionMs(it, serverNow)) }
+    GlassButton(
+        text = "Play in ${service.displayName}",
+        icon = Icons.Filled.PlayArrow,
+        onClick = { onPlay(service) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val start = if (episode.isNotEmpty()) "Start $episode" else "Start what the host is watching"
+    val jump = if (at != null) " and ${Brand.NAME} jumps you to $at." else ", and ${Brand.NAME} lines you up with the room."
+    Text(
+        (if (sync.status == SyncStatus.OTHER_TITLE) "You're on a different episode. " else "") + start + jump,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (sync.status == SyncStatus.OTHER_TITLE) p.warning else p.textSecondary,
+    )
+}
+
+/**
+ * Jams: members follow the host's track automatically (RoomSyncCoordinator in :media). The UI
+ * steps in only when it must: opening the app when it has no media session yet (NEEDS_APP; a
+ * background service can't launch apps), or "Back to the jam" when the app ignored the request
+ * or the member picked another track.
+ */
+@Composable
+private fun JamPrompt(
+    prompt: MemberPrompt,
+    service: StreamingService,
+    preview: RoomPreview?,
+    sync: SyncSessionState,
+    onPlay: (StreamingService) -> Unit,
+    onFollowHost: () -> Unit,
+) {
+    val p = Glass.palette
+    val app = service.displayName
+    val what = preview?.title?.takeIf { it.isNotBlank() } ?: "the host's track"
+    when (prompt) {
+        MemberPrompt.NONE -> Unit
+        MemberPrompt.STARTING -> Row(verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(14.dp), color = p.accent, strokeWidth = 2.dp)
+            Spacer(Modifier.width(10.dp))
+            Text("Starting $what in $app…", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
+        }
+        MemberPrompt.OPEN_APP -> {
+            GlassButton(
+                text = "Play in $app",
+                icon = Icons.Filled.PlayArrow,
+                onClick = { onPlay(service) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                "Opens $what in $app. After that, ${Brand.NAME} keeps you on the host's track.",
+                style = MaterialTheme.typography.bodySmall,
+                color = p.textSecondary,
+            )
+        }
+        MemberPrompt.BACK_TO_JAM -> {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                GlassButton(
+                    text = "Back to the jam",
+                    icon = Icons.Filled.PlayArrow,
+                    onClick = onFollowHost,
+                    modifier = Modifier.weight(1f),
+                )
+                GlassButton("Open $app", onClick = { onPlay(service) }, style = GlassButtonStyle.Secondary)
+            }
+            Text(
+                if (sync.jamFollow == JamFollow.FAILED) {
+                    "$app didn't start $what. Try Back to the jam, or open it in $app."
+                } else {
+                    "You're on a different track. Back to the jam plays $what where the host is."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = p.warning,
+            )
+        }
+    }
+}
 
 @Composable
 internal fun SyncStatus.color(): Color {

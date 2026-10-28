@@ -29,7 +29,7 @@ Already in the app: `app/src/main/res/values/strings.xml` → `notification_acce
 Our foreground service doesn't play media itself; it keeps media playback in another app in
 sync. Expect Play's foreground-service declaration form to ask for a justification and a
 video. Suggested text:
-> While the user is in a watch party, a foreground service keeps the connection to the room
+> While the user is in a watch party or jam, a foreground service keeps the connection to the room
 > and to the streaming app's media session alive so play/pause/seek stay in sync while the
 > user watches in the streaming app. It runs only while the user is in a room, shows a
 > persistent notification, and stops when they leave or tap "Stop syncing".

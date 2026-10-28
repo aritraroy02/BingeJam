@@ -39,8 +39,8 @@ private fun MediaKind.groupLabel(): String = when (this) {
 
 private fun MediaKind.groupNote(): String = when (this) {
     MediaKind.MOVIE_TV -> "Friends see the title and can ask to join your watch party."
-    MediaKind.MUSIC -> "Friends see the song and can open it in their own app."
-    MediaKind.VIDEO -> "Friends see the video title and can look it up."
+    MediaKind.MUSIC -> "Friends see the song and can ask to jam: the same track plays on their phone, in sync."
+    MediaKind.VIDEO -> "Friends see the video title and can ask to jam: the same video plays on their phone, in sync."
 }
 
 /** Per-app toggles grouped by kind. Used by the setup page and Settings. */

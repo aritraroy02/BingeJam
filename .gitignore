@@ -26,3 +26,6 @@ push-relay/.dev.vars
 push-relay/node_modules/
 *firebase-adminsdk*.json
 service-account*.json
+
+# Kotlin compiler session/error logs
+.kotlin/

@@ -286,3 +286,21 @@ let it start. Status card on both shows **Syncing**. Turn on **Drift (debug)** o
 
 Report for each failed row: phone models + Android versions, what happened, and
 `adb logcat -s SyncItDiag SyncItCoordinator SyncItGateway` around the time.
+
+## Jams (Spotify, YouTube Music, Amazon Music, YouTube), added 2026-10-15
+
+Deploy the rules (`firebase deploy --only database`) **before** shipping an APK with jams: older
+rules reject jam previews and jam join requests. Logs: `adb logcat -s SyncItDiag SyncItCoordinator`.
+
+| # | Test | Expected |
+|---|---|---|
+| J1 | Play a song in each app; read `ref=` in SyncItDiag | Spotify `spotify:track:…`; YouTube/YT Music watch links if they publish a video id; Amazon Music none |
+| J2 | Friend "Ask to jam" on a Spotify activity, host accepts | Member lands in the room; Spotify starts the host's track at the host's position |
+| J3 | Same with the member's Spotify closed | Room screen opens Spotify on the track once; following continues |
+| J4 | Host skips / picks another song / song ends naturally (×5) | Member follows within ~3 s; host's song never restarts; no seek bounce |
+| J5 | Member skips to another song | "Back to the jam" after ~5 s; room unaffected; button brings them back; not pulled back automatically on the host's next track |
+| J6 | YouTube jam | Which play-from actions YouTube advertises; "Back to the jam" opens the video if it has none; ads don't derail members |
+| J7 | Spotify Free on the member | Does playFromUri play the exact track or shuffle? |
+| J8 | Netflix room (no link), host pauses, plays a YouTube video, returns to Netflix | Members never seek and never switch to a jam |
+| J9 | Netflix room, throttle one phone's network mid-movie | Others are not pulled backwards |
+| J10 | Scrub in Netflix while it buffers | Everyone follows the scrub |

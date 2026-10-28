@@ -3,6 +3,7 @@ package com.syncit.app.ui.social
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
+import com.syncit.app.social.RoomWording
 import com.syncit.core.model.JoinRequest
 import com.syncit.core.model.JoinStatus
 import com.syncit.core.model.RoomInvite
@@ -24,7 +25,7 @@ import kotlinx.coroutines.launch
 
 /**
  * In-app social notifications shown over any screen (no push notifications in v2):
- * - host side: a friend asks to join what we're watching → Accept / Decline;
+ * - host side: a friend asks to join what we're watching, or to jam to what we're playing → Accept / Decline;
  * - a friend invites us into their room → Join / Not now;
  * - requester side: our "Ask to join" was accepted (→ join the room) or declined (gentle note).
  */
@@ -139,7 +140,7 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
             .also { container.prefs.lastRoomCode = it }
         invites.acceptJoin(request.fromUid, code)
         if (running == null) events.send(NavEvent.OpenRoom(code))
-        _notice.value = "@${request.fromUsername} is joining your watch party"
+        _notice.value = RoomWording.joiningNotice(request)
     }
 
     fun decline(request: JoinRequest) = act(request.fromUid, "Couldn't decline") { invites.declineJoin(request.fromUid) }

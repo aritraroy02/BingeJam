@@ -58,13 +58,14 @@ Firebase rooms/{code}  ──► observeRoom ──┤
 
 | Rule | Value |
 |---|---|
-| Seek detection | local jump > 3 s vs. extrapolated → broadcast SEEK |
-| Drift check | every 5 s; correct only if > 1500 ms off |
+| Seek detection | local jump > 3 s vs. extrapolated → broadcast SEEK. A jump seen as the app enters BUFFERING/SKIPPING is remembered and broadcast once the app settles (or after 10 s), unless it is our own echo or a room write arrives first. |
+| Drift check | every 5 s; correct only if > 1500 ms off; skipped while the app is buffering (max 10 s) |
 | Correction rate limit | ≥ 10 s between corrections; after 3 consecutive failed seeks, timeline sync is turned off for that app |
-| Echo suppression | each applied command records its expected result for 1.5 s (extended while the app is buffering, max 10 s); matching local callbacks are ignored. Room writes with `updatedBy == myUid` are ignored. A local change that already matches the room is never broadcast. |
+| Echo suppression | each applied command records its expected result; expectations are held while the app buffers (until it settles, max 10 s after the command), then get a normal 1.5 s window; matching local callbacks are ignored. Room writes with `updatedBy == myUid` are ignored. A local change that already matches the room is never broadcast. |
 | Conflicts | room state is authoritative; last write wins. The server stamps `updatedAt` and increments `seq` in the same write, so seq order = server-timestamp order. Lower seq than what we've seen is ignored as stale. |
 | Late join / reopen app | on first snapshot from the app, seek to room expected position, then match play/pause. For 4 s after attach, the app's own start-up changes (autoplay, resume point) are not broadcast; we re-align instead. |
 | Empty room | if nobody has played yet, the first member whose app settles seeds the room state. |
+| Item change (jams) | `onItemChanged(leader)`: host waits ≥ 800 ms for a settled reading of the new track, then broadcasts it as SEEK with no settle window; a member treats the next room write by someone else as the new track's state and aligns. Falls back to late-join after 8 s. Never used in watch parties. |
 
 ### Fallbacks (chosen automatically per attach)
 
@@ -127,7 +128,8 @@ apps with notification-listener access in India.
 - **Activity**: a setup page explains friends will see what you play and lets you pick apps
   (e.g. Netflix yes, Spotify no). Changeable in Settings, plus "invisible".
 - Apps: Netflix, JioHotstar, **Prime Video** (synced watch party: "Ask to join" / "Invite");
-  Spotify, YouTube Music, Amazon Music, YouTube (**see + open only**, no sync).
+  Spotify, YouTube Music, Amazon Music, YouTube: first "see + open only", then (same day, after
+  testing) **jams**: synced listening, see "Jams" below.
 - ~~In-app only notifications~~ (2026-10-28): phone notifications for new messages and friend
   requests through FCM, sent by `push-relay/` (Cloudflare Worker, free plan) because Cloud
   Functions need Blaze. The app pings the relay after writing; the relay verifies the Firebase ID
@@ -160,6 +162,8 @@ pushTokens/{uid}/{fcmToken}: { updatedAt }                                      
 users/{uid}/photoUrl:     push-relay avatar URL (…/avatar/{uid}?v=…) or a Google photo; rules allow only those
 KV avatar:{uid} (Cloudflare, not RTDB): picture bytes, GIF ≤ 1 MB, still ≤ 300 KB, one upload per 20 s
 rooms/…, previews/…, chats/…, reactions/… (v1, unchanged; previews.service also allows PRIME_VIDEO)
+rooms/…, previews/…, chats/…, reactions/… (v1; service also allows PRIME_VIDEO + the 4 jam apps;
+                          previews/{code}/playableRef optional, strict public formats only)
 ```
 All v2 social paths require a real (non-anonymous) account; v1 room paths still accept anonymous
 users so v0.2.x installs keep working until they update (Anonymous provider stays enabled until then).
@@ -171,7 +175,21 @@ users so v0.2.x installs keep working until they update (Anonymous provider stay
 - Movie activity: friend taps **Ask to join** → host gets an in-app prompt → Accept creates/uses
   the host's room and returns the code → requester lands in the room (existing sync + Play button).
   Host can also **Invite** a friend from the room.
-- Music/YouTube activity: **Open in Spotify/YouTube…** (search for the title in that app).
+- Music/YouTube activity: **Ask to jam** / **Invite to jam** (same request/invite flow), see "Jams".
+
+### Jams (music + YouTube rooms, 2026-10-15)
+- `StreamingService` covers all 7 apps; `kind`/`isJam` (MUSIC, VIDEO) marks jam rooms.
+- Host publishes `previews/{code}/playableRef`: a public link to the exact item, only
+  `spotify:(track|episode):<22>` or `https://(www|music).youtube.com/watch?v=<11>` (rules + `PlayableRefs`
+  + `:media` `PlayableRefParser` agree). Amazon Music has no known public format → title search.
+  Never a private stream URL (JioHotstar's MEDIA_URI is never read).
+- Member (`JamFollower`): if their app isn't on the host's track, one automatic attempt per host
+  track: `playFromUri(ref)` → `playFromSearch("title subtitle")`; STARTING until it matches, FAILED
+  after 6 s. No session → NEEDS_APP: the room screen opens the app on the item once per track
+  (`JamAutoOpen`). Member skips away → FAILED after 5 s, room unaffected; "Back to the jam" =
+  `SyncSessionController.followHost()`. Mismatched sessions are hidden from the engine.
+- Host track change: preview published immediately, then `engine.onItemChanged(leader = true)`;
+  members call `onItemChanged(false)` when the preview's track key changes.
 
 ### Agents
 - backend-agent (`:data-firebase` + rules + emulator tests), media-agent (`:media`: ActivityTracker,

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.syncit.app.data.UpdateChecker
 import com.syncit.app.di.AppContainer
 import com.syncit.app.social.ActivityText
+import com.syncit.app.social.RoomWording
 import com.syncit.core.config.RoomLinks
 import com.syncit.core.model.Activity
 import com.syncit.core.model.Friend
@@ -34,10 +35,16 @@ data class FriendRow(
     /** Shown only while they're online. */
     val activity: Activity?,
     val unread: Int,
-    /** We already asked to join what they're watching and they haven't answered. */
+    /** We already asked to join what they're playing and they haven't answered. */
     val joinRequested: Boolean,
 ) {
     val uid: String get() = friend.profile.uid
+
+    /** What they're playing is a jam app (music, YouTube) rather than a watch party. */
+    val isJam: Boolean get() = RoomWording.isJam(activity?.app)
+
+    /** "Ask to jam" / "Ask to join" (or "Asked …"), null when there's nothing to join. */
+    val askLabel: String? get() = activity?.takeIf { it.app.joinable }?.let { RoomWording.askLabel(isJam, joinRequested) }
 }
 
 class HomeViewModel(private val container: AppContainer) : ViewModel() {
@@ -116,7 +123,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val activity = row.activity ?: return
         launchAction("Couldn't ask ${row.friend.profile.displayName}") {
             social.watchInvites.requestToJoin(row.uid, activity.app, activity.title)
-            _ui.update { it.copy(message = "Asked ${row.friend.profile.displayName}. You'll join as soon as they accept.") }
+            _ui.update { it.copy(message = RoomWording.askedNotice(row.friend.profile.displayName, row.isJam)) }
         }
     }
 

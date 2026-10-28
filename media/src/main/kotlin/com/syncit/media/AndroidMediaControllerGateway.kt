@@ -5,10 +5,12 @@ import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.syncit.core.media.MediaControllerGateway
 import com.syncit.core.model.MediaSessionInfo
 import com.syncit.core.model.NowPlayingMetadata
@@ -143,7 +145,7 @@ class AndroidMediaControllerGateway(context: Context) : MediaControllerGateway {
         // MediaMetadata is immutable; apps publish a new instance on every change.
         if (current !== t.metadataSource) {
             t.metadataSource = current
-            t.metadata = MetadataMapper.toNowPlaying(current)
+            t.metadata = MetadataMapper.toNowPlaying(t.controller.packageName, current)
         }
         return t.metadata
     }
@@ -156,6 +158,26 @@ class AndroidMediaControllerGateway(context: Context) : MediaControllerGateway {
 
     override fun seekTo(sessionKey: String, positionMs: Long): Boolean =
         withController(sessionKey) { it.transportControls.seekTo(positionMs.coerceAtLeast(0L)) }
+
+    override fun playFromUri(sessionKey: String, uri: String): Boolean =
+        withAdvertised(sessionKey, PlaybackState.ACTION_PLAY_FROM_URI) {
+            it.transportControls.playFromUri(uri.toUri(), Bundle())
+        }
+
+    override fun playFromSearch(sessionKey: String, query: String): Boolean =
+        withAdvertised(sessionKey, PlaybackState.ACTION_PLAY_FROM_SEARCH) {
+            it.transportControls.playFromSearch(query, Bundle())
+        }
+
+    /**
+     * Like [withController], but only if the session currently advertises [action]: an app that
+     * doesn't declare PLAY_FROM_URI/SEARCH may ignore or mishandle the call. False otherwise.
+     */
+    private inline fun withAdvertised(sessionKey: String, action: Long, block: (MediaController) -> Unit): Boolean {
+        val actions = tracked[sessionKey]?.controller?.playbackState?.actions ?: return false
+        if (actions and action == 0L) return false
+        return withController(sessionKey, block)
+    }
 
     private inline fun withController(sessionKey: String, block: (MediaController) -> Unit): Boolean {
         val controller = tracked[sessionKey]?.controller ?: return false

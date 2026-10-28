@@ -10,7 +10,9 @@ import kotlin.math.roundToInt
 
 /**
  * MediaMetadata → [NowPlayingMetadata]. Uses only what the app publishes for media controls
- * (title, subtitle, artwork bitmap). URIs are ignored: we never fetch another app's resources.
+ * (title, subtitle, artwork bitmap, media ID). URIs are never fetched: we don't load another app's
+ * resources. MEDIA_URI is read only for the jam apps in [PlayableRefParser], and only kept when it
+ * is a public item link in a known format (never a private stream/CDN URL).
  */
 internal object MetadataMapper {
 
@@ -18,7 +20,7 @@ internal object MetadataMapper {
     private const val MAX_SIDE_PX = 480
     private const val TARGET_BYTES = 45_000
 
-    fun toNowPlaying(metadata: MediaMetadata?): NowPlayingMetadata? {
+    fun toNowPlaying(packageName: String, metadata: MediaMetadata?): NowPlayingMetadata? {
         if (metadata == null) return null
         val description = metadata.description
         val title = metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
@@ -32,13 +34,16 @@ internal object MetadataMapper {
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
             ?: description?.iconBitmap
+        val mediaId = metadata.text(MediaMetadata.METADATA_KEY_MEDIA_ID)
+        val mediaUri = if (PlayableRefParser.readsMediaUri(packageName)) metadata.text(MediaMetadata.METADATA_KEY_MEDIA_URI) else null
         return NowPlayingMetadata(
             title = title,
             subtitle = tidySubtitle(subtitle, title),
             artworkJpeg = bitmap?.let(::thumbnail),
-            mediaId = metadata.text(MediaMetadata.METADATA_KEY_MEDIA_ID),
+            mediaId = mediaId,
             durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 },
             allFields = describeAll(metadata),
+            playableRef = PlayableRefParser.parse(packageName, mediaId, mediaUri),
         )
             .takeUnless { it.isEmpty && subtitle == null }
     }

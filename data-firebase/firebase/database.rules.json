@@ -223,7 +223,7 @@
             ".validate": "auth.uid === $from ? newData.isString() && newData.val() === root.child('users').child($from).child('displayName').val() : newData.val() === data.val()"
           },
           "app": {
-            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo') && (auth.uid === $from || newData.val() === data.val())"
+            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo' || newData.val() === 'spotify' || newData.val() === 'ytmusic' || newData.val() === 'amazonmusic' || newData.val() === 'youtube') && (auth.uid === $from || newData.val() === data.val())"
           },
           "title": {
             ".validate": "newData.isString() && newData.val().length <= 200 && (auth.uid === $from || newData.val() === data.val())"
@@ -263,7 +263,7 @@
             ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/) && root.child('rooms').child(newData.val()).child('members').child($from).exists()"
           },
           "app": {
-            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo')"
+            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo' || newData.val() === 'spotify' || newData.val() === 'ytmusic' || newData.val() === 'amazonmusic' || newData.val() === 'youtube')"
           },
           "title": {
             ".validate": "newData.isString() && newData.val().length <= 200"
@@ -290,7 +290,7 @@
         "title": {
           ".write": "auth != null && root.child('rooms').child($code).child('hostUid').val() === auth.uid",
           ".validate": "newData.hasChildren(['service', 'deepLink', 'setBy', 'setAt'])",
-          "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO'" },
+          "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO' || newData.val() === 'SPOTIFY' || newData.val() === 'YOUTUBE_MUSIC' || newData.val() === 'AMAZON_MUSIC' || newData.val() === 'YOUTUBE'" },
           "deepLink": { ".validate": "newData.isString() && newData.val().length <= 500 && newData.val().matches(/^https?:\\/\\//)" },
           "setBy": { ".validate": "newData.val() === auth.uid" },
           "setAt": { ".validate": "newData.val() === now" },
@@ -341,11 +341,12 @@
         ".write": "auth != null && root.child('rooms').child($code).child('hostUid').val() === auth.uid",
         ".validate": "newData.hasChildren(['hostName', 'updatedAt'])",
         "hostName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
-        "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO'" },
+        "service": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO' || newData.val() === 'SPOTIFY' || newData.val() === 'YOUTUBE_MUSIC' || newData.val() === 'AMAZON_MUSIC' || newData.val() === 'YOUTUBE'" },
         "title": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "subtitle": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "artwork": { ".validate": "newData.isString() && newData.val().length <= 70000" },
         "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "playableRef": { ".validate": "newData.isString() && newData.val().length <= 200 && (newData.val().matches(/^spotify:track:[A-Za-z0-9]{22}$/) || newData.val().matches(/^spotify:episode:[A-Za-z0-9]{22}$/) || newData.val().matches(/^https:\\/\\/www\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/music\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/))" },
         "updatedAt": { ".validate": "newData.val() === now" },
         "$other": { ".validate": false }
       }

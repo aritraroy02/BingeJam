@@ -16,13 +16,27 @@ data class SyncSessionState(
     val driftMs: Long? = null,
     val service: StreamingService? = null,
     val lastError: String? = null,
+    /** Jams only: where following the host's track stands (see [JamFollow]). */
+    val jamFollow: JamFollow = JamFollow.IDLE,
 )
+
+/**
+ * Jams (music/YouTube rooms): members automatically start whatever the host is playing.
+ * IDLE = nothing to do (on the host's track, or not a jam). STARTING = we asked the member's app
+ * to play the host's track. NEEDS_APP = the member's app has no media session yet, so the UI must
+ * open it (a background service can't launch apps); following continues once it appears.
+ * FAILED = the app ignored the request; the UI offers "Back to the jam" ([SyncSessionController.followHost]).
+ */
+enum class JamFollow { IDLE, STARTING, NEEDS_APP, FAILED }
 
 /** Starts/stops the background sync session (a foreground service in :media). */
 interface SyncSessionController {
     val state: StateFlow<SyncSessionState>
     fun start(roomCode: String)
     fun stop()
+
+    /** Jams: start the host's current track on this phone now ("Back to the jam"). No-op otherwise. */
+    fun followHost()
 }
 
 /** What the sync session needs; the app's DI container provides it. */

@@ -42,7 +42,7 @@ class FirebaseWatchInvites internal constructor(
 ) : WatchInvites {
 
     override suspend fun requestToJoin(hostUid: String, app: ActivityApp, title: String?) {
-        require(app.joinable) { "${app.displayName} can't be joined as a watch party" }
+        require(app.joinable) { "${app.displayName} can't be joined" }
         val me = session.requireUid()
         require(hostUid != me) { "That's your own activity" }
         val profile = myProfile(me)
