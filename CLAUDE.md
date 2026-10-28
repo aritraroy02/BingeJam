@@ -4,8 +4,10 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-29):** **v0.6.1 released** (versionCode 11, released from the Asus laptop as gh
-`somesh118`; rules + hosting deployed first). New in 0.6.1:
+**Status (2026-10-29):** **v0.6.2 released** (versionCode 12): one tap on "Play in Netflix" works with
+Netflix closed (Netflix started cold drops the link and bounces back; `NetflixRetry` in `ui/room/TitleLinks.kt`
+resends it once). First version announced by the relay's update notification. **v0.6.1** (versionCode 11,
+released from the Asus laptop as gh `somesh118`; rules + hosting deployed first). New in 0.6.1:
 - **Play in Netflix opens the host's exact movie.** Netflix's MediaSession has no ID (5 metadata keys,
   no queue, checked on Netflix 9.89), so members' `RoomViewModel.netflixId` asks the relay's `GET /netflix`
   (title + length -> Watchmode catalogue, region IN) and opens `netflix.com/watch/<id>`, which starts

@@ -87,6 +87,8 @@ Firebase rooms/{code}  ──► observeRoom ──┤
 - After a seek it reports PLAYING about 1 s before the picture moves (hence the seek lead).
 - Links it opens in-app: `netflix.com/watch/<id>` (starts playing), `/title/<id>` (title page),
   `/search/<text>` (search with the text filled in; `/search?q=` ignores the text).
+- Started cold (not running), Netflix closes its start-up screen ~2 s after a `/watch/` link and drops it,
+  bouncing back to the room; warm, the link plays. The room resends the link once (`NetflixRetry`, 12 s window).
 - Leaving the player destroys the session (status "Netflix closed on this phone"); reopening is a
   late join. The release build's logs are kept: `adb logcat -G 16M` so a test fits in the buffer.
 
