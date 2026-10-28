@@ -8,13 +8,16 @@ import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendsRepository
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
+import com.syncit.core.social.PushRegistry
 import com.syncit.core.social.WatchInvites
 import com.syncit.core.transport.SyncTransport
 import com.syncit.firebase.social.FirebaseDirectMessages
 import com.syncit.firebase.social.FirebaseFriendsRepository
 import com.syncit.firebase.social.FirebasePresenceRepository
 import com.syncit.firebase.social.FirebaseProfileRepository
+import com.syncit.firebase.social.FirebasePushRegistry
 import com.syncit.firebase.social.FirebaseWatchInvites
+import com.syncit.firebase.social.PushRelay
 
 /**
  * Everything :data-firebase provides, wired once. :app creates one instance (AppContainer) and
@@ -28,11 +31,13 @@ class FirebaseServices private constructor(context: Context) {
     private val clock = FirebaseServerClock(db)
 
     private val presenceImpl = FirebasePresenceRepository(session, db)
+    private val pushRelay = PushRelay(session)
 
     val auth: AuthService = FirebaseAuthService(context, session, db, beforeSignOut = presenceImpl::stop)
     val profiles: ProfileRepository = FirebaseProfileRepository(session, db)
-    val friends: FriendsRepository = FirebaseFriendsRepository(session, db)
-    val dms: DirectMessages = FirebaseDirectMessages(session, db)
+    val friends: FriendsRepository = FirebaseFriendsRepository(session, db, pushRelay)
+    val dms: DirectMessages = FirebaseDirectMessages(session, db, pushRelay)
+    val push: PushRegistry = FirebasePushRegistry(session, db)
     val presence: PresenceRepository = presenceImpl
     val watchInvites: WatchInvites = FirebaseWatchInvites(session, db)
     val transport: SyncTransport = FirebaseSyncTransport(session, db, clock)

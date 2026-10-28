@@ -22,6 +22,7 @@ import com.syncit.core.social.FriendRequestException
 import com.syncit.core.social.FriendsRepository
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
+import com.syncit.core.social.PushRegistry
 import com.syncit.core.social.UsernameCheck
 import com.syncit.core.social.UsernameTakenException
 import com.syncit.core.social.WatchInvites
@@ -62,6 +63,10 @@ object FakeSocial {
             presence = store.presenceRepo,
             watchInvites = store.invites,
             activityTracker = store.tracker,
+            push = object : PushRegistry {
+                override suspend fun register(token: String) = Unit
+                override suspend fun unregister(token: String) = Unit
+            },
             isFake = true,
         )
     }

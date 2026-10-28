@@ -3,6 +3,7 @@ package com.syncit.app.ui.nav
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
+import com.syncit.app.push.PushNotifications
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SignInProvider
 import com.syncit.core.model.UserProfile
@@ -105,6 +106,7 @@ class AppViewModel(container: AppContainer) : ViewModel() {
     fun signOut() {
         viewModelScope.launch {
             social.activityTracker.stop()
+            PushNotifications.unregisterToken(social.push)
             runCatching { social.auth.signOut() }
         }
     }

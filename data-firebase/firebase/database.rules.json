@@ -194,6 +194,21 @@
         }
       }
     },
+    "pushTokens": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "$token": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+          ".validate": "$token.length >= 20 && $token.length <= 400 && newData.hasChildren(['updatedAt'])",
+          "updatedAt": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
     "joinRequests": {
       "$host": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $host",

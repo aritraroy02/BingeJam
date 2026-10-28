@@ -22,14 +22,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.syncit.app.push.PushNotifications
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassScreen
@@ -51,6 +54,16 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
 
     // Opening the chat, and each message arriving while it's open, counts as read.
     LaunchedEffect(list?.size) { viewModel.markRead() }
+
+    // No notifications for the chat on screen, and clear the one that brought us here.
+    val context = LocalContext.current
+    DisposableEffect(viewModel.friendUid) {
+        PushNotifications.openChatUid = viewModel.friendUid
+        PushNotifications.cancelChat(context, viewModel.friendUid)
+        onDispose {
+            if (PushNotifications.openChatUid == viewModel.friendUid) PushNotifications.openChatUid = null
+        }
+    }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {

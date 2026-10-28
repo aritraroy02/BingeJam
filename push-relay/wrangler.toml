@@ -1,0 +1,10 @@
+name = "vyro-push-relay"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "syncit-watchparty"
+DATABASE_URL = "https://syncit-watchparty-default-rtdb.asia-southeast1.firebasedatabase.app"
+
+# Secret, never in this file or the repo:
+#   wrangler secret put FIREBASE_SERVICE_ACCOUNT < path/to/service-account.json

@@ -20,3 +20,9 @@ keystore.properties
 dist/
 # Firebase CLI deploy cache
 .firebase/
+# Push relay (Cloudflare Worker): local state and the service-account key, never commit
+push-relay/.wrangler/
+push-relay/.dev.vars
+push-relay/node_modules/
+*firebase-adminsdk*.json
+service-account*.json

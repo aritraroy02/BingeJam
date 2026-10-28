@@ -67,6 +67,8 @@
     <li><b>messages</b> you send to friends, readable only by you and that friend, and when you last read each chat;</li>
     <li>your online status and, if you share it, your current activity (above);</li>
     <li>"ask to join" requests and room invites between friends;</li>
+    <li>a <b>push token</b> for each phone you're signed in on, so we can notify you about new messages and
+      friend requests (removed when you sign out);</li>
     <li>for watch parties: room membership, the room's play/pause state and position, your periodically reported
       position (used for syncing), the host's now-playing title, length and artwork thumbnail, room chat and
       reactions. A room's contents are readable only by its members; a room's preview can be read by any
@@ -77,13 +79,17 @@
   <ul>
     <li><b>Update check:</b> once per launch the app asks GitHub's public API whether a newer version exists. No
       personal data is sent; GitHub sees the request (IP address) as with any web request.</li>
+    <li><b>Notifications:</b> when you message a friend or send a friend request, the app asks our notification
+      relay (hosted on Cloudflare) to notify them. The relay checks it's really you, reads the message or request
+      from our database and hands it to Google's Firebase Cloud Messaging for delivery. It stores nothing.</li>
     <li>The invite web page uses no trackers, ads, analytics or third-party scripts.</li>
   </ul>
   <p>Vyro contains <b>no ads and no analytics SDKs</b>, and never sells or shares your data.</p>
 
   <h2>Optional permissions</h2>
   <ul>
-    <li><b>Notifications:</b> one quiet notification while you're in a watch party, so Android keeps syncing running.</li>
+    <li><b>Notifications:</b> new messages and friend requests, and one quiet notification while you're in a
+      watch party so Android keeps syncing running. Turn either kind off in Android's notification settings.</li>
     <li><b>Display over other apps:</b> only if you turn on the floating chat bubble.</li>
     <li><b>Battery optimisation exemption:</b> only if you allow it, so syncing isn't stopped mid-movie.</li>
   </ul>

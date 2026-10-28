@@ -128,7 +128,10 @@ apps with notification-listener access in India.
   (e.g. Netflix yes, Spotify no). Changeable in Settings, plus "invisible".
 - Apps: Netflix, JioHotstar, **Prime Video** (synced watch party: "Ask to join" / "Invite");
   Spotify, YouTube Music, Amazon Music, YouTube (**see + open only**, no sync).
-- **In-app only** notifications for now (no Cloud Functions / Blaze plan).
+- ~~In-app only notifications~~ (2026-10-28): phone notifications for new messages and friend
+  requests through FCM, sent by `push-relay/` (Cloudflare Worker, free plan) because Cloud
+  Functions need Blaze. The app pings the relay after writing; the relay verifies the Firebase ID
+  token and reads the message/request itself, so clients can't choose the notification text.
 
 ### Contracts (`:core`)
 - `auth/AuthService`, `social/ProfileRepository`, `social/FriendsRepository` + `DirectMessages`,
@@ -153,6 +156,7 @@ presence/{uid}:           { online, lastSeen, activity? { app, title, subtitle, 
                           onDisconnect clears online AND activity (re-published on reconnect)
 joinRequests/{host}/{from}: { fromUsername, fromDisplayName, app, title, status, roomCode?, sentAt }
 invites/{to}/{from}:      { fromUsername, fromDisplayName, roomCode, app?, title?, sentAt }
+pushTokens/{uid}/{fcmToken}: { updatedAt }                                            owner only; read by push-relay (admin)
 rooms/…, previews/…, chats/…, reactions/… (v1, unchanged; previews.service also allows PRIME_VIDEO)
 ```
 All v2 social paths require a real (non-anonymous) account; v1 room paths still accept anonymous

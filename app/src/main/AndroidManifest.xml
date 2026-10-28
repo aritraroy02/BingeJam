@@ -71,5 +71,20 @@
         <service
             android:name=".overlay.ChatBubbleService"
             android:exported="false" />
+
+        <!-- Push notifications for messages and friend requests (sent by push-relay/ via FCM). -->
+        <service
+            android:name=".push.VyroMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_vyro" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="messages" />
     </application>
 </manifest>

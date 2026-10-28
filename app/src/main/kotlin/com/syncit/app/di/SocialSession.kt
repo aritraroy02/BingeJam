@@ -1,6 +1,7 @@
 package com.syncit.app.di
 
 import com.syncit.app.data.UserPrefs
+import com.syncit.app.push.PushNotifications
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SyncStatus
 import com.syncit.core.session.SyncSessionController
@@ -39,6 +40,14 @@ class SocialSession(
         .stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
+        // Push token: registered for every signed-in account, even invisible ones or before the
+        // activity setup (messages and friend requests aren't activity).
+        scope.launch {
+            social.auth.state
+                .map { (it as? AuthState.SignedIn)?.uid }
+                .distinctUntilChanged()
+                .collect { uid -> if (uid != null) PushNotifications.registerToken(social.push) }
+        }
         scope.launch {
             social.auth.state
                 .map { (it as? AuthState.SignedIn)?.uid }

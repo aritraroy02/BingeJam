@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.map
 class FirebaseDirectMessages internal constructor(
     private val session: FirebaseSession,
     private val db: FirebaseDatabase,
+    private val push: PushRelay? = null,
 ) : DirectMessages {
 
     override fun observe(friendUid: String, limit: Int): Flow<List<DirectMessage>> =
@@ -50,14 +51,14 @@ class FirebaseDirectMessages internal constructor(
         val me = session.requireUid()
         val trimmed = text.trim().take(MAX_TEXT_LENGTH)
         if (trimmed.isEmpty()) return
+        val ref = db.getReference("dms").child(DmIds.dmId(me, friendUid)).push()
         try {
-            db.getReference("dms").child(DmIds.dmId(me, friendUid)).push().setValue(
-                mapOf("from" to me, "text" to trimmed, "sentAt" to ServerValue.TIMESTAMP),
-            ).await()
+            ref.setValue(mapOf("from" to me, "text" to trimmed, "sentAt" to ServerValue.TIMESTAMP)).await()
         } catch (e: Exception) {
             if (e.isPermissionDenied()) throw NotFriendsException("You can only message friends")
             throw e
         }
+        ref.key?.let { push?.directMessage(friendUid, it) }
     }
 
     override fun observeUnreadCounts(): Flow<Map<String, Int>> = session.uid.flatMapLatest { me ->

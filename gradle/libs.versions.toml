@@ -40,6 +40,8 @@ androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-database = { module = "com.google.firebase:firebase-database" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
+# Push notifications (free on every Firebase plan); sent by push-relay/, not Cloud Functions.
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 

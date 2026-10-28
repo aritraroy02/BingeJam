@@ -78,6 +78,40 @@ Re-run it whenever `database.rules.json` changes. The steps below are for settin
 
 ---
 
+### Push notifications (messages + friend requests), free
+FCM is free on the Spark plan; only *sending* needs a trusted server, and Cloud Functions need
+Blaze. So sending is done by `push-relay/`, a Cloudflare Worker on Cloudflare's free plan
+(100,000 requests/day, no card). One-time setup:
+
+1. **Service account key** (gives admin access, treat it like a password):
+   Firebase console → Project settings → **Service accounts** → **Generate new private key**.
+   Save the JSON **outside the repo** (e.g. `C:\Users\<you>\.syncit\service-account.json`).
+2. **Cloudflare**: sign up free at https://dash.cloudflare.com/sign-up, then:
+   ```bash
+   npm i -g wrangler
+   wrangler login
+   cd push-relay
+   wrangler secret put FIREBASE_SERVICE_ACCOUNT < C:/Users/<you>/.syncit/service-account.json
+   wrangler deploy
+   ```
+   `deploy` prints the URL, e.g. `https://vyro-push-relay.<subdomain>.workers.dev`.
+3. Put that URL in `FirebaseConfig.PUSH_RELAY_URL`
+   (`data-firebase/src/main/kotlin/com/syncit/firebase/FirebaseConfig.kt`).
+4. Publish the rules (new `pushTokens` node): `firebase deploy --only database`.
+5. Build, install on two phones, sign in on both (each phone registers its token).
+   Check: Firebase console → Realtime Database → `pushTokens/<uid>` has an entry per phone.
+6. Test: on phone A, close the app (swipe it away is fine; **not** "Force stop"). From phone B
+   send A a friend request, then a message once you're friends. A gets a notification within a
+   few seconds; tapping it opens Friends / the chat.
+
+If nothing arrives: `wrangler tail` (in `push-relay/`) shows the relay's logs live. 401 = the
+app's ID token was rejected (check `FIREBASE_PROJECT_ID` in `wrangler.toml`); "FCM send failed"
+= check that **Firebase Cloud Messaging API (V1)** is enabled (Project settings → Cloud
+Messaging). On OPPO/ColorOS also allow the app to auto-launch / run in background, or
+notifications can be held back while it's closed.
+
+---
+
 ## Phase 0: diagnostics screen
 
 ### Build & install

@@ -3,6 +3,7 @@ package com.syncit.app.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
+import com.syncit.app.push.PushNotifications
 import com.syncit.app.social.ActivityText
 import com.syncit.app.social.UsernameAvailability
 import com.syncit.app.social.UsernameRules
@@ -53,6 +54,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             // The tracker must stop before the account goes (its last write needs the token);
             // FirebaseServices takes presence offline itself just before signing out.
             social.activityTracker.stop()
+            PushNotifications.unregisterToken(social.push)
             runCatching { social.auth.signOut() }
             _signingOut.value = false
         }

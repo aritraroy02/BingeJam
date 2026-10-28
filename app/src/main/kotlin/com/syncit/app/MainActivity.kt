@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.data.InviteHandoff
+import com.syncit.app.push.PushNotifications
 import com.syncit.app.ui.nav.SyncItApp
 import com.syncit.app.ui.theme.SyncItTheme
 import com.syncit.app.ui.theme.isDark
@@ -24,6 +25,9 @@ class MainActivity : ComponentActivity() {
 
     /** Passwordless sign-in link from the email (see the manifest's /__/auth/ filter). */
     private val pendingEmailLink = mutableStateOf<String?>(null)
+
+    /** A tapped message or friend-request notification. */
+    private val pendingNotification = mutableStateOf<PushNotifications.Target?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -47,7 +51,12 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
             SyncItTheme(dark = dark) {
-                SyncItApp(container = container, pendingJoinCode = pendingJoinCode, pendingEmailLink = pendingEmailLink)
+                SyncItApp(
+                    container = container,
+                    pendingJoinCode = pendingJoinCode,
+                    pendingEmailLink = pendingEmailLink,
+                    pendingNotification = pendingNotification,
+                )
             }
         }
     }
@@ -59,6 +68,10 @@ class MainActivity : ComponentActivity() {
 
     /** VIEW intents: an email sign-in link (AuthService decides) or a room invite link. */
     private fun handleLink(intent: Intent?) {
+        PushNotifications.target(intent)?.let {
+            pendingNotification.value = it
+            return
+        }
         val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data?.toString() ?: return
         val auth = (application as SyncItApplication).container.social.auth
         if (auth.isEmailSignInLink(link)) {

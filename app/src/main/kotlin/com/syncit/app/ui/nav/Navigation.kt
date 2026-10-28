@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.syncit.app.di.AppContainer
+import com.syncit.app.push.PushNotifications
 import com.syncit.app.ui.account.AccountFlow
 import com.syncit.app.ui.account.AuthViewModel
 import com.syncit.app.ui.account.UsernameScreen
@@ -99,6 +100,7 @@ fun SyncItApp(
     container: AppContainer,
     pendingJoinCode: MutableState<String?>,
     pendingEmailLink: MutableState<String?>,
+    pendingNotification: MutableState<PushNotifications.Target?>,
 ) {
     val prefs = container.prefs
     val app: AppViewModel = viewModel(factory = viewModelFactory { initializer { AppViewModel(container) } })
@@ -111,6 +113,18 @@ fun SyncItApp(
         prefs.pendingJoinCode = code
         if (gate == Gate.Ready && (nav.current as? Screen.JoinPreview)?.code != code) {
             nav.reset(Screen.Home, Screen.JoinPreview(code))
+        }
+    }
+
+    // A tapped notification opens the chat or Friends once the app is ready (it waits through
+    // sign-in and setup if needed).
+    LaunchedEffect(pendingNotification.value, gate) {
+        val target = pendingNotification.value ?: return@LaunchedEffect
+        if (gate != Gate.Ready) return@LaunchedEffect
+        pendingNotification.value = null
+        when (target.type) {
+            PushNotifications.TYPE_DM -> nav.reset(Screen.Home, Screen.Chat(target.uid))
+            else -> nav.reset(Screen.Home, Screen.Friends)
         }
     }
 

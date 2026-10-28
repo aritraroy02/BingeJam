@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.map
 class FirebaseFriendsRepository internal constructor(
     private val session: FirebaseSession,
     private val db: FirebaseDatabase,
+    private val push: PushRelay? = null,
 ) : FriendsRepository {
 
     private val root: DatabaseReference = db.reference
@@ -122,6 +123,7 @@ class FirebaseFriendsRepository internal constructor(
             if (e.isPermissionDenied()) throw FriendRequestException("You can't send a request to @$name")
             throw e
         }
+        push?.friendRequest(them)
     }
 
     override suspend fun accept(fromUid: String) {
