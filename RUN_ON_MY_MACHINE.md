@@ -21,6 +21,16 @@ Already installed on the main dev machine (Windows, no admin needed, user env va
 On a new machine: install Android Studio (it bundles a JDK and the SDK), or a JDK 17+ plus the
 Android command-line tools, then `sdkmanager "platform-tools" "platforms;android-36"`.
 
+**Two dev machines (since 2026-10-28):** the main dev machine (`C:\Users\aritr`, has the release key)
+and the work laptop (`C:\Users\AritraAditya`, set up the same way: JDK 21 in
+`%LOCALAPPDATA%\Programs\devtools`, SDK in `%LOCALAPPDATA%\Android\Sdk`, user env vars set,
+`google-services.json` via `firebase apps:sdkconfig`). To keep them interchangeable:
+- `git pull` before working, push when done (release.sh bumps versionCode; never release from a stale checkout).
+- Same debug key on both: copy the main machine's `~/.android/debug.keystore` to the other, so debug
+  builds install over each other and match the fingerprints registered in Firebase / assetlinks.json.
+- To release from the laptop too: copy `syncit-release.jks` + `keystore.properties` by hand (never git,
+  chat or email) and fix `storeFile=` in that machine's `keystore.properties`.
+
 The Gradle wrapper (8.13) is committed; use `./gradlew` / `.\gradlew.bat`.
 
 ### Dependency versions
