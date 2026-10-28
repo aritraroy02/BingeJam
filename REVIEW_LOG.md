@@ -176,6 +176,12 @@ First real build on Windows 11: JDK 21 (Temurin), Android SDK platform 36, Gradl
   (tag SyncItAuth) instead of failing silently.
 - Ships to other users only with the next release; both sender and receiver need it.
 
+## Profile pictures + News channel (2026-10-28, OPPO CPH2607, debug build)
+- `assembleDebug test` green. Worker redeployed with KV `AVATARS`; rules (photoUrl prefix) and hosting
+  (privacy policy) deployed.
+- Photo upload from Edit profile: users/{uid}/photoUrl = `…/avatar/<uid>?v=…`, GET → 200 image/jpeg
+  12,218 B (320 px square). GIF upload: pending the user's check on the phone.
+
 ## Residual risks (verify on a real machine)
 1. ~~Dependency versions~~: resolved, they build.
 2. ~~Rules `state.seq` vs `ServerValue.increment`~~: resolved, verified in the emulator.
