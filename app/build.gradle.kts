@@ -24,8 +24,8 @@ android {
         minSdk = 26
         // Latest stable at authoring time; bump if a newer stable API level is out.
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.6.0"
+        versionCode = 11
+        versionName = "0.6.1"
     }
 
     signingConfigs {
