@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.syncit.core.auth.AuthService
+import com.syncit.core.lookup.TitleLookup
 import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendsRepository
@@ -20,6 +21,7 @@ import com.syncit.firebase.social.FirebaseProfileRepository
 import com.syncit.firebase.social.FirebasePushRegistry
 import com.syncit.firebase.social.FirebaseWatchInvites
 import com.syncit.firebase.social.PushRelay
+import com.syncit.firebase.social.RelayTitleLookup
 
 /**
  * Everything :data-firebase provides, wired once. :app creates one instance (AppContainer) and
@@ -55,6 +57,9 @@ class FirebaseServices private constructor(context: Context) {
     val presence: PresenceRepository = presenceImpl
     val watchInvites: WatchInvites = FirebaseWatchInvites(session, db)
     val transport: SyncTransport = transportImpl
+
+    /** Netflix title IDs for "Play in Netflix" (relay + Watchmode). */
+    val titleLookup: TitleLookup = RelayTitleLookup(session)
 
     companion object {
         @Volatile private var instance: FirebaseServices? = null

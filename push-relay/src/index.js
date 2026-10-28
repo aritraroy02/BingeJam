@@ -1,5 +1,5 @@
 // Push relay + profile-picture store for Vyro (Cloudflare Worker, free tier).
-// Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid> (further down).
+// Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid>, GET /netflix (title lookup).
 //
 // Firebase Cloud Messaging is free, but sending needs a trusted server, and Cloud Functions need
 // the paid Blaze plan. This Worker is that server:
@@ -32,6 +32,7 @@ export default {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/avatar/') && request.method === 'GET') return serveAvatar(path, env);
     if (path === '/avatar' && (request.method === 'PUT' || request.method === 'DELETE')) return changeAvatar(request, env);
+    if (path === '/netflix' && request.method === 'GET') return netflixLookup(request, env);
     if (path !== '/' || request.method !== 'POST') return new Response('Not found', { status: 404 });
     return notify(request, env);
   },
@@ -141,6 +142,84 @@ function imageType(b) {
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+// ---- Netflix title lookup (GET /netflix?title=…&durationMs=…) ----
+//
+// Netflix's MediaSession publishes only the title, length and poster: no ID. To let a friend's
+// "Play in Netflix" open the exact movie (netflix.com/watch/<id>), we look the title up in
+// Watchmode's catalogue (secret WATCHMODE_API_KEY; free Developer plan = non-commercial, credit
+// Watchmode in the app, refresh cached data within 30 days). Signed-in users only. Answers are
+// cached in KV per title + length, so each movie costs Watchmode credits once a month at most.
+
+const WATCHMODE = 'https://api.watchmode.com/v1';
+const NETFLIX_REGION = 'IN';
+const NETFLIX_SOURCE_ID = 203;
+const NETFLIX_TITLE_URL = /^https:\/\/www\.netflix\.com\/title\/(\d{1,12})(?:[/?#]|$)/;
+/** Netflix's length includes credits; catalogue runtimes are rounded. */
+const RUNTIME_TOLERANCE_MS = 15 * 60_000;
+const FOUND_TTL_S = 25 * 24 * 3600; // < Watchmode's 30-day refresh rule
+const MISSING_TTL_S = 3 * 24 * 3600;
+const MAX_CANDIDATES = 3;
+
+async function netflixLookup(request, env) {
+  try {
+    await verifyIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
+  } catch (e) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  if (!env.WATCHMODE_API_KEY) return json({ netflixId: null });
+  const params = new URL(request.url).searchParams;
+  const title = (params.get('title') || '').trim();
+  const durationMs = Number(params.get('durationMs')) || 0;
+  if (!title || title.length > 200) return json({ error: 'bad_title' }, 400);
+
+  const minutes = durationMs > 0 ? Math.round(durationMs / 60_000) : 0;
+  const key = `nflx:${normalizeTitle(title)}|${minutes}`;
+  const cached = await env.AVATARS.get(key, { type: 'json' });
+  if (cached) return json(cached);
+
+  let netflixId = null;
+  try {
+    netflixId = await findNetflixId(title, durationMs, env.WATCHMODE_API_KEY);
+  } catch (e) {
+    console.log('watchmode lookup failed', e.message);
+    return json({ netflixId: null }); // not cached: try again next time
+  }
+  const body = { netflixId, source: netflixId ? 'watchmode' : null };
+  await env.AVATARS.put(key, JSON.stringify(body), { expirationTtl: netflixId ? FOUND_TTL_S : MISSING_TTL_S });
+  return json(body);
+}
+
+/** Exact-name movie matches, checked in order: runtime close to Netflix's length, on Netflix in India. */
+async function findNetflixId(title, durationMs, apiKey) {
+  const wanted = normalizeTitle(title);
+  const search = await watchmode(`/search/?search_field=name&search_value=${encodeURIComponent(title)}&types=movie,tv_movie,tv_special`, apiKey);
+  const candidates = (search.title_results || [])
+    .filter((t) => t.resultType === 'title' && normalizeTitle(t.name || '') === wanted)
+    .slice(0, MAX_CANDIDATES);
+  for (const c of candidates) {
+    const details = await watchmode(`/title/${encodeURIComponent(c.id)}/details/?append_to_response=sources&regions=${NETFLIX_REGION}`, apiKey);
+    const runtimeMs = (details.runtime_minutes || 0) * 60_000;
+    if (durationMs > 0 && runtimeMs > 0 && Math.abs(runtimeMs - durationMs) > RUNTIME_TOLERANCE_MS) continue;
+    for (const s of details.sources || []) {
+      if (s.region !== NETFLIX_REGION || (s.source_id !== NETFLIX_SOURCE_ID && s.name !== 'Netflix')) continue;
+      const m = NETFLIX_TITLE_URL.exec(s.web_url || '');
+      if (m) return m[1];
+    }
+  }
+  return null;
+}
+
+async function watchmode(path, apiKey) {
+  const res = await fetch(WATCHMODE + path, { headers: { 'X-API-Key': apiKey } });
+  if (!res.ok) throw new Error(`watchmode ${res.status}`);
+  return res.json();
+}
+
+/** Lower case, punctuation and spacing runs folded, so "Spider-Man: Homecoming" matches "spider man homecoming". */
+function normalizeTitle(s) {
+  return s.toLowerCase().normalize('NFKC').replace(/[\s\p{P}]+/gu, ' ').trim();
 }
 
 // ---- What to send ----

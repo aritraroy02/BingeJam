@@ -13,3 +13,4 @@ id = "e2762004f519436e8bb63d669365b86e"
 
 # Secret, never in this file or the repo:
 #   wrangler secret put FIREBASE_SERVICE_ACCOUNT < path/to/service-account.json
+#   wrangler secret put WATCHMODE_API_KEY      (Netflix title lookup, GET /netflix; free Watchmode key)

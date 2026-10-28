@@ -4,6 +4,8 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
+import java.net.URLEncoder
+import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.RoomTitle
 import com.syncit.core.model.StreamingService
 
@@ -84,4 +86,53 @@ internal fun openForPlay(context: Context, service: StreamingService, title: Roo
     } catch (_: ActivityNotFoundException) {
         false
     }
+}
+
+/**
+ * Netflix publishes no content ID, so "Play in Netflix" needs help to open the host's exact movie:
+ * an ID looked up by title + length (TitleLookup: relay + Watchmode), then netflix.com/watch/<id>,
+ * which starts it playing; the sync session then jumps to the room's position. Episodes are left
+ * out: Netflix gives only the episode name, not the show's.
+ */
+internal object NetflixLinks {
+    data class Query(val title: String, val durationMs: Long?)
+
+    /** "S2:E4", "S1 E2", "s3e10". */
+    private val EPISODE = Regex("""\bS\d+\s*:?\s*E\d+\b""", RegexOption.IGNORE_CASE)
+    private val ID = Regex("""\d{1,12}""")
+
+    /** What to look up for the host's Netflix preview, or null (not Netflix, no title, an episode). */
+    fun query(preview: RoomPreview?): Query? {
+        if (preview?.service != StreamingService.NETFLIX) return null
+        val title = preview.title?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (listOfNotNull(preview.subtitle, title).any { EPISODE.containsMatchIn(it) }) return null
+        return Query(title, preview.durationMs?.takeIf { it > 0 })
+    }
+
+    /** Starts the title in Netflix's player. Null unless [netflixId] is all digits. */
+    fun watchUrl(netflixId: String?): String? =
+        netflixId?.takeIf { ID.matches(it) }?.let { "https://www.netflix.com/watch/$it" }
+
+    /** Netflix's search screen with [title] already typed in. */
+    fun searchUrl(title: String): String =
+        "https://www.netflix.com/search/" + URLEncoder.encode(title, "UTF-8").replace("+", "%20")
+}
+
+/**
+ * Netflix watch parties: the movie itself when we know its ID, else the host's link, else a
+ * search for the movie, else the app. False if Netflix isn't installed.
+ */
+internal fun openNetflix(context: Context, netflixId: String?, query: NetflixLinks.Query?, title: RoomTitle?): Boolean {
+    val service = StreamingService.NETFLIX
+    NetflixLinks.watchUrl(netflixId)?.let { if (openInPackage(context, service, it)) return true }
+    if (title != null && title.service == service && openTitle(context, title)) return true
+    query?.let { if (openInPackage(context, service, NetflixLinks.searchUrl(it.title))) return true }
+    return openForPlay(context, service, null)
+}
+
+private fun openInPackage(context: Context, service: StreamingService, url: String): Boolean = try {
+    context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).setPackage(service.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    true
+} catch (_: ActivityNotFoundException) {
+    false
 }

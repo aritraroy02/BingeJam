@@ -12,6 +12,7 @@ import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.session.SyncSessionState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,6 +44,19 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val sync: StateFlow<SyncSessionState> = container.sessionController.state
+
+    /**
+     * Netflix movies: the host's exact title's Netflix ID, fetched ahead so "Play in Netflix" starts
+     * it at once (see NetflixLinks). Members only: the host is already watching it.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val netflixId: StateFlow<String?> = combine(preview, room, myUid) { p, r, me ->
+        NetflixLinks.query(p)?.takeIf { r != null && me != null && r.hostUid != me }
+    }
+        .distinctUntilChanged()
+        .mapLatest { q -> q?.let { container.titleLookup.netflixId(it.title, it.durationMs) } }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val chat: StateFlow<List<ChatMessage>> = transport.observeChat(code)
         .catch { emit(emptyList()) }

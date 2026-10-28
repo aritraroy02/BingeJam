@@ -92,6 +92,9 @@
   <ul>
     <li><b>Google Firebase</b> (Authentication, Realtime Database, Cloud Messaging, Hosting).</li>
     <li><b>Cloudflare</b> (the notification relay and profile-picture storage).</li>
+    <li><b>Watchmode</b> (a film catalogue). When you join a friend's Netflix watch party, our relay sends Watchmode
+      the movie's <b>title and length</b> (nothing about you) to find its Netflix link, so "Play in Netflix" opens
+      that exact movie. The answer is cached on Cloudflare for up to 25 days.</li>
     <li><b>GitHub</b> (hosts app downloads; the app asks GitHub's public API once per launch whether a newer
       version exists. No personal data is sent; GitHub sees the request's IP address as with any web request).</li>
   </ul>

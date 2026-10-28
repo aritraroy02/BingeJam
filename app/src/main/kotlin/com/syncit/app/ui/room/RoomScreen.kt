@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -102,6 +104,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
     var inviteOpen by rememberSaveable { mutableStateOf(false) }
     val friends by viewModel.friends.collectAsStateWithLifecycle()
     val invited by viewModel.invited.collectAsStateWithLifecycle()
+    val netflixId by viewModel.netflixId.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) { viewModel.enter() }
 
@@ -121,7 +124,11 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
             val ref = preview?.takeIf { it.service == service }?.playableRef
             openJamItem(context, service, ref, currentRoom?.title)
         } else {
-            openForPlay(context, service, currentRoom?.title)
+            if (service == StreamingService.NETFLIX) {
+                openNetflix(context, netflixId, NetflixLinks.query(preview), currentRoom?.title)
+            } else {
+                openForPlay(context, service, currentRoom?.title)
+            }
         }
         if (!opened) {
             Toast.makeText(context, "${service.displayName} isn't installed", Toast.LENGTH_LONG).show()
@@ -172,6 +179,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                     sync = sync,
                     isHost = isHost,
                     serverNow = serverNow,
+                    netflixId = netflixId,
                     onPlay = openInApp,
                     onFollowHost = viewModel::followHost,
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -280,6 +288,7 @@ private fun RoomHero(
     sync: SyncSessionState,
     isHost: Boolean,
     serverNow: Long,
+    netflixId: String?,
     onPlay: (StreamingService) -> Unit,
     onFollowHost: () -> Unit,
     modifier: Modifier = Modifier,
@@ -350,7 +359,7 @@ private fun RoomHero(
             if (jam) {
                 JamPrompt(prompt, service, preview, sync, onPlay, onFollowHost)
             } else if (prompt == MemberPrompt.OPEN_APP) {
-                WatchPartyPrompt(service, preview, room, sync, serverNow, onPlay)
+                WatchPartyPrompt(service, preview, room, sync, serverNow, netflixId, onPlay)
             }
         }
     }
@@ -366,9 +375,10 @@ private fun HeroBadges(service: StreamingService?, jamLabel: String?, labelColor
 }
 
 /**
- * Watch parties: members who aren't watching the host's title yet get one tap into it. Netflix
- * doesn't share an episode ID, so we open the app (or the host's link) and say which episode to
- * start; once it matches, the coordinator joins it to the room's position.
+ * Watch parties: members who aren't watching the host's title yet get one tap into it. For a
+ * Netflix movie whose ID was found ([netflixId]), that starts the movie itself; otherwise we open
+ * the app (the host's link, or a search for the movie) and say which episode to start. Once it
+ * matches, the coordinator joins it to the room's position.
  */
 @Composable
 private fun WatchPartyPrompt(
@@ -377,9 +387,11 @@ private fun WatchPartyPrompt(
     room: Room?,
     sync: SyncSessionState,
     serverNow: Long,
+    netflixId: String?,
     onPlay: (StreamingService) -> Unit,
 ) {
     val p = Glass.palette
+    val uriHandler = LocalUriHandler.current
     val episode = listOfNotNull(preview?.subtitle, preview?.title).joinToString(" · ")
     val at = room?.state?.let { formatClock(PositionMath.roomExpectedPositionMs(it, serverNow)) }
     GlassButton(
@@ -388,13 +400,27 @@ private fun WatchPartyPrompt(
         onClick = { onPlay(service) },
         modifier = Modifier.fillMaxWidth(),
     )
-    val start = if (episode.isNotEmpty()) "Start $episode" else "Start what the host is watching"
+    val direct = netflixId != null && service == StreamingService.NETFLIX
+    val start = when {
+        direct -> "Opens ${preview?.title ?: "the movie"} in ${service.displayName}"
+        episode.isNotEmpty() -> "Start $episode"
+        else -> "Start what the host is watching"
+    }
     val jump = if (at != null) " and ${Brand.NAME} jumps you to $at." else ", and ${Brand.NAME} lines you up with the room."
     Text(
         (if (sync.status == SyncStatus.OTHER_TITLE) "You're on a different episode. " else "") + start + jump,
         style = MaterialTheme.typography.bodySmall,
         color = if (sync.status == SyncStatus.OTHER_TITLE) p.warning else p.textSecondary,
     )
+    if (direct) {
+        // Required credit for Watchmode's free plan, which found the Netflix ID.
+        Text(
+            "Movie found with Watchmode",
+            style = MaterialTheme.typography.labelSmall,
+            color = p.textSecondary,
+            modifier = Modifier.clickable { uriHandler.openUri("https://www.watchmode.com") },
+        )
+    }
 }
 
 /**
