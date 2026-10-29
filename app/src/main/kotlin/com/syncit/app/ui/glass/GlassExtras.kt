@@ -121,9 +121,9 @@ fun CountBadge(count: Int, modifier: Modifier = Modifier) {
 
 /** A [GlassIconButton] with a [CountBadge] on its corner. */
 @Composable
-fun BadgedIconButton(icon: ImageVector, contentDescription: String, count: Int, onClick: () -> Unit) {
+fun BadgedIconButton(icon: ImageVector, contentDescription: String, count: Int, onClick: () -> Unit, plain: Boolean = false) {
     Box {
-        GlassIconButton(icon, if (count > 0) "$contentDescription, $count new" else contentDescription, onClick)
+        GlassIconButton(icon, if (count > 0) "$contentDescription, $count new" else contentDescription, onClick, plain = plain)
         CountBadge(count, Modifier.align(Alignment.TopEnd))
     }
 }

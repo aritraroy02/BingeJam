@@ -111,16 +111,21 @@ fun HomeScreen(
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(
                 navigation = {
-                    Avatar(
-                        me?.displayName ?: "?",
-                        size = 40.dp,
-                        photoUrl = me?.photoUrl,
-                        modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenSettings),
-                    )
+                    // Instagram-style top bar: picture, small wordmark, plain icons.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(
+                            me?.displayName ?: "?",
+                            size = 36.dp,
+                            photoUrl = me?.photoUrl,
+                            modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenSettings),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        BrandWordmark(style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp))
+                    }
                 },
                 actions = {
-                    BadgedIconButton(Icons.Filled.Person, "Friends", requests, onOpenFriends)
-                    GlassIconButton(Icons.Filled.Settings, "Settings", onOpenSettings)
+                    BadgedIconButton(Icons.Filled.Person, "Friends", requests, onOpenFriends, plain = true)
+                    GlassIconButton(Icons.Filled.Settings, "Settings", onOpenSettings, plain = true)
                 },
             )
             Column(
@@ -133,13 +138,6 @@ fun HomeScreen(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                BrandWordmark()
-                Text(
-                    "Hey ${me?.displayName?.substringBefore(' ')?.ifBlank { null } ?: "there"}. ${Brand.TAGLINE}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = p.textSecondary,
-                )
-
                 update?.let { available ->
                     GlassPanel {
                         Text("${Brand.NAME} ${available.version} is available", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
@@ -234,13 +232,8 @@ private fun WatchPartyCard(
 ) {
     val p = Glass.palette
     GlassPanel(Modifier.fillMaxWidth()) {
-        Text("Watch party or jam", style = MaterialTheme.typography.titleLarge, color = p.textPrimary)
-        Text(
-            "Everyone plays on their own phone. When anyone plays, pauses or skips, everyone follows. " +
-                "In a jam, everyone also follows the host from song to song.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = p.textSecondary,
-        )
+        Text("Watch party or jam", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+        Text("Watch or listen in sync with friends.", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GlassButton("Start", onClick = onCreate, icon = Icons.Filled.PlayArrow, loading = ui.busy, modifier = Modifier.weight(1f))
             GlassButton(
@@ -333,7 +326,7 @@ private fun FriendRowView(
         }
         if (activity != null) {
             Spacer(Modifier.width(10.dp))
-            ActivityThumb(activity)
+            ActivityThumb(activity, size = 40.dp)
         }
         Spacer(Modifier.width(6.dp))
         Box {

@@ -261,14 +261,29 @@ fun GlassButton(
     }
 }
 
-/** Round glass button for top-bar actions. */
+/**
+ * Round glass button for top-bar actions. [plain] = no glass circle, a bare 24 dp icon like
+ * Instagram's top bar (the 40 dp touch area stays).
+ */
 @Composable
-fun GlassIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun GlassIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    plain: Boolean = false,
+) {
+    val surface = if (plain) Modifier.clip(CircleShape) else Modifier.glass(CircleShape)
     Box(
-        modifier = modifier.size(40.dp).glass(CircleShape).clickable(onClick = onClick),
+        modifier = modifier.size(40.dp).then(surface).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = Glass.palette.textPrimary, modifier = Modifier.size(22.dp))
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = Glass.palette.textPrimary,
+            modifier = Modifier.size(if (plain) 24.dp else 22.dp),
+        )
     }
 }
 
