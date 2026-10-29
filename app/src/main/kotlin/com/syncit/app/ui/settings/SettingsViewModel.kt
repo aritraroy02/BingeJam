@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.syncit.app.data.UpdateChecker
 import com.syncit.app.di.AppContainer
 import com.syncit.app.push.PushNotifications
 import com.syncit.app.social.ActivityText
@@ -43,6 +44,24 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _signingOut = MutableStateFlow(false)
     val signingOut: StateFlow<Boolean> = _signingOut.asStateFlow()
+
+    /** "Check for updates" on the version row. */
+    sealed interface UpdateCheck {
+        data object Idle : UpdateCheck
+        data object Checking : UpdateCheck
+        data class Done(val result: UpdateChecker.Result) : UpdateCheck
+    }
+
+    private val _updateCheck = MutableStateFlow<UpdateCheck>(UpdateCheck.Idle)
+    val updateCheck: StateFlow<UpdateCheck> = _updateCheck.asStateFlow()
+
+    fun checkForUpdate() {
+        if (_updateCheck.value == UpdateCheck.Checking) return
+        viewModelScope.launch {
+            _updateCheck.value = UpdateCheck.Checking
+            _updateCheck.value = UpdateCheck.Done(UpdateChecker.checkNow())
+        }
+    }
 
     /** Leaves any room (best effort), stops syncing, then signs out; the app returns to Welcome. */
     fun signOut(beforeSignOut: () -> Unit) {

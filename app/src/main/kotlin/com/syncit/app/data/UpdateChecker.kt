@@ -21,8 +21,17 @@ object UpdateChecker {
 
     data class Update(val version: String, val notes: String?)
 
+    /** Outcome of a check, for "Check for updates" in Settings. */
+    sealed interface Result {
+        data object UpToDate : Result
+        data class Available(val update: Update) : Result
+        data object Failed : Result
+    }
+
     /** The newer release, or null if we're current or the check failed (offline, rate-limited). */
-    suspend fun check(): Update? = withContext(Dispatchers.IO) {
+    suspend fun check(): Update? = (checkNow() as? Result.Available)?.update
+
+    suspend fun checkNow(): Result = withContext(Dispatchers.IO) {
         runCatching {
             val connection = URL("https://api.github.com/repos/$RELEASES_REPO/releases/latest")
                 .openConnection() as HttpURLConnection
@@ -30,18 +39,18 @@ object UpdateChecker {
             connection.readTimeout = 5_000
             connection.setRequestProperty("Accept", "application/vnd.github+json")
             try {
-                if (connection.responseCode != 200) return@runCatching null
+                if (connection.responseCode != 200) return@runCatching Result.Failed
                 val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
                 val latest = json.optString("tag_name").removePrefix("v")
                 if (isNewer(latest, BuildConfig.VERSION_NAME)) {
-                    Update(latest, json.optString("body").takeIf { it.isNotBlank() })
+                    Result.Available(Update(latest, json.optString("body").takeIf { it.isNotBlank() }))
                 } else {
-                    null
+                    Result.UpToDate
                 }
             } finally {
                 connection.disconnect()
             }
-        }.getOrNull()
+        }.getOrDefault(Result.Failed)
     }
 
     /** Numeric comparison of dotted versions: 0.10.0 > 0.9.2. Non-numeric parts count as 0. */

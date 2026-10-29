@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.BuildConfig
 import com.syncit.app.data.LegalLinks
+import com.syncit.app.data.UpdateChecker
 import com.syncit.app.overlay.ChatBubbleService
 import com.syncit.app.ui.activity.ActivityAppToggles
 import com.syncit.app.ui.glass.Avatar
@@ -79,6 +82,7 @@ fun SettingsScreen(
     val invisible by prefs.invisible.collectAsStateWithLifecycle()
     val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
+    val updateCheck by viewModel.updateCheck.collectAsStateWithLifecycle()
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var linkError by rememberSaveable { mutableStateOf<String?>(null) }
     val openLegal: (String) -> Unit = { url ->
@@ -100,43 +104,18 @@ fun SettingsScreen(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                SectionLabel("Profile", Modifier.padding(top = 8.dp))
-                GlassPanel(onClick = onEditProfile) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(profile?.displayName ?: "?", size = 56.dp, photoUrl = profile?.photoUrl)
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(profile?.displayName.orEmpty(), style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("@${profile?.username.orEmpty()}", style = MaterialTheme.typography.bodyMedium, color = p.textSecondary)
-                            profile?.bio?.takeIf { it.isNotBlank() }?.let {
-                                Text(it, style = MaterialTheme.typography.bodySmall, color = p.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                        Icon(Icons.Filled.Edit, contentDescription = "Edit profile", tint = p.textTertiary)
-                    }
-                }
-
-                SectionLabel("Activity sharing", Modifier.padding(top = 12.dp))
-                GlassPanel(spacing = 6.dp, contentPadding = PaddingValues(14.dp)) {
-                    GlassSwitchRow(
-                        title = "Invisible",
-                        subtitle = "Friends see you as offline and nothing you play is shared.",
-                        checked = invisible,
-                        onCheckedChange = prefs::setInvisible,
-                    )
-                    val now = sharingNow
-                    Text(
-                        when {
-                            invisible -> "You're invisible."
-                            shared.isEmpty() -> "You're not sharing any apps."
-                            now != null -> "Friends see: ${viewModel.describe(now)}"
-                            else -> "Nothing playing in a shared app right now."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = p.textSecondary,
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    )
-                }
+                // Your profile, "Invisible" and what friends see now are on the Profile screen.
+                SectionLabel("Activity sharing", Modifier.padding(top = 8.dp))
+                Text(
+                    if (invisible) {
+                        "You're invisible, so nothing is shared. Turn it off on your profile."
+                    } else {
+                        "Friends see what you play in the apps you turn on here."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textSecondary,
+                    modifier = Modifier.padding(horizontal = 6.dp),
+                )
                 ActivityAppToggles(
                     shared = shared,
                     onToggle = { app, on -> prefs.setSharedApps(if (on) shared + app else shared - app) },
@@ -198,12 +177,40 @@ fun SettingsScreen(
 
                 SectionLabel("About & legal", Modifier.padding(top = 12.dp))
                 GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+                    val check = updateCheck
+                    val available = ((check as? SettingsViewModel.UpdateCheck.Done)?.result as? UpdateChecker.Result.Available)?.update
                     GlassRow(
                         title = "${Brand.NAME} ${BuildConfig.VERSION_NAME}",
-                        subtitle = "${Brand.TAGLINE} Shared with your room: play, pause, position, and the title and " +
-                            "artwork of what you're playing. Shared with friends: only the apps you turn on above. " +
-                            "Never video, audio or notifications.",
+                        subtitle = when (check) {
+                            SettingsViewModel.UpdateCheck.Idle -> "Tap to check for updates"
+                            SettingsViewModel.UpdateCheck.Checking -> "Checking for updates…"
+                            is SettingsViewModel.UpdateCheck.Done -> when (check.result) {
+                                UpdateChecker.Result.UpToDate -> "You're on the latest version"
+                                is UpdateChecker.Result.Available -> "Version ${available?.version} is available. Tap to download."
+                                UpdateChecker.Result.Failed -> "Couldn't check. Tap to try again."
+                            }
+                        },
                         icon = Icons.Filled.Info,
+                        onClick = {
+                            if (available != null) {
+                                openLegal(UpdateChecker.DOWNLOAD_URL)
+                            } else {
+                                viewModel.checkForUpdate()
+                            }
+                        },
+                        trailing = {
+                            if (check == SettingsViewModel.UpdateCheck.Checking) {
+                                CircularProgressIndicator(Modifier.size(18.dp), color = p.accent, strokeWidth = 2.dp)
+                            }
+                        },
+                    )
+                    Text(
+                        "${Brand.TAGLINE} Shared with your room: play, pause, position, and the title and artwork of " +
+                            "what you're playing. Shared with friends: only the apps you turn on above. Never video, " +
+                            "audio or notifications.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textTertiary,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
                     )
                     GlassRow(
                         title = "Terms of Service",

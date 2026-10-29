@@ -36,6 +36,7 @@ import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
+import com.syncit.app.ui.glass.GlassSwitchRow
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.social.ActivityThumb
@@ -53,6 +54,13 @@ import kotlinx.coroutines.flow.stateIn
 /** Your own profile as friends see it: picture, name, @username, bio, friends, what you're sharing. */
 class ProfileViewModel(container: AppContainer) : ViewModel() {
     private val social = container.social
+    private val prefs = container.prefs
+
+    /** Invisible: friends see you offline and nothing you play is shared. */
+    val invisible: StateFlow<Boolean> = prefs.invisible
+    val sharedApps = prefs.sharedApps
+
+    fun setInvisible(value: Boolean) = prefs.setInvisible(value)
 
     val profile: StateFlow<UserProfile?> = social.profiles.observeMyProfile()
         .catch { emit(null) }
@@ -80,6 +88,8 @@ fun ProfileScreen(
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val friendCount by viewModel.friendCount.collectAsStateWithLifecycle()
     val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
+    val invisible by viewModel.invisible.collectAsStateWithLifecycle()
+    val shared by viewModel.sharedApps.collectAsStateWithLifecycle()
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -140,11 +150,21 @@ fun ProfileScreen(
                 }
 
                 SectionLabel("Sharing now", Modifier.padding(top = 6.dp))
-                GlassPanel(Modifier.fillMaxWidth()) {
+                GlassPanel(Modifier.fillMaxWidth(), spacing = 8.dp) {
+                    GlassSwitchRow(
+                        title = "Invisible",
+                        subtitle = "Friends see you as offline and nothing you play is shared.",
+                        checked = invisible,
+                        onCheckedChange = viewModel::setInvisible,
+                    )
                     val now = sharingNow
-                    if (now == null) {
+                    if (invisible || now == null) {
                         Text(
-                            "Nothing right now. Friends see what you play in the apps you share (Settings → Activity sharing).",
+                            when {
+                                invisible -> "You're invisible."
+                                shared.isEmpty() -> "You're not sharing any apps. Pick them in Settings → Activity sharing."
+                                else -> "Nothing playing in a shared app right now."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = p.textSecondary,
                         )
