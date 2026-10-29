@@ -4,7 +4,14 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-29):** **v0.6.2 released** (versionCode 12): one tap on "Play in Netflix" works with
+**Status (2026-10-29):** **v0.6.3 released** (versionCode 13) from the work laptop (`C:\Users\AritraAditya`;
+release key now also there in `~/.syncit/`, keystore.properties set): Instagram-sized UI (14 sp body, 40 dp
+buttons/fields/icon buttons, 16 dp panels), Home top bar with small wordmark + plain icons, new **Profile**
+screen (tap your picture: friends count, Edit/Share profile, Invisible, sharing now), Settings without the
+profile card, version row = "check for updates". No gh CLI on that laptop: the GitHub release was created
+through the REST API with git's saved credential (same result as `release.sh`). Installed on the OPPO.
+
+Earlier, **v0.6.2** (versionCode 12): one tap on "Play in Netflix" works with
 Netflix closed (Netflix started cold drops the link and bounces back; `NetflixRetry` in `ui/room/TitleLinks.kt`
 resends it once). Tested on the Motorola: one tap works with Netflix swiped away. Released from the Asus
 laptop, installed there. **v0.6.1** (versionCode 11,
