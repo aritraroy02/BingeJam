@@ -4,10 +4,11 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-29):** **Voice chat in rooms built, not released yet** (new `:voice` module, relay
-`push-relay/src/voice.js` Durable Object, `members/{uid}/voice` rule; see PLAN.md "Voice chat in rooms").
-Needs `wrangler deploy` (adds the VoiceRoom DO + migration) and `firebase deploy --only database` before
-shipping. Before that, **v0.6.4 released** (versionCode 14): friend sheet **Start a room with <friend>**
+**Status (2026-10-29):** **v0.6.5 released** (versionCode 15): **voice chat in rooms** (new `:voice`
+module, our own relay `push-relay/src/voice.js` Durable Object, deployed; `members/{uid}/voice` rule deployed):
+Mute, Deafen, mic + per-person volume, HD/SD, Settings → Voice chat mic/speaker pickers. See PLAN.md
+"Voice chat in rooms". Tested on the OPPO alone (connect, controls, routing); not yet with two people.
+Before that, **v0.6.4 released** (versionCode 14): friend sheet **Start a room with <friend>**
 (invite + "Waiting for … to join" banner in the room; "Not now" is now a visible decline, rules deployed),
 HD/SD voice-call plan in PLAN.md. Before that, **v0.6.3** (versionCode 13) from the work laptop (`C:\Users\AritraAditya`;
 release key now also there in `~/.syncit/`, keystore.properties set): Instagram-sized UI (14 sp body, 40 dp
