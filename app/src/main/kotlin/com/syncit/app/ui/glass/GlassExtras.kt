@@ -80,7 +80,7 @@ fun GlassBottomSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composab
                     .imePadding()
                     .heightIn(max = 640.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(
@@ -141,7 +141,7 @@ fun GlassChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
         text,
         style = MaterialTheme.typography.labelMedium,
         color = if (selected) p.onAccent else p.textPrimary,
-        modifier = modifier.then(surface).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 9.dp),
+        modifier = modifier.then(surface).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
     )
 }
 
@@ -172,7 +172,7 @@ fun GlassSmallButton(
         modifier = modifier
             .then(surface)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
 

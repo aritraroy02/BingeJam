@@ -113,7 +113,7 @@ fun HomeScreen(
                 navigation = {
                     Avatar(
                         me?.displayName ?: "?",
-                        size = 46.dp,
+                        size = 40.dp,
                         photoUrl = me?.photoUrl,
                         modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenSettings),
                     )
@@ -255,7 +255,7 @@ private fun WatchPartyCard(
                 value = ui.code,
                 onValueChange = onCodeChange,
                 placeholder = "ROOM CODE",
-                textStyle = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 6.sp),
+                textStyle = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Bold, fontSize = 18.sp, letterSpacing = 4.sp),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { if (ui.codeValid) onJoinCode(ui.code) }),
                 modifier = Modifier.fillMaxWidth(),

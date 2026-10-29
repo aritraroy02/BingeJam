@@ -87,7 +87,7 @@ import kotlin.math.absoluteValue
 val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
 val PillShape = RoundedCornerShape(percent = 50)
-val PanelShape = RoundedCornerShape(28.dp)
+val PanelShape = RoundedCornerShape(24.dp)
 
 /**
  * Screen root: an aurora (or the movie's blurred [artwork]) as the backdrop, captured by Haze so
@@ -193,7 +193,7 @@ fun Modifier.glass(shape: Shape = PanelShape, tint: Color? = null, blur: Dp = 28
 fun GlassPanel(
     modifier: Modifier = Modifier,
     shape: Shape = PanelShape,
-    contentPadding: PaddingValues = PaddingValues(20.dp),
+    contentPadding: PaddingValues = PaddingValues(16.dp),
     spacing: Dp = 12.dp,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -241,20 +241,20 @@ fun GlassButton(
     Row(
         modifier = modifier
             .scale(scale)
-            .heightIn(min = 54.dp)
+            .heightIn(min = 40.dp)
             .then(surface)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled && !loading, onClick = onClick)
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
-            .padding(horizontal = 22.dp),
+            .padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (loading) {
-            CircularProgressIndicator(Modifier.size(20.dp), color = textColor, strokeWidth = 2.dp)
+            CircularProgressIndicator(Modifier.size(18.dp), color = textColor, strokeWidth = 2.dp)
         } else {
             if (icon != null) {
-                Icon(icon, contentDescription = null, tint = textColor, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
+                Icon(icon, contentDescription = null, tint = textColor, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
             }
             Text(text, style = MaterialTheme.typography.labelLarge, color = textColor)
         }
@@ -265,7 +265,7 @@ fun GlassButton(
 @Composable
 fun GlassIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.size(46.dp).glass(CircleShape).clickable(onClick = onClick),
+        modifier = modifier.size(40.dp).glass(CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = contentDescription, tint = Glass.palette.textPrimary, modifier = Modifier.size(22.dp))
@@ -333,14 +333,14 @@ fun GlassTextField(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 54.dp)
+                    .heightIn(min = 40.dp)
                     .glass(shape)
-                    .padding(start = 20.dp, end = if (trailing != null) 6.dp else 20.dp, top = 6.dp, bottom = 6.dp),
+                    .padding(start = 16.dp, end = if (trailing != null) 4.dp else 16.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (leadingIcon != null) {
-                    Icon(leadingIcon, contentDescription = null, tint = p.textTertiary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
+                    Icon(leadingIcon, contentDescription = null, tint = p.textTertiary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
                 }
                 Box(Modifier.weight(1f)) {
                     if (value.isEmpty()) Text(placeholder, style = textStyle, color = p.textTertiary, maxLines = 1)
@@ -356,7 +356,7 @@ fun GlassTextField(
 @Composable
 fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val p = Glass.palette
-    BoxWithConstraints(modifier.fillMaxWidth().height(48.dp).glass(PillShape).padding(4.dp)) {
+    BoxWithConstraints(modifier.fillMaxWidth().height(40.dp).glass(PillShape).padding(3.dp)) {
         val segment = maxWidth / options.size
         val offset by animateDpAsState(segment * selected, label = "segment")
         Box(
@@ -427,7 +427,7 @@ fun PlatformBadge(service: StreamingService, modifier: Modifier = Modifier) {
 @Composable
 fun StatusPill(text: String, color: Color, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier = modifier.glass(PillShape).padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(color))
@@ -520,9 +520,9 @@ fun GlassRow(
     ) {
         if (icon != null) {
             Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(p.accent.copy(alpha = 0.18f)),
+                Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(p.accent.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center,
-            ) { Icon(icon, contentDescription = null, tint = p.accent, modifier = Modifier.size(20.dp)) }
+            ) { Icon(icon, contentDescription = null, tint = p.accent, modifier = Modifier.size(18.dp)) }
             Spacer(Modifier.width(14.dp))
         }
         Column(Modifier.weight(1f)) {

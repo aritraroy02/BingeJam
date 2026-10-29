@@ -119,9 +119,9 @@ fun ChatTab(
         ) {
             for (emoji in REACTION_EMOJIS) {
                 Box(
-                    Modifier.size(46.dp).glass(CircleShape).clickable { onReact(emoji) },
+                    Modifier.size(40.dp).glass(CircleShape).clickable { onReact(emoji) },
                     contentAlignment = Alignment.Center,
-                ) { Text(emoji, fontSize = 22.sp) }
+                ) { Text(emoji, fontSize = 20.sp) }
             }
         }
         ChatInputBar(onSend, "Message the room", Modifier.padding(bottom = 8.dp))

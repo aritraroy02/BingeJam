@@ -118,20 +118,22 @@ private fun style(size: Int, weight: FontWeight, line: Int, tracking: Float = 0f
     letterSpacing = tracking.sp,
 )
 
+// Sized like Instagram's Android app (user's choice, 2026-10-29): 14 sp body text and list titles,
+// 12 sp secondary text, ~20 sp screen titles.
 private val GlassTypography = Typography(
-    displaySmall = style(36, FontWeight.ExtraBold, 42, -1f),
-    headlineLarge = style(32, FontWeight.Bold, 38, -0.8f),
-    headlineMedium = style(26, FontWeight.Bold, 32, -0.5f),
-    headlineSmall = style(22, FontWeight.Bold, 28, -0.3f),
-    titleLarge = style(20, FontWeight.SemiBold, 26, -0.2f),
-    titleMedium = style(17, FontWeight.SemiBold, 22),
-    titleSmall = style(15, FontWeight.SemiBold, 20),
-    bodyLarge = style(16, FontWeight.Normal, 23),
-    bodyMedium = style(15, FontWeight.Normal, 21),
-    bodySmall = style(13, FontWeight.Normal, 18),
-    labelLarge = style(15, FontWeight.SemiBold, 20),
-    labelMedium = style(13, FontWeight.Medium, 16),
-    labelSmall = style(11, FontWeight.SemiBold, 14, 0.8f),
+    displaySmall = style(30, FontWeight.ExtraBold, 36, -0.8f),
+    headlineLarge = style(26, FontWeight.Bold, 32, -0.6f),
+    headlineMedium = style(22, FontWeight.Bold, 28, -0.4f),
+    headlineSmall = style(20, FontWeight.Bold, 26, -0.3f),
+    titleLarge = style(18, FontWeight.SemiBold, 24, -0.2f),
+    titleMedium = style(16, FontWeight.SemiBold, 21),
+    titleSmall = style(14, FontWeight.SemiBold, 19),
+    bodyLarge = style(15, FontWeight.Normal, 21),
+    bodyMedium = style(14, FontWeight.Normal, 19),
+    bodySmall = style(12, FontWeight.Normal, 16),
+    labelLarge = style(14, FontWeight.SemiBold, 18),
+    labelMedium = style(12, FontWeight.Medium, 16),
+    labelSmall = style(11, FontWeight.SemiBold, 14, 0.6f),
 )
 
 @Composable
