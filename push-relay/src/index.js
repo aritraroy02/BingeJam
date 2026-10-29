@@ -1,5 +1,6 @@
 // Push relay + profile-picture store for Vyro (Cloudflare Worker, free tier).
-// Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid>, GET /netflix (title lookup).
+// Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid>, GET /netflix (title lookup),
+// GET /voice/<code> (room voice chat WebSocket, src/voice.js).
 //
 // Firebase Cloud Messaging is free, but sending needs a trusted server, and Cloud Functions need
 // the paid Blaze plan. This Worker is that server:
@@ -12,6 +13,10 @@
 //
 // Secret FIREBASE_SERVICE_ACCOUNT: the Firebase service account JSON (Admin SDK key). It gives
 // admin access to the database and FCM, so it lives only in Cloudflare's secret store.
+
+import { connectVoice, VoiceRoom } from './voice.js';
+
+export { VoiceRoom };
 
 const SCOPES = [
   'https://www.googleapis.com/auth/firebase.database',
@@ -33,6 +38,9 @@ export default {
     if (path.startsWith('/avatar/') && request.method === 'GET') return serveAvatar(path, env);
     if (path === '/avatar' && (request.method === 'PUT' || request.method === 'DELETE')) return changeAvatar(request, env);
     if (path === '/netflix' && request.method === 'GET') return netflixLookup(request, env);
+    if (path.startsWith('/voice/') && request.method === 'GET') {
+      return connectVoice(request, env, path.slice('/voice/'.length), { verifyIdToken, bearer, Database, clip });
+    }
     if (path !== '/' || request.method !== 'POST') return new Response('Not found', { status: 404 });
     return notify(request, env);
   },

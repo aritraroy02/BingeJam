@@ -67,6 +67,9 @@ interface SyncTransport {
     fun observeReactions(code: String, sinceServerMs: Long): Flow<Reaction>
 
     suspend fun sendReaction(code: String, displayName: String, emoji: String)
+
+    /** Shows the other members we're in the room's voice chat (members/{uid}/voice). */
+    suspend fun setInVoice(code: String, inVoice: Boolean) = Unit
 }
 
 class RoomNotFoundException(code: String) : Exception("No room with code $code")

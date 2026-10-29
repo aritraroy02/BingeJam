@@ -69,6 +69,7 @@ dependencies {
     implementation(project(":sync-engine"))
     implementation(project(":media"))
     implementation(project(":data-firebase"))
+    implementation(project(":voice"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

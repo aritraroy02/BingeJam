@@ -11,6 +11,9 @@ import com.syncit.core.model.Room
 import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.session.SyncSessionState
+import com.syncit.core.voice.VoiceQuality
+import com.syncit.core.voice.VoiceState
+import com.syncit.core.voice.VoiceStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -180,6 +183,29 @@ class RoomViewModel(
         waitJobs.remove(uid)?.cancel()
     }
 
+    val voice: StateFlow<VoiceState> = container.voice.state
+
+    val voiceSupported: Boolean get() = container.voice.supported
+
+    /** Call once RECORD_AUDIO is granted. */
+    fun joinVoice() = container.voice.join(code, container.voice.preferredQuality())
+
+    fun leaveVoice() = container.voice.leave()
+
+    fun setMuted(muted: Boolean) = container.voice.setMuted(muted)
+
+    fun setDeafened(deafened: Boolean) = container.voice.setDeafened(deafened)
+
+    fun setMicVolume(volume: Float) = container.voice.setMicVolume(volume)
+
+    fun setPeerVolume(uid: String, volume: Float) = container.voice.setPeerVolume(uid, volume)
+
+    fun setVoiceQuality(quality: VoiceQuality) = container.voice.setQuality(quality)
+
+    fun dismissVoiceError() {
+        if (container.voice.state.value.status == VoiceStatus.FAILED) container.voice.leave()
+    }
+
     private var reactionsJob: Job? = null
 
     /** Called when the room screen appears. Idempotent. */
@@ -244,6 +270,7 @@ class RoomViewModel(
     }
 
     fun leave(onLeft: () -> Unit) {
+        if (container.voice.state.value.roomCode == code) container.voice.leave()
         container.sessionController.stop()
         reactionsJob?.cancel()
         val pending = _waiting.value.keys.toList()

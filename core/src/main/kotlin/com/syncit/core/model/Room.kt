@@ -32,6 +32,8 @@ data class Member(
     val positionMs: Long? = null,
     val reportedAt: Long? = null,
     val lastSeen: Long? = null,
+    /** In the room's voice chat (set by their app; cleared by the server when they drop). */
+    val inVoice: Boolean = false,
 )
 
 /** rooms/{code}/title: what the host picked to watch. */

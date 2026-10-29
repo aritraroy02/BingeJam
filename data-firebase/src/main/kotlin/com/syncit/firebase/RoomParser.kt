@@ -51,6 +51,7 @@ internal object RoomParser {
             positionMs = s.child("positionMs").long(),
             reportedAt = s.child("reportedAt").long(),
             lastSeen = s.child("lastSeen").long(),
+            inVoice = s.child("voice").value as? Boolean ?: false,
         )
     }
 

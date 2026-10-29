@@ -8,15 +8,22 @@ import com.syncit.core.session.SyncDependencies
 import com.syncit.core.session.SyncSessionController
 import com.syncit.core.sync.SyncEngineFactory
 import com.syncit.core.transport.SyncTransport
+import com.syncit.core.voice.VOICE_ECHO_ROOM
+import com.syncit.core.voice.VoiceController
+import com.syncit.core.voice.VoiceStatus
 import com.syncit.firebase.FirebaseServices
 import com.syncit.firebase.FirebaseSyncTransport
 import com.syncit.media.AndroidMediaControllerGateway
 import com.syncit.media.activity.AndroidActivityTracker
 import com.syncit.media.service.AndroidSyncSessionController
 import com.syncit.sync.DefaultSyncEngine
+import com.syncit.voice.AndroidVoiceController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Manual DI: the one place concrete implementations are chosen. Everything else sees only the
@@ -60,4 +67,22 @@ class AppContainer(app: Application) : SyncDependencies {
 
     /** Presence + activity tracker while signed in. */
     val socialSession = SocialSession(social, prefs, sessionController, transport, appScope)
+
+    /** Room voice chat through our relay (unsupported with the debug fakes). */
+    val voice: VoiceController = AndroidVoiceController(app, firebase?.voiceAuth)
+
+    init {
+        // members/{me}/voice follows the voice chat, so the others see who's talking.
+        appScope.launch {
+            var shown: String? = null
+            voice.state
+                .map { s -> s.roomCode?.takeIf { s.status == VoiceStatus.CONNECTED && it != VOICE_ECHO_ROOM } }
+                .distinctUntilChanged()
+                .collect { code ->
+                    shown?.takeIf { it != code }?.let { old -> runCatching { transport.setInVoice(old, false) } }
+                    code?.let { runCatching { transport.setInVoice(it, true) } }
+                    shown = code
+                }
+        }
+    }
 }

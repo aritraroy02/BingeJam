@@ -21,6 +21,8 @@ credentials = "1.6.0"
 googleid = "1.2.0"
 # Profile pictures incl. animated GIFs (user-approved 2026-10-28).
 coil = "3.2.0"
+# Room voice chat WebSocket to our own relay (:voice). Same OkHttp Coil already pulls in.
+okhttp = "4.12.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -56,6 +58,8 @@ googleid = { module = "com.google.android.libraries.identity.googleid:googleid",
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

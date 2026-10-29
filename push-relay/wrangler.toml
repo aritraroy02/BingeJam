@@ -15,6 +15,15 @@ crons = ["*/30 * * * *"]
 binding = "AVATARS"
 id = "e2762004f519436e8bb63d669365b86e"
 
+# Room voice chat (src/voice.js): one Durable Object per room. The free plan only has SQLite-backed ones.
+[[durable_objects.bindings]]
+name = "VOICE"
+class_name = "VoiceRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VoiceRoom"]
+
 # Secret, never in this file or the repo:
 #   wrangler secret put FIREBASE_SERVICE_ACCOUNT < path/to/service-account.json
 #   wrangler secret put WATCHMODE_API_KEY      (Netflix title lookup, GET /netflix; free Watchmode key)

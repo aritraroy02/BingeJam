@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Room voice chat. The mic is asked for only when the user first taps "Join voice". -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Call-style audio: echo cancelling and speaker/headset routing while in voice. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Keeps the mic working while the streaming app is in front (Android 14+ needs the type). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <application>
+        <service
+            android:name="com.syncit.voice.VoiceService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+    </application>
+</manifest>

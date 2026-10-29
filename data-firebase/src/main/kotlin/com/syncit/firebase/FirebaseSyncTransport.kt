@@ -120,6 +120,18 @@ class FirebaseSyncTransport internal constructor(
         memberRef.removeValue().await()
     }
 
+    override suspend fun setInVoice(code: String, inVoice: Boolean) {
+        val uid = session.currentUid ?: return
+        val voiceRef = rooms.child(code).child("members").child(uid).child("voice")
+        if (inVoice) {
+            voiceRef.onDisconnect().removeValue().await()
+            voiceRef.setValue(true).await()
+        } else {
+            voiceRef.onDisconnect().cancel().await()
+            voiceRef.removeValue().await()
+        }
+    }
+
     override fun observeRoom(code: String): Flow<Room?> = callbackFlow {
         val ref = rooms.child(code)
         val listener = object : ValueEventListener {

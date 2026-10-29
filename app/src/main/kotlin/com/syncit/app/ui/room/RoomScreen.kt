@@ -1,8 +1,12 @@
 package com.syncit.app.ui.room
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,6 +87,7 @@ import com.syncit.core.model.Room
 import com.syncit.core.model.RoomPreview
 import com.syncit.core.model.StreamingService
 import com.syncit.core.model.SyncStatus
+import com.syncit.core.voice.VoiceStatus
 import kotlinx.coroutines.delay
 import com.syncit.core.session.JamFollow
 import com.syncit.core.session.SyncSessionState
@@ -112,9 +118,27 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
     val friends by viewModel.friends.collectAsStateWithLifecycle()
     val invited by viewModel.invited.collectAsStateWithLifecycle()
     val waiting by viewModel.waiting.collectAsStateWithLifecycle()
+    val voice by viewModel.voice.collectAsStateWithLifecycle()
     val netflixId by viewModel.netflixId.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) { viewModel.enter() }
+
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            viewModel.joinVoice()
+        } else {
+            Toast.makeText(context, "Allow the microphone to talk in voice", Toast.LENGTH_LONG).show()
+        }
+    }
+    val joinVoice: () -> Unit = {
+        when {
+            !viewModel.voiceSupported -> Toast.makeText(context, "Voice chat needs Android 10 or newer", Toast.LENGTH_LONG).show()
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED ->
+                viewModel.joinVoice()
+            else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+    val inVoice = voice.active && voice.roomCode == viewModel.code
 
     val artwork = rememberArtwork(preview?.artworkJpeg)
     val currentRoom = room
@@ -177,6 +201,15 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
             GlassTopBar(
                 navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) },
                 actions = {
+                    GlassIconButton(
+                        voiceIcon(inVoice, voice.muted),
+                        when {
+                            !inVoice -> "Join voice"
+                            voice.muted -> "Unmute"
+                            else -> "Mute"
+                        },
+                        onClick = { if (inVoice) viewModel.setMuted(!voice.muted) else joinVoice() },
+                    )
                     GlassIconButton(Icons.Filled.Add, "Invite friends", onClick = { inviteOpen = true })
                     GlassIconButton(Icons.Filled.Share, "Share invite link", onClick = {
                         val send = Intent(Intent.ACTION_SEND)
@@ -186,6 +219,23 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                     })
                     GlassIconButton(Icons.AutoMirrored.Filled.ExitToApp, "Leave room", onClick = { confirmLeave = true })
                 },
+            )
+
+            VoiceBar(
+                voice = voice,
+                roomCode = viewModel.code,
+                members = currentRoom?.members.orEmpty(),
+                myUid = myUid,
+                myName = currentRoom?.members?.firstOrNull { it.uid == myUid }?.name ?: "You",
+                friends = friends,
+                onJoin = joinVoice,
+                onLeave = viewModel::leaveVoice,
+                onMute = viewModel::setMuted,
+                onDeafen = viewModel::setDeafened,
+                onMicVolume = viewModel::setMicVolume,
+                onPeerVolume = viewModel::setPeerVolume,
+                onQuality = viewModel::setVoiceQuality,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
             )
 
             for (friend in waiting) {
@@ -277,6 +327,15 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                 context.startActivity(Intent.createChooser(send, "Invite to ${Brand.NAME}"))
             },
             onDismiss = { inviteOpen = false },
+        )
+    }
+
+    if (voice.status == VoiceStatus.FAILED) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissVoiceError,
+            confirmButton = { TextButton(onClick = viewModel::dismissVoiceError) { Text("OK") } },
+            title = { Text("Voice chat") },
+            text = { Text(voice.error ?: "Voice chat stopped.") },
         )
     }
 

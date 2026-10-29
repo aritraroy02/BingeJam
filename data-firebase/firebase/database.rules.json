@@ -355,6 +355,7 @@
             "lastSeen": { ".validate": "newData.isNumber()" },
             "positionMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "reportedAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+            "voice": { ".validate": "newData.isBoolean()" },
             "$other": { ".validate": false }
           }
         },

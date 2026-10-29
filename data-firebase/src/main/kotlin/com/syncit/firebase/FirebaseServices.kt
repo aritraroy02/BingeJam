@@ -13,6 +13,7 @@ import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
 import com.syncit.core.social.WatchInvites
 import com.syncit.core.transport.SyncTransport
+import com.syncit.core.voice.VoiceAuth
 import com.syncit.firebase.social.FirebaseAvatarStore
 import com.syncit.firebase.social.FirebaseDirectMessages
 import com.syncit.firebase.social.FirebaseFriendsRepository
@@ -22,6 +23,7 @@ import com.syncit.firebase.social.FirebasePushRegistry
 import com.syncit.firebase.social.FirebaseWatchInvites
 import com.syncit.firebase.social.PushRelay
 import com.syncit.firebase.social.RelayTitleLookup
+import com.syncit.firebase.social.RelayVoiceAuth
 
 /**
  * Everything :data-firebase provides, wired once. :app creates one instance (AppContainer) and
@@ -60,6 +62,9 @@ class FirebaseServices private constructor(context: Context) {
 
     /** Netflix title IDs for "Play in Netflix" (relay + Watchmode). */
     val titleLookup: TitleLookup = RelayTitleLookup(session)
+
+    /** Room voice chat's sign-in to the relay. */
+    val voiceAuth: VoiceAuth = RelayVoiceAuth(session)
 
     companion object {
         @Volatile private var instance: FirebaseServices? = null

@@ -12,6 +12,7 @@ MediaSession. No video or audio is ever captured or relayed, and only control ev
 | `:sync-engine` | sync-engine-agent | Kotlin/JVM | `DefaultSyncEngine`, `PositionMath`, echo suppression, capability detection, unit tests. |
 | `:media` | media-agent | Android lib | `MediaListenerService`, `AndroidMediaControllerGateway`, `SyncForegroundService`, `RoomSyncCoordinator`. |
 | `:data-firebase` | backend-agent | Android lib | `FirebaseSyncTransport`, `FirebaseServerClock`, security rules. |
+| `:voice` | ui-agent | Android lib | Room voice chat: `AndroidVoiceController`, `VoiceEngine` (mic/Opus/relay/mix), `VoiceService`, `AudioRouting`. |
 | `:app` | ui-agent | Android app | Compose screens, ViewModels, manual DI (`AppContainer`), chat bubble overlay. |
 
 Dependency direction: `:app` → everything; every other module → `:core` only.
@@ -305,20 +306,27 @@ screen before joining, and keep it visible in the room.
   the secret). Rules + emulator test needed. The web page would need it readable without
   auth, so decide what is OK to show publicly.
 
-## Later: voice in rooms, HD / SD (planned 2026-10-29, not built)
-Everyone in a room can talk while watching or jamming, like a group call.
-- **Quality switch:** HD (wideband Opus ~32–48 kbps, stereo off) or SD (narrowband ~12–16 kbps for
-  weak mobile data). Per user, in the room; default SD on mobile data, HD on Wi-Fi.
-- **Transport:** WebRTC audio. Mesh (each phone to each phone) is fine up to ~4–5 people; beyond
-  that it needs an SFU (LiveKit / mediasoup / Cloudflare Calls), which costs money, so decide the
-  room-size cap first. Signalling (offers/answers/ICE) can go through RTDB under
-  `calls/{code}/{uid}` with members-only rules; TURN is needed on many mobile networks (Cloudflare
-  Calls TURN or a paid TURN; free STUN alone will fail on CGNAT).
-- **Playback:** duck the movie/music volume while someone talks (AudioFocus
-  `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`), echo cancellation on (`AcousticEchoCanceler`), push-to-talk
-  as an option for speaker users.
-- **UI:** a mic button in the room top bar, mute per person in People, speaking rings on avatars,
-  HD/SD in the room's Sync tab. The foreground service type must add `microphone`
-  (Android 14+) and the RECORD_AUDIO permission is asked only when the user first taps the mic.
-- **Play Store:** update the privacy policy and Data safety form (audio is streamed live, never
-  stored).
+## Voice chat in rooms, HD / SD (built 2026-10-29, Discord-style)
+Our own stack, no paid service: phone ↔ our relay ↔ phones.
+- **Phone (`:voice`)**: mic (`AudioRecord`, VOICE_COMMUNICATION + echo canceller/noise suppressor/AGC) →
+  energy VAD (`core/voice/VoiceActivity`; only speech is sent, the bar rises while friends' voices play
+  so their echo isn't sent back) → Opus via Android's own `MediaCodec` (Android 10+) → 40 ms per
+  WebSocket message (`core/voice/VoiceWire`). Receive: one `MediaCodec` Opus decoder per speaker →
+  `JitterBuffer` (starts at 80 ms queued, never > 400 ms behind) → mixed with per-person gain →
+  `AudioTrack` (voice-communication usage). `AudioRouting`: MODE_IN_COMMUNICATION, headset if
+  plugged in, else loudspeaker. `VoiceService`: foreground service type microphone (mic keeps working
+  while Netflix is in front) with Mute / Leave in the notification.
+- **Relay (`push-relay/src/voice.js`)**: `GET /voice/<code>` WebSocket, Firebase ID token, members of
+  `rooms/<code>/members` only, max 8. One Durable Object per room (free plan: SQLite-backed,
+  hibernatable sockets; 100k requests/day, 20 incoming messages = 1 request; outgoing free). It only
+  forwards bytes (adds the sender's slot); nothing is stored. `GET /voice/echo` = hear yourself.
+- **Controls**: Mute, Deafen (hear nobody + muted; undeafen restores the earlier mute), my mic volume
+  0–200 %, each person's volume 0–200 % (local only), HD (48 kHz, 32 kbps) / SD (16 kHz, 12 kbps), default
+  HD on Wi-Fi and SD on mobile data, last pick remembered. Settings live in SharedPreferences "voice".
+- **Others see it**: `rooms/{code}/members/{uid}/voice: true` while connected (onDisconnect removes it);
+  the room shows "Harsh is in voice · Join". Rules allow the boolean (2026-10-29).
+- **Free-plan budget**: ~100k requests/day ≈ 2M incoming messages ≈ 22 hours of someone talking per
+  day across all rooms (silence costs nothing). Past that, joins fail until 00:00 UTC (05:30 IST).
+- **Known limits / next**: Bluetooth headsets switch to call mode (lower quality) while in voice;
+  MODE_IN_COMMUNICATION can make the movie a bit quieter on some phones; no push-to-talk yet;
+  "Test mic" (echo) is in the relay but not in the UI yet.

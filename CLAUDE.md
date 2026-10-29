@@ -4,7 +4,10 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-29):** **v0.6.4 released** (versionCode 14): friend sheet **Start a room with <friend>**
+**Status (2026-10-29):** **Voice chat in rooms built, not released yet** (new `:voice` module, relay
+`push-relay/src/voice.js` Durable Object, `members/{uid}/voice` rule; see PLAN.md "Voice chat in rooms").
+Needs `wrangler deploy` (adds the VoiceRoom DO + migration) and `firebase deploy --only database` before
+shipping. Before that, **v0.6.4 released** (versionCode 14): friend sheet **Start a room with <friend>**
 (invite + "Waiting for … to join" banner in the room; "Not now" is now a visible decline, rules deployed),
 HD/SD voice-call plan in PLAN.md. Before that, **v0.6.3** (versionCode 13) from the work laptop (`C:\Users\AritraAditya`;
 release key now also there in `~/.syncit/`, keystore.properties set): Instagram-sized UI (14 sp body, 40 dp
@@ -135,6 +138,7 @@ Read these before changing anything:
 | `:sync-engine` | `DefaultSyncEngine.kt` (all sync logic), `PositionMath.kt`, `EchoSuppressor.kt`, `CapabilityDetector.kt`, `SyncConfig.kt` (all thresholds); tests in `src/test` with `FakeClock` |
 | `:media` | `AndroidMediaControllerGateway.kt`, `MediaListenerService.kt` (also unbind/rebind for Quit), `service/RoomSyncCoordinator.kt` (glues gateway + transport + engine; Netflix seek lead), `service/SyncForegroundService.kt` (sync notification: Stop syncing / Quit), `activity/` (friends' activity) |
 | `:data-firebase` | `FirebaseSyncTransport.kt`, `FirebaseServerClock.kt`, `RoomParser.kt`, `firebase/database.rules.json`, `social/PushRelay.kt` + `social/RelayTitleLookup.kt` (relay clients) |
+| `:voice` | `AndroidVoiceController.kt`, `VoiceEngine.kt` (capture → Opus → relay WebSocket → decode → mix), `VoiceService.kt` (FGS type microphone), `AudioRouting.kt`, `Opus.kt` (MediaCodec) |
 | `:app` | `di/AppContainer.kt` (manual DI), `di/SocialSession.kt` (presence/activity, Quit flag), `ui/nav/Navigation.kt` (simple back stack), screens under `ui/` (`ui/room/TitleLinks.kt`: Netflix links), `push/` (FCM), `overlay/ChatBubbleService.kt` |
 
 When the user reports an error, fix it in the owning module. If the fix changes a `:core`
