@@ -87,6 +87,7 @@ fun HomeScreen(
     onEnterRoom: (String) -> Unit,
     onJoinCode: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenProfile: () -> Unit,
     onOpenFriends: () -> Unit,
     onOpenChat: (String) -> Unit,
 ) {
@@ -117,7 +118,7 @@ fun HomeScreen(
                             me?.displayName ?: "?",
                             size = 36.dp,
                             photoUrl = me?.photoUrl,
-                            modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenSettings),
+                            modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenProfile),
                         )
                         Spacer(Modifier.width(12.dp))
                         BrandWordmark(style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp))

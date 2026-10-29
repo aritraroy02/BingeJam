@@ -45,6 +45,8 @@ import com.syncit.app.ui.home.HomeViewModel
 import com.syncit.app.ui.join.JoinPreviewScreen
 import com.syncit.app.ui.join.JoinPreviewViewModel
 import com.syncit.app.ui.onboarding.OnboardingScreen
+import com.syncit.app.ui.profile.ProfileScreen
+import com.syncit.app.ui.profile.ProfileViewModel
 import com.syncit.app.ui.room.RoomScreen
 import com.syncit.app.ui.room.RoomViewModel
 import com.syncit.app.ui.settings.DeleteAccountViewModel
@@ -63,6 +65,9 @@ sealed interface Screen {
     data object Friends : Screen
     data class Chat(val friendUid: String) : Screen
     data object Settings : Screen
+
+    /** Your own profile (opened from your picture on Home). */
+    data object Profile : Screen
     data object EditProfile : Screen
 
     /** Permissions walkthrough reopened from Settings. */
@@ -220,6 +225,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
                     onEnterRoom = { code -> nav.push(Screen.Room(code)) },
                     onJoinCode = { code -> nav.push(Screen.JoinPreview(code)) },
                     onOpenSettings = { nav.push(Screen.Settings) },
+                    onOpenProfile = { nav.push(Screen.Profile) },
                     onOpenFriends = { nav.push(Screen.Friends) },
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
                 )
@@ -248,6 +254,16 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
                     onEditProfile = { nav.push(Screen.EditProfile) },
                     onOpenSetup = { nav.push(Screen.Permissions) },
                     onOpenDiagnostics = { nav.push(Screen.Diagnostics) },
+                )
+            }
+
+            Screen.Profile -> {
+                val vm: ProfileViewModel = viewModel(factory = viewModelFactory { initializer { ProfileViewModel(container) } })
+                ProfileScreen(
+                    viewModel = vm,
+                    onBack = nav::pop,
+                    onEditProfile = { nav.push(Screen.EditProfile) },
+                    onOpenSettings = { nav.push(Screen.Settings) },
                 )
             }
 
