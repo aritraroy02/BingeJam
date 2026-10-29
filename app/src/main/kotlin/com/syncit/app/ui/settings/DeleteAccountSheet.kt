@@ -60,7 +60,7 @@ private fun ColumnScope.Confirm(ui: DeleteAccountViewModel.UiState, viewModel: D
     val p = Glass.palette
     Text("Delete your account?", style = MaterialTheme.typography.headlineSmall, color = p.textPrimary)
     if (ui.signedInAgain) {
-        Text("You're signed in again. Tap Delete account to finish.", style = MaterialTheme.typography.bodyMedium, color = p.accent)
+        Text("You're signed in again. Tap Delete account to finish.", style = MaterialTheme.typography.bodyMedium, color = p.accentText)
     }
     Text(
         "This permanently deletes your ${Brand.NAME} account and everything in it:",

@@ -32,7 +32,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -165,7 +170,13 @@ fun AccountFlow(
                     }
                 }
                 ui.error?.let {
-                    Text(it, color = Glass.palette.danger, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text(
+                        it,
+                        color = Glass.palette.danger,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                    )
                 }
             }
         }
@@ -214,7 +225,7 @@ private fun Welcome(
         enabled = !busy,
         modifier = Modifier.fillMaxWidth(),
     )
-    val linkStyle = TextLinkStyles(SpanStyle(color = p.accent, textDecoration = TextDecoration.Underline))
+    val linkStyle = TextLinkStyles(SpanStyle(color = p.accentText, textDecoration = TextDecoration.Underline))
     val legal = buildAnnotatedString {
         append("By continuing you agree to the ")
         withLink(LinkAnnotation.Url(LegalLinks.TERMS, linkStyle) { LegalLinks.open(context, LegalLinks.TERMS) }) { append("Terms") }
@@ -259,15 +270,23 @@ private fun EmailEntry(
     val p = Glass.palette
     Text(title, style = MaterialTheme.typography.headlineMedium, color = p.textPrimary)
     Text(body, style = MaterialTheme.typography.bodyLarge, color = p.textSecondary)
-    GlassTextField(
-        value = email,
-        onValueChange = onEmailChange,
-        placeholder = "you@example.com",
-        leadingIcon = Icons.Filled.Email,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Go),
-        keyboardActions = KeyboardActions(onGo = { if (valid) onSubmit() }),
-        modifier = Modifier.fillMaxWidth(),
-    )
+    // A visible label (placeholders vanish as you type) and an autofill hint for the email.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Email", style = MaterialTheme.typography.labelLarge, color = p.textPrimary, modifier = Modifier.padding(start = 6.dp))
+        GlassTextField(
+            value = email,
+            onValueChange = onEmailChange,
+            placeholder = "you@example.com",
+            leadingIcon = Icons.Filled.Email,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Go,
+                autoCorrectEnabled = false,
+            ),
+            keyboardActions = KeyboardActions(onGo = { if (valid) onSubmit() }),
+            modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.EmailAddress },
+        )
+    }
     GlassButton(
         button,
         onClick = onSubmit,

@@ -26,7 +26,7 @@ import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSwitchRow
 import com.syncit.app.ui.glass.SectionLabel
-import com.syncit.app.ui.social.ActivityAppBadge
+import com.syncit.app.ui.social.ActivityAppIcon
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.MediaKind
@@ -59,7 +59,7 @@ fun ActivityAppToggles(shared: Set<ActivityApp>, onToggle: (ActivityApp, Boolean
                         title = app.displayName,
                         checked = app in shared,
                         onCheckedChange = { onToggle(app, it) },
-                        leading = { ActivityAppBadge(app) },
+                        leading = { ActivityAppIcon(app) },
                     )
                 }
             }

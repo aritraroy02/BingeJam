@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -140,13 +141,24 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
                 }
                 when {
                     list == null -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = p.accent)
-                    list.isEmpty() && !showTyping -> Text(
-                        "Say hi to ${name.substringBefore(' ').ifEmpty { "your friend" }} 👋",
-                        color = p.textSecondary,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
+                    list.isEmpty() && !showTyping -> Column(
+                        Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Avatar(name.ifEmpty { "?" }, size = 72.dp, photoUrl = profile?.photoUrl ?: friend?.profile?.photoUrl)
+                        Text(
+                            "Say hi to ${name.substringBefore(' ').ifEmpty { "your friend" }}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = p.textPrimary,
+                        )
+                        Text(
+                            "Plan your next watch party or jam here.",
+                            color = p.textSecondary,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
                 LazyColumn(
                     state = listState,
@@ -162,7 +174,7 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
                                 isMine = row.item.fromUid == viewModel.myUid,
                                 time = row.time,
                                 grouped = row.grouped,
-                                modifier = Modifier.padding(top = messageGap(row.grouped)),
+                                modifier = Modifier.padding(top = messageGap(row.grouped)).animateItem(),
                             )
                         }
                     }

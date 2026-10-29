@@ -1,6 +1,13 @@
 package com.syncit.app.ui.nav
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +46,9 @@ import com.syncit.app.ui.friends.FriendsScreen
 import com.syncit.app.ui.friends.FriendsViewModel
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
+import com.syncit.app.ui.glass.EmphasizedEase
 import com.syncit.app.ui.glass.GlassScreen
+import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.home.HomeScreen
 import com.syncit.app.ui.home.HomeViewModel
 import com.syncit.app.ui.join.JoinPreviewScreen
@@ -216,8 +225,42 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
 
     BackHandler(enabled = nav.backStack.size > 1) { nav.pop() }
 
+    val reduceMotion = rememberReduceMotion()
     Box(Modifier.fillMaxSize()) {
-        when (val screen = nav.current) {
+        // Deeper screens slide in from the right, going back slides them out; jumps elsewhere
+        // (notification, invite) crossfade. Depth travels with the screen so a screen that's
+        // leaving keeps the depth it was shown at.
+        AnimatedContent(
+            targetState = NavEntry(nav.current, nav.backStack.size),
+            transitionSpec = {
+                val forward = targetState.depth > initialState.depth
+                val back = targetState.depth < initialState.depth
+                when {
+                    reduceMotion -> fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                    forward -> (slideInHorizontally(tween(320, easing = EmphasizedEase)) { it / 4 } + fadeIn(tween(220))) togetherWith
+                        (slideOutHorizontally(tween(320, easing = EmphasizedEase)) { -it / 8 } + fadeOut(tween(180)))
+                    back -> (slideInHorizontally(tween(300, easing = EmphasizedEase)) { -it / 8 } + fadeIn(tween(220))) togetherWith
+                        (slideOutHorizontally(tween(260, easing = EmphasizedEase)) { it / 4 } + fadeOut(tween(160)))
+                    else -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+                }
+            },
+            contentKey = { it.screen },
+            label = "screens",
+        ) { entry ->
+            NavScreen(entry, container, nav, deletion)
+        }
+
+        SocialBanners(events)
+    }
+}
+
+/** A screen plus how deep in the back stack it sits, for picking the transition direction. */
+private data class NavEntry(val screen: Screen, val depth: Int)
+
+@Composable
+private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewModel, deletion: DeleteAccountViewModel) {
+    run {
+        when (val screen = entry.screen) {
             Screen.Home -> {
                 val vm: HomeViewModel = viewModel(factory = viewModelFactory { initializer { HomeViewModel(container) } })
                 HomeScreen(
@@ -271,7 +314,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
             Screen.EditProfile -> {
                 // New instance each time so it starts from the saved profile.
                 val vm: EditProfileViewModel = viewModel(
-                    key = "edit-profile-${nav.backStack.size}",
+                    key = "edit-profile-${entry.depth}",
                     factory = viewModelFactory { initializer { EditProfileViewModel(container) } },
                 )
                 EditProfileScreen(vm, onBack = nav::pop)
@@ -309,8 +352,6 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
                 )
             }
         }
-
-        SocialBanners(events)
     }
 }
 

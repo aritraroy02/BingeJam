@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,6 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.buildAnnotatedString
@@ -60,6 +64,7 @@ import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.PillShape
 import com.syncit.app.ui.glass.glass
+import com.syncit.app.ui.glass.popOn
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.model.ChatMessage
 import com.syncit.core.model.Reaction
@@ -83,13 +88,19 @@ fun ChatTab(
             val listState = rememberLazyListState()
             LaunchedEffect(chat.size) { if (rows.isNotEmpty()) listState.animateScrollToItem(rows.lastIndex) }
             if (chat.isEmpty()) {
-                Text(
-                    "Say hi 👋\nMessages show up for everyone in the room.",
-                    color = p.textSecondary,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                Column(
+                    Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text("No messages yet", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+                    Text(
+                        "Say hi, or tap a reaction below. Everyone in the room sees it, even over the movie with the chat bubble.",
+                        color = p.textSecondary,
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
             LazyColumn(
                 state = listState,
@@ -105,7 +116,8 @@ fun ChatTab(
                             isMine = row.item.uid == myUid,
                             time = row.time,
                             grouped = row.grouped,
-                            modifier = Modifier.padding(top = messageGap(row.grouped)),
+                            // New messages slide into place.
+                            modifier = Modifier.padding(top = messageGap(row.grouped)).animateItem(),
                         )
                     }
                 }
@@ -113,13 +125,24 @@ fun ChatTab(
             FloatingReactions(reactions, Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp))
         }
 
+        val haptics = LocalHapticFeedback.current
         Row(
             Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             for (emoji in REACTION_EMOJIS) {
+                // Each tap bumps the counter, which replays the pop.
+                var taps by remember { mutableIntStateOf(0) }
                 Box(
-                    Modifier.size(40.dp).glass(CircleShape).clickable { onReact(emoji) },
+                    Modifier
+                        .size(40.dp)
+                        .popOn(taps.takeIf { it > 0 })
+                        .glass(CircleShape)
+                        .clickable(onClickLabel = "React with $emoji", role = Role.Button) {
+                            taps++
+                            haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                            onReact(emoji)
+                        },
                     contentAlignment = Alignment.Center,
                 ) { Text(emoji, fontSize = 20.sp) }
             }
@@ -187,7 +210,7 @@ internal fun MessageBubble(
                 },
         ) {
             Column {
-                if (showName) Text(senderName.orEmpty(), style = MaterialTheme.typography.labelMedium, color = p.accent2)
+                if (showName) Text(senderName.orEmpty(), style = MaterialTheme.typography.labelMedium, color = p.accentText)
                 Text(body, style = MaterialTheme.typography.bodyMedium, color = textColor)
             }
             Text(time, style = timeStyle, color = timeColor, maxLines = 1, modifier = Modifier.align(Alignment.BottomEnd))
@@ -203,7 +226,9 @@ internal fun ChatInputBar(
     onTextChange: (String) -> Unit = {},
 ) {
     val p = Glass.palette
+    val haptics = LocalHapticFeedback.current
     var text by rememberSaveable { mutableStateOf("") }
+    var sent by remember { mutableIntStateOf(0) }
     // Reported only when the text really changes (typing indicator), never on recomposition.
     val update = { value: String ->
         if (value != text) {
@@ -215,6 +240,8 @@ internal fun ChatInputBar(
         if (text.isNotBlank()) {
             onSend(text)
             update("")
+            sent++
+            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
         }
     }
     GlassTextField(
@@ -227,13 +254,14 @@ internal fun ChatInputBar(
         trailing = {
             Box(
                 Modifier
-                    .size(42.dp)
+                    .size(44.dp)
+                    .popOn(sent.takeIf { it > 0 })
                     .clip(CircleShape)
                     .background(
                         if (text.isBlank()) Brush.linearGradient(listOf(p.textTertiary, p.textTertiary))
                         else Brush.linearGradient(listOf(p.accent, p.accent2)),
                     )
-                    .clickable(enabled = text.isNotBlank()) { send() },
+                    .clickable(enabled = text.isNotBlank(), role = Role.Button) { send() },
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = p.onAccent, modifier = Modifier.size(20.dp)) }
         },

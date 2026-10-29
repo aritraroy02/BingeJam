@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -40,6 +41,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,7 +147,11 @@ fun GlassChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
         text,
         style = MaterialTheme.typography.labelMedium,
         color = if (selected) p.onAccent else p.textPrimary,
-        modifier = modifier.then(surface).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier = modifier
+            .then(surface)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { this.selected = selected }
+            .padding(horizontal = 12.dp, vertical = 7.dp),
     )
 }
 
@@ -171,7 +181,7 @@ fun GlassSmallButton(
         maxLines = 1,
         modifier = modifier
             .then(surface)
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
@@ -187,11 +197,13 @@ fun GlassSwitchRow(
     leading: (@Composable () -> Unit)? = null,
 ) {
     val p = Glass.palette
+    // One toggle for the whole row, so TalkBack reads "title, subtitle, switch, on" once
+    // instead of the row and the switch as two separate controls.
     Row(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .clickable { onCheckedChange(!checked) }
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -206,7 +218,7 @@ fun GlassSwitchRow(
         Spacer(Modifier.width(12.dp))
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
             colors = SwitchDefaults.colors(checkedTrackColor = p.accent, checkedThumbColor = p.onAccent),
         )
     }
@@ -235,7 +247,9 @@ fun NoticeBanner(message: String?, onDismiss: () -> Unit, modifier: Modifier = M
                 .padding(16.dp)
                 .fillMaxWidth()
                 .glass(RoundedCornerShape(20.dp))
-                .clickable(onClick = onDismiss)
+                .clickable(onClickLabel = "Dismiss", onClick = onDismiss)
+                // Screen readers announce it without the user having to find it.
+                .semantics { liveRegion = LiveRegionMode.Polite }
                 .padding(horizontal = 18.dp, vertical = 14.dp),
         )
     }

@@ -4,14 +4,17 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -38,6 +41,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -49,6 +55,7 @@ import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
+import com.syncit.app.ui.glass.PillShape
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.config.Brand
 
@@ -96,6 +103,11 @@ fun OnboardingScreen(container: AppContainer, onDone: () -> Unit) {
                 color = p.textSecondary,
             )
 
+            // The notification step only exists on Android 13+, so number the steps that are shown.
+            val askNotifications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            val steps = listOfNotNull(accessGranted, notificationsAllowed.takeIf { askNotifications }, batteryExempt)
+            SetupProgress(done = steps.count { it }, total = steps.size)
+
             Step(number = 1, title = "Allow Notification Access", done = accessGranted) {
                 StepText(stringResource(R.string.notification_access_disclosure, stringResource(R.string.app_name)))
                 StepText("On the next screen, find ${Brand.NAME} in the list and turn it on, then come back.", small = true)
@@ -104,7 +116,7 @@ fun OnboardingScreen(container: AppContainer, onDone: () -> Unit) {
                 }
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (askNotifications) {
                 Step(number = 2, title = "Show the sync notification", done = notificationsAllowed) {
                     StepText(
                         "While you're in a room, ${Brand.NAME} shows one quiet notification so Android keeps " +
@@ -116,7 +128,7 @@ fun OnboardingScreen(container: AppContainer, onDone: () -> Unit) {
                 }
             }
 
-            Step(number = 3, title = "Keep syncing in the background", done = batteryExempt) {
+            Step(number = steps.size, title = "Keep syncing in the background", done = batteryExempt) {
                 StepText(
                     "Some phones stop background apps to save battery, which would stop the sync " +
                         "mid-movie. On the next screen, choose \"All apps\", find ${Brand.NAME}, and pick " +
@@ -127,9 +139,11 @@ fun OnboardingScreen(container: AppContainer, onDone: () -> Unit) {
                 }
             }
 
+            // Skipping the key permission is possible but shouldn't look like the main path.
             GlassButton(
                 text = if (accessGranted) "Continue" else "Continue without Notification Access",
                 onClick = onDone,
+                style = if (accessGranted) GlassButtonStyle.Primary else GlassButtonStyle.Secondary,
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
             )
             if (!accessGranted) {
@@ -138,6 +152,34 @@ fun OnboardingScreen(container: AppContainer, onDone: () -> Unit) {
                     small = true,
                 )
             }
+        }
+    }
+}
+
+/** "2 of 3 done" with a bar that fills as each system setting is granted. */
+@Composable
+private fun SetupProgress(done: Int, total: Int) {
+    val p = Glass.palette
+    val fraction by animateFloatAsState(if (total == 0) 1f else done.toFloat() / total, label = "setup")
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f)
+        },
+    ) {
+        Text(
+            if (done == total) "All set" else "$done of $total done",
+            style = MaterialTheme.typography.labelMedium,
+            color = if (done == total) p.success else p.textSecondary,
+        )
+        Box(Modifier.fillMaxWidth().height(6.dp).clip(PillShape).background(p.textPrimary.copy(alpha = 0.12f))) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .fillMaxHeight()
+                    .clip(PillShape)
+                    .background(Brush.horizontalGradient(listOf(p.accent, p.accent2))),
+            )
         }
     }
 }

@@ -36,6 +36,12 @@ class FriendsViewModel(container: AppContainer) : ViewModel() {
     private val profiles = container.social.profiles
     private val auth = container.social.auth
 
+    /** Our own username, for the "Share my username" button. Read-only. */
+    val myUsername: StateFlow<String?> = profiles.observeMyProfile()
+        .map { it?.username }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 

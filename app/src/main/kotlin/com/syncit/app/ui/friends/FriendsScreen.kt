@@ -1,5 +1,6 @@
 package com.syncit.app.ui.friends
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +39,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.CountBadge
+import com.syncit.app.ui.glass.GlassButton
+import com.syncit.app.ui.glass.staggerIn
+import com.syncit.core.config.Brand
+import com.syncit.core.config.RoomLinks
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
@@ -55,6 +64,9 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
     val blocked by viewModel.blocked.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val myUsername by viewModel.myUsername.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -111,11 +123,32 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                     }
                 } else {
                     Text(
-                        "Type at least 2 letters of their username. Ask friends for theirs, or share yours from Settings.",
+                        "Type at least 2 letters of their username.",
                         style = MaterialTheme.typography.bodySmall,
                         color = p.textTertiary,
                         modifier = Modifier.padding(horizontal = 8.dp),
                     )
+                    // The other half of making friends: let them find you.
+                    myUsername?.let { username ->
+                        GlassPanel(Modifier.fillMaxWidth().padding(top = 6.dp).staggerIn(1)) {
+                            Text("Invite friends to ${Brand.NAME}", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+                            Text(
+                                "Send them your username so they can add you: @$username",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = p.textSecondary,
+                            )
+                            GlassButton(
+                                "Share my username",
+                                icon = Icons.Filled.Share,
+                                onClick = {
+                                    val text = "Add me on ${Brand.NAME}: @$username\nhttps://${RoomLinks.WEB_HOST}"
+                                    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                                    context.startActivity(Intent.createChooser(send, "Share your username"))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                 }
 
                 if (incoming.isNotEmpty()) {
@@ -129,7 +162,14 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                             PersonRow("@${req.fromUsername}", "${req.fromDisplayName} · wants to be friends") {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     GlassSmallButton("Decline", onClick = { viewModel.decline(req) }, primary = false, enabled = req.fromUid !in busy)
-                                    GlassSmallButton("Accept", onClick = { viewModel.accept(req) }, enabled = req.fromUid !in busy)
+                                    GlassSmallButton(
+                                        "Accept",
+                                        onClick = {
+                                            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                                            viewModel.accept(req)
+                                        },
+                                        enabled = req.fromUid !in busy,
+                                    )
                                 }
                             }
                         }

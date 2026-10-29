@@ -1,7 +1,17 @@
 package com.syncit.app.ui.home
 
 import android.content.Intent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +56,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -60,6 +80,11 @@ import com.syncit.app.data.UpdateChecker
 import com.syncit.app.social.ActivityLinks
 import com.syncit.app.social.ActivityText
 import com.syncit.app.ui.common.BrandWordmark
+import com.syncit.app.ui.common.rememberArtwork
+import com.syncit.app.ui.glass.SkeletonRows
+import com.syncit.app.ui.glass.rememberReduceMotion
+import com.syncit.app.ui.glass.staggerIn
+import com.syncit.app.ui.social.color
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.BadgedIconButton
 import com.syncit.app.ui.glass.CountBadge
@@ -119,7 +144,10 @@ fun HomeScreen(
                             me?.displayName ?: "?",
                             size = 36.dp,
                             photoUrl = me?.photoUrl,
-                            modifier = Modifier.clip(CircleShape).clickable(onClick = onOpenProfile),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable(role = Role.Button, onClick = onOpenProfile)
+                                .semantics { contentDescription = "Your profile" },
                         )
                         Spacer(Modifier.width(12.dp))
                         BrandWordmark(style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp))
@@ -140,6 +168,12 @@ fun HomeScreen(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                // What friends are playing right now, up top: the quickest way into something.
+                val live = friends.orEmpty().filter { it.online && it.activity != null }
+                if (live.isNotEmpty()) {
+                    LiveNowRow(live, onOpen = { sheetUid = it.uid }, modifier = Modifier.staggerIn(0))
+                }
+
                 update?.let { available ->
                     GlassPanel {
                         Text("${Brand.NAME} ${available.version} is available", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
@@ -155,34 +189,42 @@ fun HomeScreen(
                     }
                 }
 
+                val haptics = LocalHapticFeedback.current
                 WatchPartyCard(
                     ui = ui,
-                    onCreate = { viewModel.create(onEnterRoom) },
+                    onCreate = {
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        viewModel.create(onEnterRoom)
+                    },
                     onToggleCode = viewModel::toggleCodeField,
                     onCodeChange = viewModel::onCodeChange,
                     onJoinCode = onJoinCode,
+                    modifier = Modifier.staggerIn(3),
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel("Friends", Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp).staggerIn(4)) {
+                    val online = friends?.count { it.online } ?: 0
+                    SectionLabel(if (online > 0) "Friends · $online online" else "Friends", Modifier.weight(1f))
                     GlassSmallButton("Add friends", onClick = onOpenFriends, primary = false)
                 }
                 val rows = friends
                 when {
-                    rows == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = p.accent)
+                    rows == null -> GlassPanel(Modifier.fillMaxWidth().staggerIn(5), spacing = 0.dp, contentPadding = PaddingValues(10.dp)) {
+                        SkeletonRows(3)
                     }
-                    rows.isEmpty() -> GlassPanel(Modifier.fillMaxWidth()) {
-                        Text("No friends yet", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+                    rows.isEmpty() -> GlassPanel(Modifier.fillMaxWidth().staggerIn(5)) {
+                        Text("Better with friends", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
                         Text(
-                            "Add friends by their username to see what they're playing and jump into their watch party or jam.",
+                            "Add friends by their username. You'll see what they're watching or listening to, " +
+                                "and can jump into their watch party or jam with one tap.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = p.textSecondary,
                         )
                         GlassButton("Find friends", onClick = onOpenFriends, icon = Icons.Filled.Add, modifier = Modifier.fillMaxWidth())
                     }
-                    else -> GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
-                        for (row in rows) {
+                    else -> GlassPanel(Modifier.fillMaxWidth().staggerIn(5), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
+                        // Online first, then whoever was around most recently (the VM's order).
+                        for (row in rows.sortedByDescending { it.online }) {
                             FriendRowView(
                                 row = row,
                                 onClick = { sheetUid = row.uid },
@@ -230,6 +272,108 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Friends playing something right now, as big artwork cards in a swipeable row. A pulsing
+ * "LIVE" dot and the friend's face on each card; tap opens the friend sheet (join / message).
+ */
+@Composable
+private fun LiveNowRow(rows: List<FriendRow>, onOpen: (FriendRow) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+            LivePulse()
+            Spacer(Modifier.width(8.dp))
+            SectionLabel("Live now", Modifier.weight(1f))
+        }
+        // Bleed the row to the screen edges so cards scroll under the gutters.
+        LazyRow(
+            modifier = Modifier.layout { measurable, constraints ->
+                val gutter = 20.dp.roundToPx()
+                val placeable = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + gutter * 2))
+                layout(constraints.maxWidth, placeable.height) { placeable.place(-gutter, 0) }
+            },
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(rows, key = { it.uid }) { row -> LiveCard(row, onClick = { onOpen(row) }) }
+        }
+    }
+}
+
+@Composable
+private fun LiveCard(row: FriendRow, onClick: () -> Unit) {
+    val p = Glass.palette
+    val activity = row.activity ?: return
+    val art = rememberArtwork(activity.artworkJpeg)
+    val shape = RoundedCornerShape(22.dp)
+    val name = row.friend.profile.displayName
+    val what = activity.title?.takeIf { it.isNotBlank() } ?: activity.app.displayName
+    Box(
+        Modifier
+            .width(168.dp)
+            .height(220.dp)
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(activity.app.color(), activity.app.color().copy(alpha = 0.45f))))
+            .border(1.dp, Brush.linearGradient(listOf(p.strokeTop, p.strokeBottom)), shape)
+            .clickable(onClickLabel = "Open $name", role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) {},
+    ) {
+        if (art != null) {
+            Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+        }
+        // Scrim so white text stays readable on any artwork.
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.78f)))))
+        Avatar(
+            name,
+            size = 36.dp,
+            online = true,
+            photoUrl = row.friend.profile.photoUrl,
+            modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
+        )
+        Column(Modifier.align(Alignment.BottomStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            ActivityAppBadge(activity.app, onArtwork = true)
+            Text(what, color = Color.White, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                (if (activity.playing) "" else "Paused · ") + name.substringBefore(' '),
+                color = Color.White.copy(alpha = 0.85f),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/** A red dot with a ring that pulses outward, like a live broadcast. Still with reduced motion. */
+@Composable
+private fun LivePulse() {
+    val red = Color(0xFFFF4D6D)
+    val reduce = rememberReduceMotion()
+    val t = if (reduce) {
+        0f
+    } else {
+        val v by rememberInfiniteTransition(label = "live").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Restart),
+            label = "live-t",
+        )
+        v
+    }
+    Box(Modifier.size(14.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(14.dp)
+                .graphicsLayer {
+                    scaleX = 0.6f + t * 0.8f
+                    scaleY = 0.6f + t * 0.8f
+                    alpha = (1f - t) * 0.6f
+                }
+                .clip(CircleShape)
+                .background(red),
+        )
+        Box(Modifier.size(8.dp).clip(CircleShape).background(red))
+    }
+}
+
 /** Compact create/join card: the v1 room flow, still one tap away. */
 @Composable
 private fun WatchPartyCard(
@@ -238,9 +382,10 @@ private fun WatchPartyCard(
     onToggleCode: () -> Unit,
     onCodeChange: (String) -> Unit,
     onJoinCode: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val p = Glass.palette
-    GlassPanel(Modifier.fillMaxWidth()) {
+    GlassPanel(modifier.fillMaxWidth()) {
         Text("Watch party or jam", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
         Text("Watch or listen in sync with friends.", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -262,14 +407,19 @@ private fun WatchPartyCard(
                 keyboardActions = KeyboardActions(onGo = { if (ui.codeValid) onJoinCode(ui.code) }),
                 modifier = Modifier.fillMaxWidth(),
                 trailing = {
-                    GlassIconButton(Icons.AutoMirrored.Filled.ArrowForward, "Continue", onClick = { if (ui.codeValid) onJoinCode(ui.code) })
+                    GlassIconButton(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        "Join room",
+                        onClick = { onJoinCode(ui.code) },
+                        enabled = ui.codeValid,
+                    )
                 },
             )
         }
         ui.lastRoom?.let { last ->
             GlassButton(
-                text = "Back to room $last",
-                icon = Icons.Filled.Refresh,
+                text = "Rejoin room $last",
+                icon = Icons.AutoMirrored.Filled.ArrowForward,
                 style = GlassButtonStyle.Secondary,
                 onClick = { onJoinCode(last) },
                 modifier = Modifier.fillMaxWidth(),
@@ -320,7 +470,7 @@ private fun FriendRowView(
                 )
             }
             ActivityText.watchPartyLabel(activity)?.let {
-                Text(it, style = MaterialTheme.typography.labelMedium, color = p.accent2)
+                Text(it, style = MaterialTheme.typography.labelMedium, color = p.accentText)
             }
             if (activity != null) {
                 Spacer(Modifier.height(2.dp))
@@ -340,7 +490,7 @@ private fun FriendRowView(
         Spacer(Modifier.width(6.dp))
         Box {
             Box(
-                Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onChat),
+                Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onChat),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.AutoMirrored.Filled.Send, "Message ${row.friend.profile.displayName}", tint = p.textSecondary, modifier = Modifier.size(20.dp))
@@ -383,7 +533,7 @@ private fun FriendSheetContent(
                     ActivityAppBadge(activity.app)
                     Text(row.status, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
                     ActivityText.watchPartyLabel(activity)?.let {
-                        Text(it, style = MaterialTheme.typography.labelMedium, color = p.accent2)
+                        Text(it, style = MaterialTheme.typography.labelMedium, color = p.accentText)
                     }
                 }
             }

@@ -63,7 +63,14 @@ object GoogleSignIn {
         } catch (e: GetCredentialCancellationException) {
             // Also what Google returns when this build's signing certificate isn't registered.
             Log.w(TAG, "Google sign-in cancelled: ${e.type} ${e.errorMessage}", e)
-            Result.Cancelled
+            // "[16] Account reauth failed" isn't the user backing out: Google refused this build
+            // (unregistered signing certificate) or couldn't reach the account. Say so, or the
+            // button just silently does nothing.
+            if (e.errorMessage?.contains("[16]") == true) {
+                Result.Failed("Google sign-in isn't working right now. Use Continue with email instead.")
+            } else {
+                Result.Cancelled
+            }
         } catch (e: NoCredentialException) {
             Log.w(TAG, "No Google credential: ${e.errorMessage}", e)
             Result.Failed("No Google account found on this phone. Add one in Settings, or continue with email.")

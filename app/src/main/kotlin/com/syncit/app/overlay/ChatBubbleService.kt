@@ -105,7 +105,7 @@ class ChatBubbleService : Service() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(0xE64A2C8A.toInt())
+                setColor(0xE6C2410C.toInt()) // Sunset accent, white text 5.2:1
             }
             val size = dp(56)
             layoutParams = LinearLayout.LayoutParams(size, size)

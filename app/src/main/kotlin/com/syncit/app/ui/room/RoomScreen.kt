@@ -1,8 +1,10 @@
 package com.syncit.app.ui.room
 
 import android.Manifest
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -48,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,8 +58,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -92,6 +103,7 @@ import kotlinx.coroutines.delay
 import com.syncit.core.session.JamFollow
 import com.syncit.core.session.SyncSessionState
 import com.syncit.sync.PositionMath
+import kotlinx.coroutines.launch
 
 /** How long "PLAY NOW" stays up after the target time. */
 private const val PLAY_NOW_VISIBLE_MS = 2_000L
@@ -274,11 +286,14 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (currentRoom == null) {
-                    Text(
-                        "Connecting to room…",
-                        color = p.textSecondary,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
+                    Row(
+                        Modifier.align(Alignment.Center),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = p.accent, strokeWidth = 2.dp)
+                        Text("Connecting to room…", color = p.textSecondary)
+                    }
                 } else {
                     when (tab) {
                         0 -> ChatTab(
@@ -414,7 +429,7 @@ private fun RoomHero(
                         ),
                 )
                 Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HeroBadges(service, jamLabel, labelColor = Color.White.copy(alpha = 0.85f))
+                    HeroBadges(service, jamLabel, labelColor = Color.White.copy(alpha = 0.85f), onArtwork = true)
                     Text(title, color = Color.White, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall, maxLines = 1) }
                 }
@@ -426,7 +441,7 @@ private fun RoomHero(
                     Spacer(Modifier.width(16.dp))
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HeroBadges(service, jamLabel, labelColor = p.accent2)
+                    HeroBadges(service, jamLabel, labelColor = p.accentText)
                     Text(title, color = p.textPrimary, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, color = p.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
                 }
@@ -434,13 +449,7 @@ private fun RoomHero(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             StatusPill(statusText, sync.status.color())
-            Text(
-                code,
-                style = MaterialTheme.typography.labelMedium,
-                color = p.textSecondary,
-                letterSpacing = 2.sp,
-                modifier = Modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 7.dp),
-            )
+            RoomCodePill(code)
         }
         if (service != null) {
             if (jam) {
@@ -452,11 +461,37 @@ private fun RoomHero(
     }
 }
 
+/** The room code; tap to copy it (friends can type it into "Join with code"). */
 @Composable
-private fun HeroBadges(service: StreamingService?, jamLabel: String?, labelColor: Color) {
+private fun RoomCodePill(code: String) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val p = Glass.palette
+    Text(
+        code,
+        style = MaterialTheme.typography.labelMedium,
+        color = p.textSecondary,
+        letterSpacing = 2.sp,
+        modifier = Modifier
+            .glass(PillShape)
+            .clickable(onClickLabel = "Copy room code") {
+                scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Room code", code))) }
+                // Android 13+ shows its own "Copied" confirmation.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    Toast.makeText(context, "Room code copied", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .semantics { contentDescription = "Room code ${code.toCharArray().joinToString(" ")}" }
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+    )
+}
+
+@Composable
+private fun HeroBadges(service: StreamingService?, jamLabel: String?, labelColor: Color, onArtwork: Boolean = false) {
     if (service == null) return
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        PlatformBadge(service)
+        PlatformBadge(service, onArtwork = onArtwork)
         jamLabel?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = labelColor, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 }
@@ -592,17 +627,35 @@ private fun CountdownOverlay(room: Room?, serverNow: Long) {
     val p = Glass.palette
     val remainingMs = room?.countdown?.let { it.playAt - serverNow }
     val active = remainingMs != null && remainingMs > -PLAY_NOW_VISIBLE_MS
-    AnimatedVisibility(visible = active, enter = fadeIn(), exit = fadeOut()) {
-        val ms = remainingMs ?: 0L
-        val label = when {
+    val label = remainingMs?.let { ms ->
+        when {
             ms <= 0 -> "PLAY"
             ms > 3_000 -> "Ready?"
             else -> ((ms + 999) / 1000).toString() // ceil: 3, 2, 1
         }
+    }
+    // A tick on 3, 2, 1 and a stronger buzz on PLAY, so you can press play without looking.
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(label, active) {
+        if (!active) return@LaunchedEffect
+        when (label) {
+            "PLAY" -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            "3", "2", "1" -> haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+        }
+    }
+    AnimatedVisibility(visible = active, enter = fadeIn(), exit = fadeOut()) {
+        val ms = remainingMs ?: 0L
+        val shown = label ?: "PLAY"
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Box(Modifier.size(200.dp).glass(CircleShape), contentAlignment = Alignment.Center) {
-                    Text(label, fontSize = if (label.length > 2) 40.sp else 88.sp, fontWeight = FontWeight.ExtraBold, color = p.textPrimary)
+                Box(
+                    Modifier
+                        .size(200.dp)
+                        .glass(CircleShape)
+                        .semantics { liveRegion = LiveRegionMode.Assertive },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(shown, fontSize = if (shown.length > 2) 40.sp else 88.sp, fontWeight = FontWeight.ExtraBold, color = p.textPrimary)
                 }
                 Text(
                     if (ms <= 0) "Everyone press play now" else "Get ready to press play together",

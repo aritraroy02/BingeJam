@@ -43,8 +43,12 @@ data class GlassPalette(
     val textPrimary: Color,
     val textSecondary: Color,
     val textTertiary: Color,
+    /** Gradient start for filled buttons, my chat bubbles, selected pills ([onAccent] text). */
     val accent: Color,
+    /** Gradient end; with [accent] it must keep [onAccent] text ≥ 4.5:1. */
     val accent2: Color,
+    /** The accent for text, links and icons drawn on glass (≥ 4.5:1 against it). */
+    val accentText: Color,
     val onAccent: Color,
     val success: Color,
     val warning: Color,
@@ -53,43 +57,49 @@ data class GlassPalette(
     val artworkScrim: Color,
 )
 
+// "Sunset": warm orange into magenta over a dusk-purple glow. Friendly and social.
 val DarkGlass = GlassPalette(
     isDark = true,
-    base = Color(0xFF06070B),
-    blobs = listOf(Color(0xFF6D5DFC), Color(0xFF1FB6FF), Color(0xFFFF4D8D)),
+    base = Color(0xFF0A0606),
+    blobs = listOf(Color(0xFFEA580C), Color(0xFFBE185D), Color(0xFF6D28D9)),
     glassTint = Color.White.copy(alpha = 0.09f),
-    glassFallback = Color(0xE01A1C24),
+    glassFallback = Color(0xE01E1A1A),
     strokeTop = Color.White.copy(alpha = 0.30f),
     strokeBottom = Color.White.copy(alpha = 0.05f),
     textPrimary = Color(0xFFF5F7FA),
-    textSecondary = Color.White.copy(alpha = 0.68f),
-    textTertiary = Color.White.copy(alpha = 0.45f),
-    accent = Color(0xFF7C6CFF),
-    accent2 = Color(0xFF3FB7FF),
+    textSecondary = Color.White.copy(alpha = 0.70f),
+    // ≥ 4.5:1 on the darkest glass (0.45 was ~4.4:1).
+    textTertiary = Color.White.copy(alpha = 0.56f),
+    accent = Color(0xFFC2410C), // burnt orange, white on it 5.2:1
+    accent2 = Color(0xFFBE185D), // magenta, white on it 6.0:1
+    accentText = Color(0xFFFB923C), // 7.6:1 on dark glass
     onAccent = Color.White,
     success = Color(0xFF34D399),
     warning = Color(0xFFFBBF24),
+    // A clear red, apart from the orange highlights.
     danger = Color(0xFFF87171),
     artworkScrim = Color.Black.copy(alpha = 0.45f),
 )
 
 val LightGlass = GlassPalette(
     isDark = false,
-    base = Color(0xFFEEF1F8),
-    blobs = listOf(Color(0xFFB9AEFF), Color(0xFF9BE3FF), Color(0xFFFFC2DA)),
+    base = Color(0xFFFFF7F2),
+    blobs = listOf(Color(0xFFFED7AA), Color(0xFFFBCFE8), Color(0xFFDDD6FE)),
     glassTint = Color.White.copy(alpha = 0.55f),
     glassFallback = Color(0xF0FFFFFF),
     strokeTop = Color.White.copy(alpha = 0.95f),
     strokeBottom = Color.White.copy(alpha = 0.30f),
     textPrimary = Color(0xFF0B0D12),
-    textSecondary = Color(0xFF0B0D12).copy(alpha = 0.62f),
-    textTertiary = Color(0xFF0B0D12).copy(alpha = 0.42f),
-    accent = Color(0xFF5B4BFF),
-    accent2 = Color(0xFF1E9BFF),
+    textSecondary = Color(0xFF0B0D12).copy(alpha = 0.68f),
+    // ≥ 4.5:1 on the light base (0.42 was ~2.9:1, unreadable for hints and labels).
+    textTertiary = Color(0xFF0B0D12).copy(alpha = 0.60f),
+    accent = Color(0xFFC2410C),
+    accent2 = Color(0xFFBE185D),
+    accentText = Color(0xFFC2410C), // 4.9:1 on the light base
     onAccent = Color.White,
     success = Color(0xFF059669),
     warning = Color(0xFFD97706),
-    danger = Color(0xFFDC2626),
+    danger = Color(0xFFB91C1C),
     artworkScrim = Color.White.copy(alpha = 0.40f),
 )
 
@@ -141,20 +151,21 @@ fun SyncItTheme(dark: Boolean, content: @Composable () -> Unit) {
     val p = if (dark) DarkGlass else LightGlass
     // Material components (dialogs, text selection, ripples) get colours from the same palette.
     val scheme = if (dark) {
+        // primary is what dialog buttons are written in, so it's the readable text red.
         darkColorScheme(
-            primary = p.accent, onPrimary = p.onAccent, secondary = p.accent2,
+            primary = p.accentText, onPrimary = p.onAccent, secondary = p.accent2,
             background = p.base, onBackground = p.textPrimary,
-            surface = Color(0xFF15171F), onSurface = p.textPrimary,
-            surfaceVariant = Color(0xFF1F222C), onSurfaceVariant = p.textSecondary,
-            surfaceContainerHigh = Color(0xFF1C1F28), error = p.danger,
+            surface = Color(0xFF1A1414), onSurface = p.textPrimary,
+            surfaceVariant = Color(0xFF261E1E), onSurfaceVariant = p.textSecondary,
+            surfaceContainerHigh = Color(0xFF211A1A), error = p.danger,
         )
     } else {
         lightColorScheme(
-            primary = p.accent, onPrimary = p.onAccent, secondary = p.accent2,
+            primary = p.accentText, onPrimary = p.onAccent, secondary = p.accent2,
             background = p.base, onBackground = p.textPrimary,
-            surface = Color(0xFFF9FAFD), onSurface = p.textPrimary,
-            surfaceVariant = Color(0xFFE6E9F2), onSurfaceVariant = p.textSecondary,
-            surfaceContainerHigh = Color(0xFFF4F5FA), error = p.danger,
+            surface = Color(0xFFFFFBF8), onSurface = p.textPrimary,
+            surfaceVariant = Color(0xFFF6E7DE), onSurfaceVariant = p.textSecondary,
+            surfaceContainerHigh = Color(0xFFFCF2EC), error = p.danger,
         )
     }
     CompositionLocalProvider(LocalGlassPalette provides p) {

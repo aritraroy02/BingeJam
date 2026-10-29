@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+import com.syncit.app.ui.common.InstalledAppIcon
 import com.syncit.app.ui.common.rememberArtwork
 import com.syncit.app.ui.glass.PlatformBadge
 import com.syncit.app.ui.theme.Glass
@@ -36,12 +37,42 @@ fun ActivityApp.color(): Color = when (this) {
     ActivityApp.AMAZON_MUSIC -> PlatformColors.AmazonMusic
 }
 
-/** The platform badge for apps we sync (all of them since jams), a plain coloured chip otherwise. */
+/**
+ * Just the app's real icon (from the installed app), for rows that already show its name; the
+ * name chip when it isn't installed.
+ */
 @Composable
-fun ActivityAppBadge(app: ActivityApp, modifier: Modifier = Modifier) {
+fun ActivityAppIcon(app: ActivityApp, modifier: Modifier = Modifier, size: Dp = 36.dp) {
+    InstalledAppIcon(app.packageName, modifier, size) {
+        // Not installed: an icon-sized tile in the brand colour with the initial, so the names
+        // in a list still line up.
+        val c = app.color()
+        Box(
+            modifier
+                .size(size)
+                .clip(RoundedCornerShape(size * 0.24f))
+                .background(Brush.linearGradient(listOf(c, c.copy(alpha = 0.7f)))),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                app.displayName.take(1),
+                color = if (app == ActivityApp.SPOTIFY || app == ActivityApp.AMAZON_MUSIC) PlatformColors.OnLightBrand else Color.White,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = (size.value * 0.45f).sp,
+            )
+        }
+    }
+}
+
+/**
+ * Icon + name for apps we sync (all of them since jams), a plain coloured chip otherwise.
+ * [onArtwork]: drawn over movie artwork, so the name is white.
+ */
+@Composable
+fun ActivityAppBadge(app: ActivityApp, modifier: Modifier = Modifier, onArtwork: Boolean = false) {
     val service = app.syncService
     if (service != null) {
-        PlatformBadge(service, modifier)
+        PlatformBadge(service, modifier, onArtwork)
     } else {
         Text(
             app.displayName,

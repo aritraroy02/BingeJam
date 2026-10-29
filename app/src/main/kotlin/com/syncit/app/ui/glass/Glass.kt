@@ -1,6 +1,7 @@
 package com.syncit.app.ui.glass
 
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
@@ -35,6 +36,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -53,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -63,6 +67,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -72,6 +81,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.syncit.app.ui.common.rememberInstalledAppIcon
 import com.syncit.app.ui.theme.Glass
 import com.syncit.app.ui.theme.PlatformColors
 import com.syncit.core.model.StreamingService
@@ -126,16 +136,38 @@ private fun GlassBackdrop(artwork: ImageBitmap?, modifier: Modifier) {
     }
 }
 
+/**
+ * True when the user turned animations off (Settings → Accessibility → Remove animations, or
+ * animator duration scale 0 in developer options). Endless motion should stop then.
+ */
+@Composable
+fun rememberReduceMotion(): Boolean {
+    val resolver = LocalContext.current.contentResolver
+    return remember(resolver) {
+        Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }
+}
+
 /** Three soft colour blobs drifting slowly. Radial gradients, so no blur is needed. */
 @Composable
 private fun Aurora() {
-    val p = Glass.palette
+    if (rememberReduceMotion()) AuroraFrame(0.5f) else AnimatedAurora()
+}
+
+@Composable
+private fun AnimatedAurora() {
     val t by rememberInfiniteTransition(label = "aurora").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(18_000, easing = LinearEasing), RepeatMode.Reverse),
         label = "aurora-t",
     )
+    AuroraFrame(t)
+}
+
+@Composable
+private fun AuroraFrame(t: Float) {
+    val p = Glass.palette
     val alpha = if (p.isDark) 0.55f else 0.75f
     Canvas(Modifier.fillMaxSize()) {
         val w = size.width
@@ -238,12 +270,32 @@ fun GlassButton(
             .border(1.dp, Color.White.copy(alpha = 0.25f), PillShape)
         else -> Modifier.glass(PillShape)
     }
+    // Pressed: a quick light wash on top of the shrink, so the tap reads even on busy backdrops.
+    val pressWash by animateFloatAsState(if (pressed) 1f else 0f, tween(if (pressed) 60 else 180), label = "wash")
+    val washColor = if (style == GlassButtonStyle.Primary) Color.Black.copy(alpha = 0.14f) else p.textPrimary.copy(alpha = 0.08f)
     Row(
         modifier = modifier
             .scale(scale)
             .heightIn(min = 40.dp)
             .then(surface)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled && !loading, onClick = onClick)
+            .drawWithContent {
+                drawContent()
+                if (pressWash > 0f) drawRect(washColor, alpha = pressWash)
+            }
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled && !loading,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            // While loading the label is replaced by a spinner; keep it for screen readers.
+            .semantics(mergeDescendants = true) {
+                if (loading) {
+                    contentDescription = text
+                    stateDescription = "Loading"
+                }
+            }
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
             .padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.Center,
@@ -272,10 +324,15 @@ fun GlassIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     plain: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val surface = if (plain) Modifier.clip(CircleShape) else Modifier.glass(CircleShape)
     Box(
-        modifier = modifier.size(40.dp).then(surface).clickable(onClick = onClick),
+        modifier = modifier
+            .size(40.dp)
+            .then(surface)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.45f },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -383,14 +440,15 @@ fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
                 .background(Brush.horizontalGradient(listOf(p.accent, p.accent2)))
                 .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent))),
         )
-        Row(Modifier.fillMaxSize()) {
+        // Tabs for TalkBack: "Chat, tab, selected, 1 of 3".
+        Row(Modifier.fillMaxSize().selectableGroup()) {
             options.forEachIndexed { i, label ->
                 Box(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(PillShape)
-                        .clickable { onSelect(i) },
+                        .selectable(selected = i == selected, role = Role.Tab, onClick = { onSelect(i) }),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -406,7 +464,28 @@ fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
 
 /** NETFLIX / JioHotstar / Prime Video / Spotify / YouTube … chip in the app's brand colour. */
 @Composable
-fun PlatformBadge(service: StreamingService, modifier: Modifier = Modifier) {
+fun PlatformBadge(service: StreamingService, modifier: Modifier = Modifier, onArtwork: Boolean = false) {
+    // The app's real icon + its name when it's installed; the coloured name chip otherwise.
+    val icon = rememberInstalledAppIcon(service.packageName)
+    if (icon != null) {
+        Row(modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
+            Image(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                service.displayName,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = if (onArtwork) Color.White else Glass.palette.textPrimary,
+                maxLines = 1,
+            )
+        }
+        return
+    }
+    PlatformNameChip(service, modifier)
+}
+
+/** The coloured name chip ("NETFLIX", "Spotify"…) used when the app isn't installed. */
+@Composable
+fun PlatformNameChip(service: StreamingService, modifier: Modifier = Modifier) {
     fun solid(c: Color) = Brush.horizontalGradient(listOf(c, c))
     val bg = when (service) {
         StreamingService.NETFLIX -> solid(PlatformColors.Netflix)
@@ -452,7 +531,7 @@ fun StatusPill(text: String, color: Color, modifier: Modifier = Modifier) {
 }
 
 private val AvatarGradients = listOf(
-    Color(0xFF7C6CFF) to Color(0xFF3FB7FF),
+    Color(0xFFC2410C) to Color(0xFFBE185D),
     Color(0xFFFF6B9A) to Color(0xFFFFA45C),
     Color(0xFF22C55E) to Color(0xFF14B8A6),
     Color(0xFFF59E0B) to Color(0xFFEF4444),
@@ -529,7 +608,7 @@ fun GlassRow(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -537,7 +616,7 @@ fun GlassRow(
             Box(
                 Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(p.accent.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center,
-            ) { Icon(icon, contentDescription = null, tint = p.accent, modifier = Modifier.size(18.dp)) }
+            ) { Icon(icon, contentDescription = null, tint = p.accentText, modifier = Modifier.size(18.dp)) }
             Spacer(Modifier.width(14.dp))
         }
         Column(Modifier.weight(1f)) {
