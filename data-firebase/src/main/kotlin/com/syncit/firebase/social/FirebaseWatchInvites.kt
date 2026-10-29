@@ -6,6 +6,7 @@ import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.JoinRequest
 import com.syncit.core.model.JoinStatus
 import com.syncit.core.model.RoomInvite
+import com.syncit.core.model.SentInvite
 import com.syncit.core.model.UserProfile
 import com.syncit.core.social.WatchInvites
 import com.syncit.firebase.FirebaseSession
@@ -29,8 +30,10 @@ import kotlinx.coroutines.flow.map
  *   joinRequests/{host}/{from}  {fromUsername, fromDisplayName, app, title?, status, roomCode?, sentAt}
  *       the requester writes it as "pending"; the host may only change status, stamping
  *       answeredAt (server time) and adding the room code when accepting; either side may delete it.
- *   invites/{to}/{from}         {fromUsername, fromDisplayName, roomCode, app?, title?, sentAt}
- *       the inviter must be a member of that room; either side may delete it.
+ *   invites/{to}/{from}         {fromUsername, fromDisplayName, roomCode, app?, title?, sentAt,
+ *                                declined?, answeredAt?}
+ *       the inviter must be a member of that room; either side may delete it; the invitee may
+ *       only add declined = true + answeredAt (server time), so the inviter sees "Not now".
  *
  * Our own outgoing join requests live under each host, so [observeMyJoinRequests] listens to
  * joinRequests/{friend}/{me} for every friend (requests can only go to friends anyway).
@@ -131,7 +134,7 @@ class FirebaseWatchInvites internal constructor(
             flowOf(emptyList())
         } else {
             db.getReference("invites").child(me).snapshots().map { s ->
-                s?.children?.mapNotNull(SocialParser::invite).orEmpty().sortedByDescending { it.sentAt }
+                s?.children?.mapNotNull(SocialParser::invite).orEmpty().filterNot { it.declined }.sortedByDescending { it.sentAt }
             }
         }
     }
@@ -139,6 +142,29 @@ class FirebaseWatchInvites internal constructor(
     override suspend fun dismissInvite(fromUid: String) {
         val me = session.requireUid()
         db.getReference("invites").child(me).child(fromUid).removeValue().await()
+    }
+
+    override suspend fun declineInvite(fromUid: String) {
+        val me = session.requireUid()
+        // The rules let the invitee add only these two fields to an existing invite.
+        db.getReference("invites").child(me).child(fromUid).updateChildren(
+            mapOf("declined" to true, "answeredAt" to ServerValue.TIMESTAMP),
+        ).await()
+    }
+
+    override fun observeSentInvite(friendUid: String): Flow<SentInvite?> = session.uid.flatMapLatest { me ->
+        if (me == null) {
+            flowOf(null)
+        } else {
+            db.getReference("invites").child(friendUid).child(me).snapshots().map { s ->
+                s?.takeIf { it.exists() }?.let(SocialParser::invite)?.let { SentInvite(it.roomCode, it.declined) }
+            }
+        }
+    }
+
+    override suspend fun cancelInvite(friendUid: String) {
+        val me = session.requireUid()
+        db.getReference("invites").child(friendUid).child(me).removeValue().await()
     }
 
     private suspend fun myProfile(me: String): UserProfile =

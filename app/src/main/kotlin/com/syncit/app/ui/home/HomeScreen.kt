@@ -85,6 +85,7 @@ import com.syncit.core.config.Brand
 fun HomeScreen(
     viewModel: HomeViewModel,
     onEnterRoom: (String) -> Unit,
+    onStartRoomWith: (code: String, friendUid: String) -> Unit,
     onJoinCode: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenProfile: () -> Unit,
@@ -203,6 +204,13 @@ fun HomeScreen(
                     onMessage = {
                         sheetUid = null
                         onOpenChat(selected.uid)
+                    },
+                    starting = ui.busy,
+                    onStartRoom = {
+                        viewModel.startRoomWith(selected) { code, uid ->
+                            sheetUid = null
+                            onStartRoomWith(code, uid)
+                        }
                     },
                     onAskToJoin = { viewModel.askToJoin(selected) },
                     onOpenApp = { openActivity(selected) },
@@ -345,6 +353,8 @@ private fun FriendRowView(
 @Composable
 private fun FriendSheetContent(
     row: FriendRow,
+    starting: Boolean,
+    onStartRoom: () -> Unit,
     onMessage: () -> Unit,
     onAskToJoin: () -> Unit,
     onOpenApp: () -> Unit,
@@ -395,6 +405,14 @@ private fun FriendSheetContent(
     } else {
         Text(row.status, style = MaterialTheme.typography.bodyMedium, color = p.textSecondary)
     }
+    GlassButton(
+        "Start a room with ${profile.displayName.substringBefore(' ').ifEmpty { "them" }}",
+        onClick = onStartRoom,
+        icon = Icons.Filled.Add,
+        loading = starting,
+        style = if (row.askLabel != null) GlassButtonStyle.Secondary else GlassButtonStyle.Primary,
+        modifier = Modifier.fillMaxWidth(),
+    )
     GlassButton("Message", onClick = onMessage, icon = Icons.AutoMirrored.Filled.Send, style = GlassButtonStyle.Secondary, modifier = Modifier.fillMaxWidth())
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         GlassButton("Unfriend", onClick = { confirm = "unfriend" }, style = GlassButtonStyle.Secondary, modifier = Modifier.weight(1f))

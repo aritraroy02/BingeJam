@@ -5,6 +5,7 @@ import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.JoinRequest
 import com.syncit.core.model.NowPlayingMetadata
 import com.syncit.core.model.RoomInvite
+import com.syncit.core.model.SentInvite
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -76,7 +77,23 @@ interface WatchInvites {
 
     suspend fun inviteToRoom(friendUid: String, roomCode: String, app: ActivityApp?, title: String?)
 
+    /** Invites waiting for us (declined ones are left out). */
     fun observeInvites(): Flow<List<RoomInvite>>
 
     suspend fun dismissInvite(fromUid: String)
+
+    /**
+     * We're the invitee and tapped "Not now": the invite stays, marked declined, so the inviter
+     * sees the answer; the inviter clears it with [cancelInvite].
+     */
+    suspend fun declineInvite(fromUid: String)
+
+    /**
+     * We're the inviter: the invite we sent [friendUid]. Null once it's gone (they tapped Join,
+     * which removes it on their way into the room, or it was cancelled).
+     */
+    fun observeSentInvite(friendUid: String): Flow<SentInvite?>
+
+    /** We're the inviter: withdraw our invite to [friendUid], or clear their "declined" answer. */
+    suspend fun cancelInvite(friendUid: String)
 }

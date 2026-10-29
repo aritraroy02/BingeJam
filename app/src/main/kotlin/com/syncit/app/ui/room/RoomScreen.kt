@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -67,6 +68,7 @@ import com.syncit.app.ui.common.rememberArtwork
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassIconButton
+import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSegmented
 import com.syncit.app.ui.glass.GlassTopBar
@@ -109,6 +111,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
     var inviteOpen by rememberSaveable { mutableStateOf(false) }
     val friends by viewModel.friends.collectAsStateWithLifecycle()
     val invited by viewModel.invited.collectAsStateWithLifecycle()
+    val waiting by viewModel.waiting.collectAsStateWithLifecycle()
     val netflixId by viewModel.netflixId.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) { viewModel.enter() }
@@ -184,6 +187,14 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
                     GlassIconButton(Icons.AutoMirrored.Filled.ExitToApp, "Leave room", onClick = { confirmLeave = true })
                 },
             )
+
+            for (friend in waiting) {
+                WaitingBanner(
+                    friend = friend,
+                    onCancel = { viewModel.cancelWaiting(friend.uid) },
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+                )
+            }
 
             // The hero gives way to the chat while typing.
             AnimatedVisibility(visible = !WindowInsets.isImeVisible, enter = fadeIn(), exit = fadeOut()) {
@@ -539,6 +550,36 @@ private fun CountdownOverlay(room: Room?, serverNow: Long) {
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                 )
+            }
+        }
+    }
+}
+
+/** "Waiting for Harsh to join…" while an invite is out; their "Not now" shows here too. */
+@Composable
+private fun WaitingBanner(friend: RoomViewModel.WaitingFriend, onCancel: () -> Unit, modifier: Modifier = Modifier) {
+    val p = Glass.palette
+    val declined = friend.state == RoomViewModel.WaitState.DECLINED
+    GlassPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (!declined) {
+                CircularProgressIndicator(Modifier.size(16.dp), color = p.accent2, strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+            }
+            Text(
+                when (friend.state) {
+                    RoomViewModel.WaitState.WAITING -> "Waiting for ${friend.firstName} to join…"
+                    RoomViewModel.WaitState.JOINING -> "${friend.firstName} is joining…"
+                    RoomViewModel.WaitState.DECLINED -> "${friend.firstName} can't join right now"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = p.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (friend.state != RoomViewModel.WaitState.JOINING) {
+                TextButton(onClick = onCancel) { Text(if (declined) "OK" else "Cancel", color = p.accent2) }
             }
         }
     }

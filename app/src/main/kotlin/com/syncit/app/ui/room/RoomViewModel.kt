@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
@@ -28,7 +29,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class RoomViewModel(val code: String, private val container: AppContainer) : ViewModel() {
+/**
+ * [waitingFor]: a friend we just invited from their profile ("Start a room with …"), so the
+ * screen opens on "Waiting for … to join".
+ */
+class RoomViewModel(
+    val code: String,
+    private val container: AppContainer,
+    waitingFor: String? = null,
+) : ViewModel() {
 
     private val transport = container.transport
 
@@ -100,6 +109,7 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
         viewModelScope.launch {
             try {
                 container.social.watchInvites.inviteToRoom(uid, code, app, preview.value?.title)
+                watchInvite(uid)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -107,6 +117,67 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
                 _message.value = "Invite not sent: ${e.message ?: e.javaClass.simpleName}"
             }
         }
+    }
+
+    enum class WaitState { WAITING, JOINING, DECLINED }
+
+    data class WaitingFriend(val uid: String, val firstName: String, val state: WaitState)
+
+    private val _waiting = MutableStateFlow<Map<String, WaitState>>(emptyMap())
+    private val waitJobs = mutableMapOf<String, Job>()
+
+    /** Friends we invited who haven't joined yet, oldest invite first. */
+    val waiting: StateFlow<List<WaitingFriend>> = combine(_waiting, friends) { map, list ->
+        map.map { (uid, state) -> WaitingFriend(uid, firstName(list, uid), state) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    init {
+        if (waitingFor != null) {
+            _invited.update { it + waitingFor }
+            watchInvite(waitingFor)
+        }
+    }
+
+    /**
+     * Follows an invite we sent until the friend is in the room. Their "Not now" shows as
+     * [WaitState.DECLINED]; "Join" deletes the invite on their way in, so a gone invite means
+     * [WaitState.JOINING] until they show up as a member (or [JOIN_TIMEOUT_MS] passes).
+     */
+    private fun watchInvite(uid: String) {
+        waitJobs.remove(uid)?.cancel()
+        waitJobs[uid] = viewModelScope.launch {
+            combine(
+                container.social.watchInvites.observeSentInvite(uid).catch { emit(null) },
+                room,
+            ) { sent, r -> sent to (r?.members?.any { it.uid == uid } == true) }
+                .distinctUntilChanged()
+                .collectLatest { (sent, joined) ->
+                    when {
+                        joined -> stopWaiting(uid)
+                        sent != null && sent.roomCode != code -> stopWaiting(uid)
+                        sent?.declined == true -> _waiting.update { it + (uid to WaitState.DECLINED) }
+                        sent != null -> _waiting.update { it + (uid to WaitState.WAITING) }
+                        else -> {
+                            _waiting.update { it + (uid to WaitState.JOINING) }
+                            delay(JOIN_TIMEOUT_MS)
+                            _message.value = "${firstName(friends.value, uid)} didn't join"
+                            stopWaiting(uid)
+                        }
+                    }
+                }
+        }
+    }
+
+    /** Withdraws a pending invite, or clears a "Not now" answer. Either way they can be invited again. */
+    fun cancelWaiting(uid: String) {
+        stopWaiting(uid)
+        viewModelScope.launch { runCatching { container.social.watchInvites.cancelInvite(uid) } }
+    }
+
+    private fun stopWaiting(uid: String) {
+        _waiting.update { it - uid }
+        _invited.update { it - uid }
+        waitJobs.remove(uid)?.cancel()
     }
 
     private var reactionsJob: Job? = null
@@ -175,7 +246,10 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
     fun leave(onLeft: () -> Unit) {
         container.sessionController.stop()
         reactionsJob?.cancel()
+        val pending = _waiting.value.keys.toList()
+        pending.forEach(::stopWaiting)
         viewModelScope.launch {
+            pending.forEach { uid -> runCatching { container.social.watchInvites.cancelInvite(uid) } }
             try {
                 transport.leaveRoom(code)
             } catch (e: CancellationException) {
@@ -200,9 +274,14 @@ class RoomViewModel(val code: String, private val container: AppContainer) : Vie
         }
     }
 
+    private fun firstName(friends: List<Friend>, uid: String): String =
+        friends.firstOrNull { it.profile.uid == uid }?.profile?.displayName?.substringBefore(' ')
+            ?.ifEmpty { null } ?: "Your friend"
+
     companion object {
         /** 4 s lead → "Get ready", 3, 2, 1, PLAY. */
         const val COUNTDOWN_LEAD_MS = 4_000L
+        private const val JOIN_TIMEOUT_MS = 30_000L
         private const val REACTION_VISIBLE_MS = 4_000L
         private const val MAX_VISIBLE_REACTIONS = 8
     }

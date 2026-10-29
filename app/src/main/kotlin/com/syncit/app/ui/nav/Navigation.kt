@@ -74,7 +74,7 @@ sealed interface Screen {
     data object Permissions : Screen
     data object Diagnostics : Screen
     data class JoinPreview(val code: String, val autoJoin: Boolean = false) : Screen
-    data class Room(val code: String) : Screen
+    data class Room(val code: String, val waitingFor: String? = null) : Screen
 }
 
 /** A tiny back stack. A handful of screens don't justify a navigation library. */
@@ -223,6 +223,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
                 HomeScreen(
                     viewModel = vm,
                     onEnterRoom = { code -> nav.push(Screen.Room(code)) },
+                    onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
                     onJoinCode = { code -> nav.push(Screen.JoinPreview(code)) },
                     onOpenSettings = { nav.push(Screen.Settings) },
                     onOpenProfile = { nav.push(Screen.Profile) },
@@ -298,8 +299,8 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
 
             is Screen.Room -> {
                 val vm: RoomViewModel = viewModel(
-                    key = "room-${screen.code}",
-                    factory = viewModelFactory { initializer { RoomViewModel(screen.code, container) } },
+                    key = "room-${screen.code}-${screen.waitingFor}",
+                    factory = viewModelFactory { initializer { RoomViewModel(screen.code, container, screen.waitingFor) } },
                 )
                 RoomScreen(
                     viewModel = vm,

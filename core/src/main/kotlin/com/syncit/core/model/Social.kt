@@ -128,4 +128,12 @@ data class RoomInvite(
     val app: ActivityApp?,
     val title: String?,
     val sentAt: Long,
+    /** The invitee tapped "Not now"; kept so the inviter can see it (see [SentInvite]). */
+    val declined: Boolean = false,
+)
+
+/** An invite we sent (invites/{friend}/{me}), as the inviter sees it while waiting. */
+data class SentInvite(
+    val roomCode: String,
+    val declined: Boolean,
 )

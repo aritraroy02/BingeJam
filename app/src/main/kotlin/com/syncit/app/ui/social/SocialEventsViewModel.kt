@@ -150,7 +150,7 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
         events.send(NavEvent.JoinRoom(invite.roomCode))
     }
 
-    fun dismissInvite(invite: RoomInvite) = act(invite.fromUid, "Couldn't dismiss") { invites.dismissInvite(invite.fromUid) }
+    fun dismissInvite(invite: RoomInvite) = act(invite.fromUid, "Couldn't dismiss") { invites.declineInvite(invite.fromUid) }
 
     fun dismissNotice() {
         _notice.value = null

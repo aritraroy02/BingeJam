@@ -119,6 +119,19 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /** Creates a room (or uses the one we're syncing in) and invites [row] into it. */
+    fun startRoomWith(row: FriendRow, onStarted: (code: String, friendUid: String) -> Unit) {
+        if (_ui.value.busy) return
+        val name = container.prefs.displayName.trim().ifBlank { myProfile.value?.displayName.orEmpty() }
+        launchAction("Couldn't invite ${row.friend.profile.displayName}", busy = true) {
+            val code = container.sessionController.state.value.roomCode
+                ?: container.transport.createRoom(name.ifBlank { "Host" })
+            container.prefs.lastRoomCode = code
+            social.watchInvites.inviteToRoom(row.uid, code, null, null)
+            onStarted(code, row.uid)
+        }
+    }
+
     fun askToJoin(row: FriendRow) {
         val activity = row.activity ?: return
         launchAction("Couldn't ask ${row.friend.profile.displayName}") {

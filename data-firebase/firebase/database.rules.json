@@ -273,25 +273,31 @@
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to",
         "$from": {
           ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $from",
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $to !== $from && ((!newData.exists() && (auth.uid === $to || auth.uid === $from)) || (auth.uid === $from && root.child('friends').child($to).child($from).exists()))",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $to !== $from && ((!newData.exists() && (auth.uid === $to || auth.uid === $from)) || (auth.uid === $from && root.child('friends').child($to).child($from).exists()) || (auth.uid === $to && data.exists() && newData.exists()))",
           ".validate": "newData.hasChildren(['fromUsername', 'fromDisplayName', 'roomCode', 'sentAt'])",
           "fromUsername": {
-            ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('username').val()"
+            ".validate": "auth.uid === $to ? newData.val() === data.val() : (newData.isString() && newData.val() === root.child('users').child($from).child('username').val())"
           },
           "fromDisplayName": {
-            ".validate": "newData.isString() && newData.val() === root.child('users').child($from).child('displayName').val()"
+            ".validate": "auth.uid === $to ? newData.val() === data.val() : (newData.isString() && newData.val() === root.child('users').child($from).child('displayName').val())"
           },
           "roomCode": {
-            ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/) && root.child('rooms').child(newData.val()).child('members').child($from).exists()"
+            ".validate": "auth.uid === $to ? newData.val() === data.val() : (newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/) && root.child('rooms').child(newData.val()).child('members').child($from).exists())"
           },
           "app": {
-            ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo' || newData.val() === 'spotify' || newData.val() === 'ytmusic' || newData.val() === 'amazonmusic' || newData.val() === 'youtube')"
+            ".validate": "auth.uid === $to ? newData.val() === data.val() : (newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo' || newData.val() === 'spotify' || newData.val() === 'ytmusic' || newData.val() === 'amazonmusic' || newData.val() === 'youtube')"
           },
           "title": {
-            ".validate": "newData.isString() && newData.val().length <= 200"
+            ".validate": "auth.uid === $to ? newData.val() === data.val() : (newData.isString() && newData.val().length <= 200)"
           },
           "sentAt": {
-            ".validate": "newData.val() === now"
+            ".validate": "auth.uid === $to ? newData.val() === data.val() : newData.val() === now"
+          },
+          "declined": {
+            ".validate": "auth.uid === $to && newData.val() === true"
+          },
+          "answeredAt": {
+            ".validate": "auth.uid === $to && newData.val() === now"
           },
           "$other": {
             ".validate": false

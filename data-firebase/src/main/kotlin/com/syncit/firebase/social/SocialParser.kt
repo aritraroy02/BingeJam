@@ -104,6 +104,7 @@ internal object SocialParser {
             app = ActivityApp.fromWire(s.child("app").string()),
             title = s.child("title").string(),
             sentAt = s.child("sentAt").long() ?: 0L,
+            declined = s.child("declined").bool() ?: false,
         )
     }
 

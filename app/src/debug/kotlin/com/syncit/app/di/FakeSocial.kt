@@ -13,6 +13,7 @@ import com.syncit.core.model.JoinRequest
 import com.syncit.core.model.JoinStatus
 import com.syncit.core.model.Presence
 import com.syncit.core.model.RoomInvite
+import com.syncit.core.model.SentInvite
 import com.syncit.core.model.SignInProvider
 import com.syncit.core.model.UserProfile
 import com.syncit.core.social.ActivityTracker
@@ -147,6 +148,7 @@ object FakeSocial {
         val joinRequestsToMe = MutableStateFlow<List<JoinRequest>>(emptyList())
         val myJoinRequests = MutableStateFlow<List<JoinRequest>>(emptyList())
         val roomInvites = MutableStateFlow<List<RoomInvite>>(emptyList())
+        val sentInvites = MutableStateFlow<Map<String, SentInvite>>(emptyMap())
 
         val me: UserProfile? get() = profiles.value[ME]
 
@@ -206,6 +208,7 @@ object FakeSocial {
                 joinRequestsToMe.value = emptyList()
                 myJoinRequests.value = emptyList()
                 roomInvites.value = emptyList()
+                sentInvites.value = emptyMap()
                 pendingEmail = null
                 _state.value = AuthState.SignedOut
             }
@@ -413,12 +416,27 @@ object FakeSocial {
 
             override suspend fun inviteToRoom(friendUid: String, roomCode: String, app: ActivityApp?, title: String?) {
                 delay(300)
+                sentInvites.update { it + (friendUid to SentInvite(roomCode, declined = false)) }
+                scope.launch {
+                    delay(5_000)
+                    sentInvites.update { map ->
+                        map[friendUid]?.let { map + (friendUid to it.copy(declined = true)) } ?: map
+                    }
+                }
             }
 
             override fun observeInvites(): Flow<List<RoomInvite>> = roomInvites
 
             override suspend fun dismissInvite(fromUid: String) =
                 roomInvites.update { list -> list.filterNot { it.fromUid == fromUid } }
+
+            override suspend fun declineInvite(fromUid: String) = dismissInvite(fromUid)
+
+            override fun observeSentInvite(friendUid: String): Flow<SentInvite?> =
+                sentInvites.map { it[friendUid] }
+
+            override suspend fun cancelInvite(friendUid: String) =
+                sentInvites.update { it - friendUid }
         }
     }
 }

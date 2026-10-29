@@ -191,7 +191,9 @@ presence/{uid}:           { online, lastSeen, activity? { app, title, subtitle, 
                           watchingWith: "Somesh and Ayan" (≤ 100 chars, only while inWatchParty; rules 2026-10-29)
                           onDisconnect clears online AND activity (re-published on reconnect)
 joinRequests/{host}/{from}: { fromUsername, fromDisplayName, app, title, status, roomCode?, sentAt }
-invites/{to}/{from}:      { fromUsername, fromDisplayName, roomCode, app?, title?, sentAt }
+invites/{to}/{from}:      { fromUsername, fromDisplayName, roomCode, app?, title?, sentAt,
+                            declined?, answeredAt? }   the invitee may only add declined = true + answeredAt
+                          (server time), so the inviter sees "Not now"; either side deletes (2026-10-29)
 pushTokens/{uid}/{fcmToken}: { updatedAt }                                            owner only; read by push-relay (admin)
 users/{uid}/photoUrl:     push-relay avatar URL (…/avatar/{uid}?v=…) or a Google photo; rules allow only those
 KV avatar:{uid} (Cloudflare, not RTDB): picture bytes, GIF ≤ 1 MB, still ≤ 300 KB, one upload per 20 s
@@ -218,6 +220,12 @@ users so v0.2.x installs keep working until they update (Anonymous provider stay
 - Movie activity: friend taps **Ask to join** → host gets a pop-up notification and the in-app prompt →
   Accept creates/uses the host's room and returns the code → requester lands in the room (existing
   sync + Play button). Host can also **Invite** a friend from the room (also a pop-up).
+- **Start a room with <friend>** (friend's profile sheet, 2026-10-29): creates a room (or uses the one
+  we're syncing in), invites them (pop-up) and opens it showing "Waiting for <friend> to join…" with
+  Cancel. Their **Join** deletes the invite and joins; **Not now** marks it declined and the host sees
+  "<friend> can't join right now". Invites sent from the room's Invite sheet get the same banner.
+  Leaving the room withdraws pending invites. Older apps delete on "Not now", so a gone invite with
+  no new member gives up after 30 s ("didn't join").
 - Room **Play in Netflix** (member): the host's exact movie when its ID is known, else the host's link,
   else Netflix search with the title, else the app (see "Netflix exact title").
 - Music/YouTube activity: **Ask to jam** / **Invite to jam** (same request/invite flow), see "Jams".
@@ -296,3 +304,21 @@ screen before joining, and keep it visible in the room.
   hostName}`, written by the host, readable by any authenticated user (the code itself is
   the secret). Rules + emulator test needed. The web page would need it readable without
   auth, so decide what is OK to show publicly.
+
+## Later: voice in rooms, HD / SD (planned 2026-10-29, not built)
+Everyone in a room can talk while watching or jamming, like a group call.
+- **Quality switch:** HD (wideband Opus ~32–48 kbps, stereo off) or SD (narrowband ~12–16 kbps for
+  weak mobile data). Per user, in the room; default SD on mobile data, HD on Wi-Fi.
+- **Transport:** WebRTC audio. Mesh (each phone to each phone) is fine up to ~4–5 people; beyond
+  that it needs an SFU (LiveKit / mediasoup / Cloudflare Calls), which costs money, so decide the
+  room-size cap first. Signalling (offers/answers/ICE) can go through RTDB under
+  `calls/{code}/{uid}` with members-only rules; TURN is needed on many mobile networks (Cloudflare
+  Calls TURN or a paid TURN; free STUN alone will fail on CGNAT).
+- **Playback:** duck the movie/music volume while someone talks (AudioFocus
+  `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`), echo cancellation on (`AcousticEchoCanceler`), push-to-talk
+  as an option for speaker users.
+- **UI:** a mic button in the room top bar, mute per person in People, speaking rings on avatars,
+  HD/SD in the room's Sync tab. The foreground service type must add `microphone`
+  (Android 14+) and the RECORD_AUDIO permission is asked only when the user first taps the mic.
+- **Play Store:** update the privacy policy and Data safety form (audio is streamed live, never
+  stored).
