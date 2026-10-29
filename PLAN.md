@@ -323,6 +323,10 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
 - **Controls**: Mute, Deafen (hear nobody + muted; undeafen restores the earlier mute), my mic volume
   0–200 %, each person's volume 0–200 % (local only), HD (48 kHz, 32 kbps) / SD (16 kHz, 12 kbps), default
   HD on Wi-Fi and SD on mobile data, last pick remembered. Settings live in SharedPreferences "voice".
+- **Settings → Voice chat**: pick the Microphone (phone mic, headset/USB/Bluetooth mics) and the Speaker
+  (loudspeaker, earpiece, headphones, Bluetooth), or Automatic (headset if connected, else phone mic +
+  loudspeaker). Ids are kind + product name, so a headset picked once is used whenever it's back; a
+  Bluetooth mic also makes that headset the call device. Before Android 12 only loudspeaker/earpiece.
 - **Others see it**: `rooms/{code}/members/{uid}/voice: true` while connected (onDisconnect removes it);
   the room shows "Harsh is in voice · Join". Rules allow the boolean (2026-10-29).
 - **Free-plan budget**: ~100k requests/day ≈ 2M incoming messages ≈ 22 hours of someone talking per

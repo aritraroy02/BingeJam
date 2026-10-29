@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import com.syncit.core.voice.VOICE_MAX_VOLUME
 import com.syncit.core.voice.VoiceAuth
 import com.syncit.core.voice.VoiceController
+import com.syncit.core.voice.VoiceDevices
 import com.syncit.core.voice.VoiceQuality
 import com.syncit.core.voice.VoiceState
 import com.syncit.core.voice.VoiceStatus
@@ -27,7 +28,7 @@ class AndroidVoiceController(context: Context, private val auth: VoiceAuth?) : V
     private val app = context.applicationContext
     private val prefs = app.getSharedPreferences("voice", Context.MODE_PRIVATE)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val routing = AudioRouting(app)
+    private val routing = AudioRouting(app, prefs)
     private val _state = MutableStateFlow(VoiceState(micVolume = prefs.getFloat(KEY_MIC, 1f)))
     @Volatile private var engine: VoiceEngine? = null
     private var volumes: Map<String, Float> = loadVolumes()
@@ -57,7 +58,7 @@ class AndroidVoiceController(context: Context, private val auth: VoiceAuth?) : V
         routing.enter()
         VoiceService.start(app)
         lateinit var created: VoiceEngine
-        created = VoiceEngine(roomCode, quality, micVolume, volumes, auth, scope) { change ->
+        created = VoiceEngine(roomCode, quality, micVolume, volumes, auth, routing::preferredInput, scope) { change ->
             if (engine !== created) return@VoiceEngine
             _state.update(change)
             if (_state.value.status == VoiceStatus.FAILED) scope.launch { if (engine === created) failed() }
@@ -118,6 +119,15 @@ class AndroidVoiceController(context: Context, private val auth: VoiceAuth?) : V
         e.setQuality(quality)
         _state.update { it.copy(quality = quality) }
     }
+
+    override val devices: StateFlow<VoiceDevices> get() = routing.devices
+
+    override fun setInputDevice(id: String?) {
+        routing.setInput(id)
+        engine?.inputChanged()
+    }
+
+    override fun setOutputDevice(id: String?) = routing.setOutput(id)
 
     override fun preferredQuality(): VoiceQuality {
         prefs.getString(KEY_QUALITY, null)?.let { return VoiceQuality.fromWire(it) }

@@ -1,5 +1,6 @@
 package com.syncit.app.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,7 +39,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,6 +65,8 @@ import com.syncit.app.ui.theme.ThemeMode
 import com.syncit.core.config.Brand
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SignInProvider
+import com.syncit.core.voice.VoiceDevice
+import com.syncit.voice.R as VoiceR
 
 @Composable
 fun SettingsScreen(
@@ -83,6 +89,8 @@ fun SettingsScreen(
     val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
     val updateCheck by viewModel.updateCheck.collectAsStateWithLifecycle()
+    val voiceDevices by viewModel.voiceDevices.collectAsStateWithLifecycle()
+    var devicePicker by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var linkError by rememberSaveable { mutableStateOf<String?>(null) }
     val openLegal: (String) -> Unit = { url ->
@@ -130,6 +138,24 @@ fun SettingsScreen(
                         onSelect = { prefs.setThemeMode(ThemeMode.entries[it]) },
                     )
                     Text("System follows your phone's dark mode setting.", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
+                }
+
+                SectionLabel("Voice chat", Modifier.padding(top = 12.dp))
+                GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+                    GlassRow(
+                        title = "Microphone",
+                        subtitle = deviceLabel(voiceDevices.inputs, voiceDevices.selectedInput),
+                        icon = ImageVector.vectorResource(VoiceR.drawable.ic_voice_mic),
+                        onClick = { devicePicker = PICK_MIC },
+                        trailing = { Chevron() },
+                    )
+                    GlassRow(
+                        title = "Speaker",
+                        subtitle = deviceLabel(voiceDevices.outputs, voiceDevices.selectedOutput),
+                        icon = ImageVector.vectorResource(VoiceR.drawable.ic_voice_headset),
+                        onClick = { devicePicker = PICK_SPEAKER },
+                        trailing = { Chevron() },
+                    )
                 }
 
                 SectionLabel("App", Modifier.padding(top = 12.dp))
@@ -248,6 +274,21 @@ fun SettingsScreen(
         DeleteAccountSheet(deleteAccount, useFakeGoogle)
     }
 
+    devicePicker?.let { which ->
+        val mic = which == PICK_MIC
+        DevicePicker(
+            title = if (mic) "Microphone" else "Speaker",
+            automatic = if (mic) "Automatic (headset mic if connected, else the phone's)" else "Automatic (headset if connected, else loudspeaker)",
+            devices = if (mic) voiceDevices.inputs else voiceDevices.outputs,
+            selected = if (mic) voiceDevices.selectedInput else voiceDevices.selectedOutput,
+            onPick = { id ->
+                if (mic) viewModel.setVoiceInput(id) else viewModel.setVoiceOutput(id)
+                devicePicker = null
+            },
+            onDismiss = { devicePicker = null },
+        )
+    }
+
     if (confirmSignOut) {
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
@@ -261,6 +302,55 @@ fun SettingsScreen(
             },
             dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
         )
+    }
+}
+
+private const val PICK_MIC = "mic"
+private const val PICK_SPEAKER = "speaker"
+
+/** "Automatic", the picked device, or the pick with "(not connected)" while it's away. */
+private fun deviceLabel(devices: List<VoiceDevice>, selected: String?): String = when {
+    selected == null -> "Automatic"
+    else -> devices.firstOrNull { it.id == selected }?.label ?: "${selected.substringAfter(':').ifEmpty { "Picked device" }} (not connected)"
+}
+
+@Composable
+private fun DevicePicker(
+    title: String,
+    automatic: String,
+    devices: List<VoiceDevice>,
+    selected: String?,
+    onPick: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val p = Glass.palette
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                DeviceOption(automatic, selected == null) { onPick(null) }
+                for (d in devices) DeviceOption(d.label, selected == d.id) { onPick(d.id) }
+                Text(
+                    "Used for room voice chat. Plug in or connect a headset to see it here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textSecondary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun DeviceOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 4.dp))
     }
 }
 

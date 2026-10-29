@@ -79,7 +79,33 @@ interface VoiceController {
 
     /** The quality to join with: the last one picked, else HD on Wi-Fi and SD on mobile data. */
     fun preferredQuality(): VoiceQuality
+
+    /** Mics and speakers connected right now, and which ones the user picked (Settings). */
+    val devices: StateFlow<VoiceDevices>
+
+    /** Null = automatic. Remembered on this phone; applies at once if in voice. */
+    fun setInputDevice(id: String?)
+
+    fun setOutputDevice(id: String?)
 }
+
+/**
+ * A mic or speaker. [id] stays the same across reconnects (kind + product name), so a
+ * Bluetooth headset picked once is used again whenever it's connected.
+ */
+data class VoiceDevice(val id: String, val label: String)
+
+/**
+ * [selectedInput]/[selectedOutput]: what the user picked, null for automatic (headset when one is
+ * connected, else the phone's mic and loudspeaker). A pick that isn't connected right now falls
+ * back to automatic until it is.
+ */
+data class VoiceDevices(
+    val inputs: List<VoiceDevice> = emptyList(),
+    val outputs: List<VoiceDevice> = emptyList(),
+    val selectedInput: String? = null,
+    val selectedOutput: String? = null,
+)
 
 /** Volume sliders go from silent to twice as loud. */
 const val VOICE_MAX_VOLUME = 2f

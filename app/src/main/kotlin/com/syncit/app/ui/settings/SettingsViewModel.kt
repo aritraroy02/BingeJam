@@ -16,6 +16,7 @@ import com.syncit.core.model.AuthState
 import com.syncit.core.model.UserProfile
 import com.syncit.core.social.AvatarException
 import com.syncit.core.social.UsernameTakenException
+import com.syncit.core.voice.VoiceDevices
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +37,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val auth: StateFlow<AuthState> = social.auth.state
+
+    /** Mics and speakers for room voice chat, with the user's picks. */
+    val voiceDevices: StateFlow<VoiceDevices> = container.voice.devices
+
+    fun setVoiceInput(id: String?) = container.voice.setInputDevice(id)
+
+    fun setVoiceOutput(id: String?) = container.voice.setOutputDevice(id)
 
     /** What the tracker would share right now (preview under the toggles). */
     val sharingNow: StateFlow<Activity?> = social.activityTracker.current

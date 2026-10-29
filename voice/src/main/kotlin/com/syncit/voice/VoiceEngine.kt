@@ -2,6 +2,7 @@ package com.syncit.voice
 
 import android.annotation.SuppressLint
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTrack
@@ -49,6 +50,7 @@ internal class VoiceEngine(
     micVolume: Float,
     volumes: Map<String, Float>,
     private val auth: VoiceAuth,
+    private val preferredInput: () -> AudioDeviceInfo?,
     private val scope: CoroutineScope,
     private val update: ((VoiceState) -> VoiceState) -> Unit,
 ) {
@@ -133,6 +135,9 @@ internal class VoiceEngine(
         volumes = value
         publishPeers()
     }
+
+    /** The mic picked in Settings changed: reopen the mic with it. */
+    fun inputChanged() = restartCapture()
 
     fun setQuality(value: VoiceQuality) {
         if (quality == value) return
@@ -401,6 +406,7 @@ internal class VoiceEngine(
             fail("Allow the microphone to talk in voice")
             return
         }
+        preferredInput()?.let { record.preferredDevice = it }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             record.release()
             fail("Couldn't open the microphone")
