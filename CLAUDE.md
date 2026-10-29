@@ -4,7 +4,9 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Status (2026-10-29):** **v0.6.3 released** (versionCode 13) from the work laptop (`C:\Users\AritraAditya`;
+**Status (2026-10-29):** **v0.6.4 released** (versionCode 14): friend sheet **Start a room with <friend>**
+(invite + "Waiting for … to join" banner in the room; "Not now" is now a visible decline, rules deployed),
+HD/SD voice-call plan in PLAN.md. Before that, **v0.6.3** (versionCode 13) from the work laptop (`C:\Users\AritraAditya`;
 release key now also there in `~/.syncit/`, keystore.properties set): Instagram-sized UI (14 sp body, 40 dp
 buttons/fields/icon buttons, 16 dp panels), Home top bar with small wordmark + plain icons, new **Profile**
 screen (tap your picture: friends count, Edit/Share profile, Invisible, sharing now), Settings without the
