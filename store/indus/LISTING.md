@@ -1,5 +1,9 @@
 # BingeJam — Indus Appstore listing
 
+**Publishing:** the **first** version is uploaded by hand in the Indus console (APK + everything below).
+After that, `bash scripts/release.sh X.Y.Z "notes"` also pushes the APK to Indus via its API
+(`scripts/indus-upload.sh`, key in `~/.syncit/indus-api.key`). Same signing key every time.
+
 Paste these into the Indus Appstore console (https://developer.indusappstore.com). Keep them in
 sync with the app and with web/privacy.html. Nothing here may show Netflix/JioHotstar/Spotify/etc.
 logos or posters — their names appear only as plain text to say which apps BingeJam works with.
