@@ -4,6 +4,11 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
+**Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app
+GitHub updater links outside the store and asked for an update right after install. Fixed with a separate Indus
+build (`-Pstore=indus`, no updater) at 0.6.6; the user re-uploads `dist/sync-it-indus.apk` and resubmits.
+Details: `store/indus/HOLD-FIX-2026-11-02.md`. Always give Indus the `-Pstore=indus` build, never the GitHub APK.
+
 **Status (2026-10-29):** **v0.6.6 released** (versionCode 16): social UI refresh from broly2605 (live activity cards, friend-sharing prompts, motion/haptics, reduced-motion, accessibility, higher-contrast sunset theme, clearer Google sign-in errors).
 Before that, **v0.6.5 released** (versionCode 15): **voice chat in rooms** (new `:voice`
 module, our own relay `push-relay/src/voice.js` Durable Object, deployed; `members/{uid}/voice` rule deployed):
@@ -101,7 +106,7 @@ web/terms, web/delete-account; checklist + trademark filing pack: `legal/LEGAL_C
    laptop's debug key (SHA-1 `7E:ED:35:BA:...:6D:6C`) is **not** registered, so Google sign-in fails in its
    debug builds (email link works).
 8. Legal: the user files the BingeJam trademark and runs the official IP India search
-   (`legal/LEGAL_CHECKLIST.md`), and creates the Indus developer account (PAN).
+   (`legal/LEGAL_CHECKLIST.md`), and creates the Indus developer account (PAN; done, app listed 2026-11).
 9. Releases: only from a machine with the release key (never create a new key): the main machine and the
    Asus laptop. Deploy rules/hosting/relay **before** a release that needs them. Then
    `bash scripts/release.sh X.Y.Z "notes"` (GH=path to gh if not on PATH; on the Asus laptop
