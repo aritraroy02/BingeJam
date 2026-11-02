@@ -324,6 +324,11 @@ Home shows "Trending on Netflix / JioHotstar / Prime Video" poster rows, updated
 - Credits: "Movie data from TMDB · Where to watch by JustWatch" under the rows; TMDB notice in Settings →
   Licences. TMDB and Watchmode free plans are non-commercial.
 - Unverified: Prime Video detail links opening in the Prime app.
+- Filters (2026-11-02): "Trending now" heading, Movies / Web series (`GlassSegmented`), genre and language
+  chips, remembered in `UserPrefs.trendingFilter`. Relay `/trending?type=movie|tv&genre=&lang=` (allowlists
+  `GENRES`/`LANGUAGES` in trending.js = `TrendingFilters` in `:core`; KV `trending:v2:<type>:<genre>:<lang>`,
+  12 h, kept 3 days). Series leave out news/reality/soap/talk genres and shows first aired over 9 years ago.
+  `/watch-link` takes `type` (Watchmode `tv-<id>`). Shimmering poster placeholders while loading.
 
 ### Agents
 - backend-agent (`:data-firebase` + rules + emulator tests), media-agent (`:media`: ActivityTracker,

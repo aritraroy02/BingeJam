@@ -2,7 +2,9 @@ package com.syncit.firebase.social
 
 import android.net.Uri
 import android.util.Log
+import com.syncit.core.lookup.TitleType
 import com.syncit.core.lookup.TrendingCatalog
+import com.syncit.core.lookup.TrendingFilter
 import com.syncit.core.lookup.TrendingRow
 import com.syncit.core.lookup.TrendingTitle
 import com.syncit.core.model.StreamingService
@@ -19,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Home's trending rows (relay GET /trending, TMDB) and watch links (GET /watch-link, Watchmode).
- * The relay caches both; we keep trending for [TRENDING_TTL_MS] and links for the process.
+ * The relay caches both; we keep each filter's trending for [TRENDING_TTL_MS] and links for the process.
  */
 internal class RelayTrending(
     private val session: FirebaseSession,
@@ -27,22 +29,30 @@ internal class RelayTrending(
 ) : TrendingCatalog {
     private val links = ConcurrentHashMap<String, String>() // "<service>:<tmdbId>" -> url, or "" for none
 
-    @Volatile private var cached: Pair<Long, List<TrendingRow>>? = null
+    private val cached = ConcurrentHashMap<TrendingFilter, Pair<Long, List<TrendingRow>>>()
 
-    override suspend fun trending(): List<TrendingRow> {
-        cached?.let { (at, rows) -> if (System.currentTimeMillis() - at < TRENDING_TTL_MS && rows.isNotEmpty()) return rows }
-        val body = get(Uri.parse(baseUrl).buildUpon().appendPath("trending").build().toString()) ?: return cached?.second.orEmpty()
+    override suspend fun trending(filter: TrendingFilter): List<TrendingRow> {
+        val hit = cached[filter]
+        hit?.let { (at, rows) -> if (System.currentTimeMillis() - at < TRENDING_TTL_MS && rows.isNotEmpty()) return rows }
+        val url = Uri.parse(baseUrl).buildUpon()
+            .appendPath("trending")
+            .appendQueryParameter("type", filter.type.wire)
+            .apply { filter.genre?.let { appendQueryParameter("genre", it) } }
+            .apply { filter.language?.let { appendQueryParameter("lang", it) } }
+            .build().toString()
+        val body = get(url) ?: return hit?.second.orEmpty()
         val rows = parseTrending(body)
-        if (rows.isNotEmpty()) cached = System.currentTimeMillis() to rows
+        if (rows.isNotEmpty()) cached[filter] = System.currentTimeMillis() to rows
         return rows
     }
 
     override suspend fun watchLink(title: TrendingTitle, service: StreamingService): String? {
-        val key = "${service.name}:${title.tmdbId}"
+        val key = "${service.name}:${title.type.wire}:${title.tmdbId}"
         links[key]?.let { return it.ifEmpty { null } }
         val url = Uri.parse(baseUrl).buildUpon()
             .appendPath("watch-link")
             .appendQueryParameter("tmdb", title.tmdbId.toString())
+            .appendQueryParameter("type", title.type.wire)
             .appendQueryParameter("service", service.name)
             .build().toString()
         val body = get(url) ?: return null // failed: not remembered, retried next time
@@ -98,6 +108,7 @@ internal class RelayTrending(
                         year = t.optInt("year", 0).takeIf { it in 1880..2200 },
                         posterUrl = t.optString("poster").takeIf { POSTER.matches(it) },
                         rating = t.optDouble("rating", Double.NaN).takeIf { !it.isNaN() && it in 0.0..10.0 },
+                        type = TitleType.fromWire(t.optString("type")),
                     )
                 }
                 if (titles.isEmpty()) null else TrendingRow(service, titles)

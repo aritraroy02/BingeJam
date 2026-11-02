@@ -2,7 +2,84 @@ package com.syncit.core.lookup
 
 import com.syncit.core.model.StreamingService
 
-/** A popular movie on one platform (TMDB data, see push-relay/src/trending.js). */
+/** Movies or web series (TMDB "movie" / "tv"). [wire] is what the relay takes. */
+enum class TitleType(val wire: String, val label: String) {
+    MOVIE("movie", "Movies"),
+    SERIES("tv", "Web series"),
+    ;
+
+    companion object {
+        fun fromWire(value: String?): TitleType = entries.firstOrNull { it.wire == value } ?: MOVIE
+    }
+}
+
+/** A genre filter; [series] = also offered for web series (TMDB has no TV romance or horror). */
+data class TrendingGenre(val key: String, val label: String, val series: Boolean = true)
+
+/** A language filter: ISO 639-1 [code] (original language on TMDB). */
+data class TrendingLanguage(val code: String, val label: String)
+
+/** What Home's "Trending now" shows. Null [genre] / [language] = all. */
+data class TrendingFilter(
+    val type: TitleType = TitleType.MOVIE,
+    val genre: String? = null,
+    val language: String? = null,
+) {
+    /** Drops a genre the new type doesn't have (romance, horror for series). */
+    fun withType(newType: TitleType): TrendingFilter {
+        val keep = genre?.takeIf { key -> TrendingFilters.genres(newType).any { it.key == key } }
+        return copy(type = newType, genre = keep)
+    }
+
+    companion object {
+        /** Unknown keys (an older or newer app's saved choice) fall back to "all". */
+        fun of(type: String?, genre: String?, language: String?): TrendingFilter {
+            val t = TitleType.fromWire(type)
+            return TrendingFilter(
+                type = t,
+                genre = genre?.takeIf { key -> TrendingFilters.genres(t).any { it.key == key } },
+                language = language?.takeIf { code -> TrendingFilters.LANGUAGES.any { it.code == code } },
+            )
+        }
+    }
+}
+
+/** The choices on Home. Must match GENRES / LANGUAGES in push-relay/src/trending.js. */
+object TrendingFilters {
+    val GENRES = listOf(
+        TrendingGenre("action", "Action"),
+        TrendingGenre("comedy", "Comedy"),
+        TrendingGenre("drama", "Drama"),
+        TrendingGenre("thriller", "Thriller"),
+        TrendingGenre("romance", "Romance", series = false),
+        TrendingGenre("horror", "Horror", series = false),
+        TrendingGenre("crime", "Crime"),
+        TrendingGenre("scifi", "Sci-fi"),
+        TrendingGenre("family", "Family"),
+        TrendingGenre("animation", "Animation"),
+        TrendingGenre("documentary", "Documentary"),
+    )
+
+    val LANGUAGES = listOf(
+        TrendingLanguage("hi", "Hindi"),
+        TrendingLanguage("en", "English"),
+        TrendingLanguage("ta", "Tamil"),
+        TrendingLanguage("te", "Telugu"),
+        TrendingLanguage("ml", "Malayalam"),
+        TrendingLanguage("kn", "Kannada"),
+        TrendingLanguage("bn", "Bengali"),
+        TrendingLanguage("mr", "Marathi"),
+        TrendingLanguage("pa", "Punjabi"),
+        TrendingLanguage("gu", "Gujarati"),
+        TrendingLanguage("ko", "Korean"),
+        TrendingLanguage("ja", "Japanese"),
+        TrendingLanguage("es", "Spanish"),
+    )
+
+    fun genres(type: TitleType): List<TrendingGenre> = if (type == TitleType.SERIES) GENRES.filter { it.series } else GENRES
+}
+
+/** A popular movie or series on one platform (TMDB data, see push-relay/src/trending.js). */
 data class TrendingTitle(
     val tmdbId: Long,
     val title: String,
@@ -11,15 +88,16 @@ data class TrendingTitle(
     val posterUrl: String?,
     /** TMDB's 0–10 score, or null. */
     val rating: Double?,
+    val type: TitleType = TitleType.MOVIE,
 )
 
-/** "Trending on Netflix": [titles] most popular first. */
+/** "Netflix": [titles] most popular first. */
 data class TrendingRow(val service: StreamingService, val titles: List<TrendingTitle>)
 
 /** Home's trending rows and the link that opens a title in its app. Never throws. */
 interface TrendingCatalog {
-    /** Netflix, JioHotstar, Prime Video rows; empty when unavailable. */
-    suspend fun trending(): List<TrendingRow>
+    /** Netflix, JioHotstar, Prime Video rows for [filter]; empty when unavailable. */
+    suspend fun trending(filter: TrendingFilter = TrendingFilter()): List<TrendingRow>
 
     /**
      * The link that opens [title] in [service]'s app: netflix.com/watch/… and JioHotstar's watch link
@@ -29,7 +107,7 @@ interface TrendingCatalog {
 
     /** Off (fakes, tests, no relay configured). */
     object None : TrendingCatalog {
-        override suspend fun trending(): List<TrendingRow> = emptyList()
+        override suspend fun trending(filter: TrendingFilter): List<TrendingRow> = emptyList()
         override suspend fun watchLink(title: TrendingTitle, service: StreamingService): String? = null
     }
 

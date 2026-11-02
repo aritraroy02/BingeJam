@@ -1,5 +1,6 @@
 package com.syncit.app.data
 
+import com.syncit.core.lookup.TrendingFilter
 import android.content.Context
 import androidx.core.content.edit
 import com.syncit.app.ui.theme.ThemeMode
@@ -24,6 +25,13 @@ class UserPrefs(context: Context) {
     var lastRoomCode: String?
         get() = prefs.getString(KEY_LAST_ROOM, null)
         set(value) = prefs.edit { putString(KEY_LAST_ROOM, value) }
+
+    /** Home's "Trending now" filter, remembered on this phone. */
+    var trendingFilter: TrendingFilter
+        get() = (prefs.getString(KEY_TRENDING, null) ?: "").split('|').let { parts ->
+            TrendingFilter.of(parts.getOrNull(0), parts.getOrNull(1)?.ifEmpty { null }, parts.getOrNull(2)?.ifEmpty { null })
+        }
+        set(value) = prefs.edit { putString(KEY_TRENDING, "${value.type.wire}|${value.genre.orEmpty()}|${value.language.orEmpty()}") }
 
     /** Room code + when we entered it (wall clock), for the "In a room · 05:12" bar. */
     var roomJoinedAt: Pair<String, Long>?
@@ -160,6 +168,7 @@ class UserPrefs(context: Context) {
     private companion object {
         const val KEY_NAME = "display_name"
         const val KEY_LAST_ROOM = "last_room"
+        const val KEY_TRENDING = "trending_filter"
         const val KEY_ROOM_JOINED_AT = "room_joined_at"
         const val KEY_ONBOARDED = "onboarding_done"
         const val KEY_PENDING_JOIN = "pending_join"

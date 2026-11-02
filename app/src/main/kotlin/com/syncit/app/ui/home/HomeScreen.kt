@@ -104,6 +104,7 @@ fun HomeScreen(
     val context = LocalContext.current
     var sheetUid by rememberSaveable { mutableStateOf<String?>(null) }
     val trending by viewModel.trending.collectAsStateWithLifecycle()
+    val trendingFilter by viewModel.trendingFilter.collectAsStateWithLifecycle()
     var pick by remember { mutableStateOf<Pair<TrendingTitle, StreamingService>?>(null) }
     LaunchedEffect(Unit) { viewModel.refreshLastRoom() }
 
@@ -146,21 +147,15 @@ fun HomeScreen(
                 val live = friends.orEmpty().filter { it.online && it.activity != null }
                 if (live.isNotEmpty()) {
                     LiveNowRow(live, onOpen = { sheetUid = it.uid }, modifier = Modifier.staggerIn(0))
-                } else if (friends != null && trending.isNullOrEmpty()) {
-                    GlassPanel(Modifier.fillMaxWidth().staggerIn(0)) {
-                        Text("Nothing live right now", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
-                        Text(
-                            "When friends play something on Netflix, JioHotstar, Prime Video, Spotify or YouTube, " +
-                                "it shows up here and you can jump in.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = p.textSecondary,
-                        )
-                    }
                 }
 
-                trending?.takeIf { it.isNotEmpty() }?.let { rows ->
-                    TrendingSection(rows, onOpen = { title, service -> pick = title to service }, modifier = Modifier.staggerIn(1))
-                }
+                TrendingSection(
+                    rows = trending,
+                    filter = trendingFilter,
+                    onFilterChange = viewModel::setTrendingFilter,
+                    onOpen = { title, service -> pick = title to service },
+                    modifier = Modifier.staggerIn(1),
+                )
 
                 update?.let { available ->
                     GlassPanel {

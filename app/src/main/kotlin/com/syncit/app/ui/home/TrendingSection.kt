@@ -1,5 +1,20 @@
 package com.syncit.app.ui.home
 
+import com.syncit.core.lookup.TrendingFilters
+import com.syncit.core.lookup.TrendingFilter
+import com.syncit.core.lookup.TitleType
+import com.syncit.app.ui.glass.rememberReduceMotion
+import com.syncit.app.ui.glass.glass
+import com.syncit.app.ui.glass.GlassSegmented
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.LinearEasing
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -52,25 +67,60 @@ import com.syncit.core.lookup.TrendingRow
 import com.syncit.core.lookup.TrendingTitle
 import com.syncit.core.model.StreamingService
 
-/** "Trending on Netflix" etc.: a swipeable row of posters per platform, then TMDB/JustWatch credit. */
+/**
+ * "Trending now": Movies / Web series, genre and language chips, then a swipeable row of posters
+ * per platform (shimmering placeholders while loading), then the TMDB/JustWatch credit.
+ * [rows] null = loading.
+ */
 @Composable
-internal fun TrendingSection(rows: List<TrendingRow>, onOpen: (TrendingTitle, StreamingService) -> Unit, modifier: Modifier = Modifier) {
+internal fun TrendingSection(
+    rows: List<TrendingRow>?,
+    filter: TrendingFilter,
+    onFilterChange: (TrendingFilter) -> Unit,
+    onOpen: (TrendingTitle, StreamingService) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val p = Glass.palette
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        for (row in rows) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Trending on ${row.service.displayName}")
-                // Bleed to the screen edges so posters scroll under the gutters.
-                LazyRow(
-                    modifier = Modifier.layout { measurable, constraints ->
-                        val gutter = 20.dp.roundToPx()
-                        val placeable = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + gutter * 2))
-                        layout(constraints.maxWidth, placeable.height) { placeable.place(-gutter, 0) }
-                    },
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(row.titles, key = { it.tmdbId }) { title -> PosterCard(title) { onOpen(title, row.service) } }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Trending now", style = MaterialTheme.typography.headlineSmall, color = p.textPrimary)
+        GlassSegmented(
+            options = TitleType.entries.map { it.label },
+            selected = filter.type.ordinal,
+            onSelect = { onFilterChange(filter.withType(TitleType.entries[it])) },
+        )
+        ChipRow {
+            item(key = "all-genres") { FilterPill("All genres", filter.genre == null) { onFilterChange(filter.copy(genre = null)) } }
+            items(TrendingFilters.genres(filter.type), key = { "g-" + it.key }) { g ->
+                FilterPill(g.label, filter.genre == g.key) { onFilterChange(filter.copy(genre = if (filter.genre == g.key) null else g.key)) }
+            }
+        }
+        ChipRow {
+            item(key = "all-langs") { FilterPill("All languages", filter.language == null) { onFilterChange(filter.copy(language = null)) } }
+            items(TrendingFilters.LANGUAGES, key = { "l-" + it.code }) { l ->
+                FilterPill(l.label, filter.language == l.code) {
+                    onFilterChange(filter.copy(language = if (filter.language == l.code) null else l.code))
+                }
+            }
+        }
+
+        when {
+            rows == null -> repeat(2) { SkeletonRow() }
+            rows.isEmpty() -> Text(
+                "Nothing trending for that mix. Try another genre or language.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = p.textSecondary,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+            else -> for (row in rows) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionLabel(row.service.displayName)
+                    LazyRow(
+                        modifier = Modifier.bleed(),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(row.titles, key = { it.type.wire + it.tmdbId }) { title -> PosterCard(title) { onOpen(title, row.service) } }
+                    }
                 }
             }
         }
@@ -79,6 +129,77 @@ internal fun TrendingSection(rows: List<TrendingRow>, onOpen: (TrendingTitle, St
             style = MaterialTheme.typography.labelSmall,
             color = p.textSecondary,
         )
+    }
+}
+
+/** Widens a horizontal row to the screen edges so items scroll under Home's 20 dp gutters. */
+private fun Modifier.bleed(): Modifier = layout { measurable, constraints ->
+    val gutter = 20.dp.roundToPx()
+    val placeable = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + gutter * 2))
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-gutter, 0) }
+}
+
+@Composable
+private fun ChipRow(content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
+    LazyRow(
+        modifier = Modifier.bleed(),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    val p = Glass.palette
+    val shape = RoundedCornerShape(50)
+    Box(
+        Modifier
+            .clip(shape)
+            .then(if (selected) Modifier.background(p.accent) else Modifier.glass(shape))
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = if (selected) p.onAccent else p.textSecondary)
+    }
+}
+
+/** Loading placeholder: a label and a few poster-shaped boxes with a light sweeping across. */
+@Composable
+private fun SkeletonRow() {
+    val p = Glass.palette
+    val reduceMotion = rememberReduceMotion()
+    val sweep = if (reduceMotion) {
+        0.5f
+    } else {
+        val transition = rememberInfiniteTransition(label = "shimmer")
+        val value by transition.animateFloat(
+            initialValue = -0.5f,
+            targetValue = 1.5f,
+            animationSpec = infiniteRepeatable(tween(1_100, easing = LinearEasing)),
+            label = "sweep",
+        )
+        value
+    }
+    val base = p.glassFallback
+    val shine = p.textSecondary.copy(alpha = 0.18f)
+    val brush = Brush.linearGradient(
+        colors = listOf(base, shine, base),
+        start = Offset(sweep * 900f - 300f, 0f),
+        end = Offset(sweep * 900f + 300f, 600f),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.semantics { contentDescription = "Loading trending titles" }) {
+        Box(Modifier.width(90.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(brush))
+        Row(Modifier.bleed().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            repeat(4) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.width(120.dp).height(180.dp).clip(RoundedCornerShape(14.dp)).background(brush))
+                    Box(Modifier.width(90.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(brush))
+                    Box(Modifier.width(40.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(brush))
+                }
+            }
+        }
     }
 }
 

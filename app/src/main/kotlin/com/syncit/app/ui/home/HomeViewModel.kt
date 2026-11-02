@@ -1,5 +1,8 @@
 package com.syncit.app.ui.home
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import com.syncit.core.lookup.TrendingFilter
 import com.syncit.core.model.StreamingService
 import com.syncit.core.lookup.TrendingTitle
 import com.syncit.core.lookup.TrendingRow
@@ -50,6 +53,7 @@ data class FriendRow(
     val askLabel: String? get() = activity?.takeIf { it.app.joinable }?.let { RoomWording.askLabel(isJam, joinRequested) }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val social = container.social
 
@@ -135,8 +139,24 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** Trending titles per platform (TMDB, through the relay); null while loading, empty if unavailable. */
-    val trending: StateFlow<List<TrendingRow>?> = flow { emit(container.trending.trending()) }
+    private val _trendingFilter = MutableStateFlow(container.prefs.trendingFilter)
+
+    /** Movies or web series, genre, language (remembered on this phone). */
+    val trendingFilter: StateFlow<TrendingFilter> = _trendingFilter.asStateFlow()
+
+    fun setTrendingFilter(filter: TrendingFilter) {
+        _trendingFilter.value = filter
+        container.prefs.trendingFilter = filter
+    }
+
+    /** Trending titles per platform for the filter (TMDB, through the relay); null while loading, empty if none. */
+    val trending: StateFlow<List<TrendingRow>?> = _trendingFilter
+        .flatMapLatest { filter ->
+            flow {
+                emit(null)
+                emit(container.trending.trending(filter))
+            }
+        }
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
