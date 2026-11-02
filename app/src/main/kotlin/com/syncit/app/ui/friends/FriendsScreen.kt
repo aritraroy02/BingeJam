@@ -49,12 +49,14 @@ import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSmallButton
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.GlassTopBar
+import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.theme.Glass
 
+/** [onBack] is null when Friends is a tab (no back arrow). */
 @Composable
-fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
+fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
     val p = Glass.palette
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
@@ -72,7 +74,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(
                 title = "Friends",
-                navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) },
+                navigation = onBack?.let { back -> { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", back) } },
             )
             Column(
                 Modifier
@@ -81,7 +83,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                     .imePadding()
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 24.dp + LocalBottomBarInset.current),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 GlassTextField(
@@ -199,7 +201,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: () -> Unit) {
                 }
             }
         }
-        NoticeBanner(message, viewModel::dismissMessage, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        NoticeBanner(message, viewModel::dismissMessage, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = LocalBottomBarInset.current))
     }
 }
 

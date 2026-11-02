@@ -4,12 +4,14 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
-**Unreleased on main (2026-11-02), not yet deployed:** "Play in JioHotstar" opens the host's exact title by
-its content ID; WhatsApp-style in-room bar (timer, mute, Exit) over every other screen; no wordmark on Home;
-DM long-press Copy / Forward / Delete (for me / for everyone); "Watched X together" cards in DMs. See PLAN.md
-"JioHotstar exact title", "In-room bar", "DM message actions + watched together". **Before releasing:** deploy
-the rules (`npx -y firebase-tools deploy --only database`; account deletion breaks with the old rules) and the
-relay (`npx wrangler deploy` in `push-relay/`, new `dm_deleted` type), with the user's OK. Not yet tested on two phones.
+**Unreleased on main (2026-11-02):** "Play in JioHotstar" opens the host's exact title by its content ID;
+WhatsApp-style in-room bar (timer, mute, Exit) over every other screen; DM long-press Copy / Forward / Delete
+(for me / for everyone); "Watched X together" cards in DMs; **bottom tab bar** (Home, Chats, Add friends,
+Settings; icons only, floating glass) with a new **Chats** list (newest first); Home lost the wordmark, the
+"Watch party or jam" card (Start / Join with code) and the top-bar Friends/Settings icons (rooms now start from a
+friend's sheet or an invite; trending movies on Home are planned). See PLAN.md "JioHotstar exact title",
+"In-room bar", "DM message actions + watched together", "Bottom tabs + Chats". **Rules and relay for these were
+deployed 2026-11-02** (user's go-ahead). Not yet tested on two phones; the user asked not to release yet.
 
 **Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app
 GitHub updater links outside the store and asked for an update right after install. Fixed with a separate Indus

@@ -30,19 +30,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,21 +53,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.data.UpdateChecker
@@ -85,24 +72,21 @@ import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.glass.staggerIn
 import com.syncit.app.ui.social.color
 import com.syncit.app.ui.glass.Avatar
-import com.syncit.app.ui.glass.BadgedIconButton
 import com.syncit.app.ui.glass.CountBadge
 import com.syncit.app.ui.glass.Dot
 import com.syncit.app.ui.glass.GlassBottomSheet
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
-import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSmallButton
-import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.GlassTopBar
+import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.social.ActivityAppBadge
 import com.syncit.app.ui.social.ActivityThumb
 import com.syncit.app.ui.theme.Glass
-import com.syncit.app.ui.theme.Inter
 import com.syncit.core.config.Brand
 
 @Composable
@@ -110,8 +94,6 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onEnterRoom: (String) -> Unit,
     onStartRoomWith: (code: String, friendUid: String) -> Unit,
-    onJoinCode: (String) -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenFriends: () -> Unit,
     onOpenChat: (String) -> Unit,
@@ -121,7 +103,6 @@ fun HomeScreen(
     val update by viewModel.update.collectAsStateWithLifecycle()
     val me by viewModel.myProfile.collectAsStateWithLifecycle()
     val friends by viewModel.friends.collectAsStateWithLifecycle()
-    val requests by viewModel.incomingRequestCount.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var sheetUid by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { viewModel.refreshLastRoom() }
@@ -150,10 +131,6 @@ fun HomeScreen(
                         )
                     }
                 },
-                actions = {
-                    BadgedIconButton(Icons.Filled.Person, "Friends", requests, onOpenFriends, plain = true)
-                    GlassIconButton(Icons.Filled.Settings, "Settings", onOpenSettings, plain = true)
-                },
             )
             Column(
                 Modifier
@@ -162,7 +139,7 @@ fun HomeScreen(
                     .imePadding()
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp)
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 24.dp + LocalBottomBarInset.current),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 // What friends are playing right now, up top: the quickest way into something.
@@ -185,19 +162,6 @@ fun HomeScreen(
                         )
                     }
                 }
-
-                val haptics = LocalHapticFeedback.current
-                WatchPartyCard(
-                    ui = ui,
-                    onCreate = {
-                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                        viewModel.create(onEnterRoom)
-                    },
-                    onToggleCode = viewModel::toggleCodeField,
-                    onCodeChange = viewModel::onCodeChange,
-                    onJoinCode = onJoinCode,
-                    modifier = Modifier.staggerIn(3),
-                )
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp).staggerIn(4)) {
                     val online = friends?.count { it.online } ?: 0
@@ -368,60 +332,6 @@ private fun LivePulse() {
                 .background(red),
         )
         Box(Modifier.size(8.dp).clip(CircleShape).background(red))
-    }
-}
-
-/** Compact create/join card: the v1 room flow, still one tap away. */
-@Composable
-private fun WatchPartyCard(
-    ui: HomeViewModel.UiState,
-    onCreate: () -> Unit,
-    onToggleCode: () -> Unit,
-    onCodeChange: (String) -> Unit,
-    onJoinCode: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val p = Glass.palette
-    GlassPanel(modifier.fillMaxWidth()) {
-        Text("Watch party or jam", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
-        Text("Watch or listen in sync with friends.", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GlassButton("Start", onClick = onCreate, icon = Icons.Filled.PlayArrow, loading = ui.busy, modifier = Modifier.weight(1f))
-            GlassButton(
-                "Join with code",
-                onClick = onToggleCode,
-                style = GlassButtonStyle.Secondary,
-                modifier = Modifier.weight(1.3f),
-            )
-        }
-        if (ui.showCodeField) {
-            GlassTextField(
-                value = ui.code,
-                onValueChange = onCodeChange,
-                placeholder = "ROOM CODE",
-                textStyle = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Bold, fontSize = 18.sp, letterSpacing = 4.sp),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { if (ui.codeValid) onJoinCode(ui.code) }),
-                modifier = Modifier.fillMaxWidth(),
-                trailing = {
-                    GlassIconButton(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        "Join room",
-                        onClick = { onJoinCode(ui.code) },
-                        enabled = ui.codeValid,
-                    )
-                },
-            )
-        }
-        ui.lastRoom?.let { last ->
-            GlassButton(
-                text = "Rejoin room $last",
-                icon = Icons.AutoMirrored.Filled.ArrowForward,
-                style = GlassButtonStyle.Secondary,
-                onClick = { onJoinCode(last) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
     }
 }
 

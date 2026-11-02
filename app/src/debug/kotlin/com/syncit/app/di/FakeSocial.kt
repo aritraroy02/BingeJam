@@ -394,6 +394,10 @@ object FakeSocial {
             private fun add(friendUid: String, message: DirectMessage) =
                 messages.update { it + (friendUid to it[friendUid].orEmpty() + message) }
 
+            override fun observeLatest(): Flow<Map<String, DirectMessage>> = combine(messages, reads) { all, _ ->
+                all.mapNotNull { (uid, list) -> list.maxByOrNull { it.sentAt }?.let { uid to it } }.toMap()
+            }
+
             override fun observeUnreadCounts(): Flow<Map<String, Int>> = combine(messages, reads) { all, read ->
                 all.mapValues { (uid, list) -> list.count { it.fromUid != ME && it.watched == null && it.sentAt > (read[uid] ?: 0L) } }
                     .filterValues { it > 0 }

@@ -287,6 +287,22 @@ call bar) sits above every other screen while `SyncSessionController.state.roomC
 back-stack entry (`NavViewModel.openRoom`). Screens under the bar don't add status-bar padding again.
 Home's top bar no longer shows the wordmark (user's request).
 
+### Bottom tabs + Chats (2026-11-02)
+User's request: a floating glass bar at the bottom with four icons only (Home, Chats, Add friends, Settings);
+Friends and Settings left the Home top bar; the "Watch party or jam" card (Start / Join with code / rejoin) is
+gone (rooms start from a friend's sheet, "Start a room with …", or an invite). Home will later suggest trending
+movies across platforms.
+- `ui/nav/MainTabBar.kt`: `MainTab`, the bar (badges: unread messages, friend requests), `LocalBottomBarInset`
+  (tab screens pad their scroll content by `TabBarInset`). Glass blurs the screens underneath (Haze source on
+  the screen container in `MainNav`).
+- Tabs are single-entry back stacks (`nav.reset(tab)`); the bar shows only when the stack is one tab screen.
+  Back on another tab goes to Home. Friends/Settings show a back arrow only when opened from somewhere else.
+- **Chats** (`ui/chat/ChatsScreen.kt`): one row per friend we've messaged, newest first: avatar (online dot),
+  name, time ("10:42 pm" today, else "Yesterday"/weekday/date), last message ("You: …", "This message was
+  deleted", "Watched Leo together"), unread badge. Data: `DirectMessages.observeLatest()`: per friend
+  `dms/{dmId}` orderByChild(sentAt).limitToLast(5), skipping `dmHidden` ("deleted for me").
+- DM notification taps open Chats → the chat, so Back lands on the Chats list.
+
 ### Agents
 - backend-agent (`:data-firebase` + rules + emulator tests), media-agent (`:media`: ActivityTracker,
   Prime Video + music/YouTube session checks on the phone), ui-agent (`:app`: auth, username,

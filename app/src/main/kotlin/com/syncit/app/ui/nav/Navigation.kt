@@ -75,10 +75,29 @@ import com.syncit.app.ui.social.SocialBanners
 import com.syncit.app.ui.social.SocialEventsViewModel
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.config.Brand
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewModelScope
+import com.syncit.app.ui.chat.ChatsScreen
+import com.syncit.app.ui.chat.ChatsViewModel
+import com.syncit.app.ui.glass.LocalHazeState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 /** Screens once signed in and set up. The account flow before that is driven by [Gate]. */
 sealed interface Screen {
     data object Home : Screen
+
+    /** Conversations, newest first (bottom bar). */
+    data object Chats : Screen
     data object Friends : Screen
     data class Chat(val friendUid: String) : Screen
     data object Settings : Screen
@@ -155,10 +174,10 @@ fun SyncItApp(
         if (gate != Gate.Ready) return@LaunchedEffect
         pendingNotification.value = null
         when (target.type) {
-            PushNotifications.TYPE_DM -> nav.reset(Screen.Home, Screen.Chat(target.uid))
+            PushNotifications.TYPE_DM -> nav.reset(Screen.Chats, Screen.Chat(target.uid))
             // Join requests and invites are answered from the banner shown over Home.
             PushNotifications.TYPE_JOIN_REQUEST, PushNotifications.TYPE_INVITE -> nav.reset(Screen.Home)
-            else -> nav.reset(Screen.Home, Screen.Friends)
+            else -> nav.reset(Screen.Friends)
         }
     }
 
@@ -219,7 +238,7 @@ fun SyncItApp(
                 pendingEmailLink.value = null
                 // Already signed in, so a link only matters when it's the fresh sign-in that
                 // deleting the account asked for; then make sure its sheet is on screen.
-                if (deletion.onEmailLink(link) && nav.current != Screen.Settings) nav.reset(Screen.Home, Screen.Settings)
+                if (deletion.onEmailLink(link) && nav.current != Screen.Settings) nav.reset(Screen.Settings)
             }
             MainNav(container, nav, deletion)
         }
@@ -240,6 +259,15 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
     }
 
     BackHandler(enabled = nav.backStack.size > 1) { nav.pop() }
+    // Back on another tab goes to Home first, like most apps with a bottom bar.
+    BackHandler(enabled = nav.backStack.size == 1 && nav.current != Screen.Home) { nav.reset(Screen.Home) }
+
+    val tabs: MainTabsViewModel = viewModel(factory = viewModelFactory { initializer { MainTabsViewModel(container) } })
+    val unreadChats by tabs.unreadChats.collectAsStateWithLifecycle()
+    val friendRequests by tabs.friendRequests.collectAsStateWithLifecycle()
+    // The bar shows on the four tab screens themselves, not on screens opened from them.
+    val currentTab = if (nav.backStack.size == 1) tabFor(nav.current) else null
+    val tabHaze = rememberHazeState()
 
     val roomBar: OngoingRoomViewModel = viewModel(factory = viewModelFactory { initializer { OngoingRoomViewModel(container) } })
     val ongoing by roomBar.ongoing.collectAsStateWithLifecycle()
@@ -259,36 +287,99 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
         }
         // Under the bar, screens skip their own status-bar padding (the bar already covers it).
         Box(Modifier.fillMaxSize().then(if (showRoomBar) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier)) {
-            // Deeper screens slide in from the right, going back slides them out; jumps elsewhere
-            // (notification, invite) crossfade. Depth travels with the screen so a screen that's
-            // leaving keeps the depth it was shown at.
-            AnimatedContent(
-                targetState = NavEntry(nav.current, nav.backStack.size),
-                transitionSpec = {
-                    val forward = targetState.depth > initialState.depth
-                    val back = targetState.depth < initialState.depth
-                    when {
-                        reduceMotion -> fadeIn(tween(0)) togetherWith fadeOut(tween(0))
-                        forward -> (slideInHorizontally(tween(320, easing = EmphasizedEase)) { it / 4 } + fadeIn(tween(220))) togetherWith
-                            (slideOutHorizontally(tween(320, easing = EmphasizedEase)) { -it / 8 } + fadeOut(tween(180)))
-                        back -> (slideInHorizontally(tween(300, easing = EmphasizedEase)) { -it / 8 } + fadeIn(tween(220))) togetherWith
-                            (slideOutHorizontally(tween(260, easing = EmphasizedEase)) { it / 4 } + fadeOut(tween(160)))
-                        else -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+            CompositionLocalProvider(LocalBottomBarInset provides if (currentTab != null) TabBarInset else 0.dp) {
+                Box(Modifier.fillMaxSize().hazeSource(tabHaze)) {
+                    // Deeper screens slide in from the right, going back slides them out; jumps elsewhere
+                    // (notification, invite) crossfade. Depth travels with the screen so a screen that's
+                    // leaving keeps the depth it was shown at.
+                    AnimatedContent(
+                        targetState = NavEntry(nav.current, nav.backStack.size),
+                        transitionSpec = {
+                            val forward = targetState.depth > initialState.depth
+                            val back = targetState.depth < initialState.depth
+                            when {
+                                reduceMotion -> fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                                forward -> (slideInHorizontally(tween(320, easing = EmphasizedEase)) { it / 4 } + fadeIn(tween(220))) togetherWith
+                                    (slideOutHorizontally(tween(320, easing = EmphasizedEase)) { -it / 8 } + fadeOut(tween(180)))
+                                back -> (slideInHorizontally(tween(300, easing = EmphasizedEase)) { -it / 8 } + fadeIn(tween(220))) togetherWith
+                                    (slideOutHorizontally(tween(260, easing = EmphasizedEase)) { it / 4 } + fadeOut(tween(160)))
+                                else -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+                            }
+                        },
+                        contentKey = { it.screen },
+                        label = "screens",
+                    ) { entry ->
+                        NavScreen(entry, container, nav, deletion)
                     }
-                },
-                contentKey = { it.screen },
-                label = "screens",
-            ) { entry ->
-                NavScreen(entry, container, nav, deletion)
+                }
             }
 
             SocialBanners(events)
+
+            BottomTabs(
+                tab = currentTab,
+                unreadChats = unreadChats,
+                friendRequests = friendRequests,
+                haze = tabHaze,
+                onSelect = { tab -> nav.reset(screenFor(tab)) },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 }
 
 /** A screen plus how deep in the back stack it sits, for picking the transition direction. */
 private data class NavEntry(val screen: Screen, val depth: Int)
+
+/** The floating tab bar, sliding in on the tab screens. Glass over whatever scrolls underneath. */
+@Composable
+private fun BottomTabs(
+    tab: MainTab?,
+    unreadChats: Int,
+    friendRequests: Int,
+    haze: HazeState,
+    onSelect: (MainTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = tab != null,
+        enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 2 },
+        exit = fadeOut(tween(120)) + slideOutVertically(tween(160)) { it / 2 },
+        modifier = modifier,
+    ) {
+        CompositionLocalProvider(LocalHazeState provides haze) {
+            MainTabBar(current = tab ?: MainTab.HOME, unreadChats = unreadChats, friendRequests = friendRequests, onSelect = onSelect)
+        }
+    }
+}
+
+private fun tabFor(screen: Screen): MainTab? = when (screen) {
+    Screen.Home -> MainTab.HOME
+    Screen.Chats -> MainTab.CHATS
+    Screen.Friends -> MainTab.FRIENDS
+    Screen.Settings -> MainTab.SETTINGS
+    else -> null
+}
+
+private fun screenFor(tab: MainTab): Screen = when (tab) {
+    MainTab.HOME -> Screen.Home
+    MainTab.CHATS -> Screen.Chats
+    MainTab.FRIENDS -> Screen.Friends
+    MainTab.SETTINGS -> Screen.Settings
+}
+
+/** Badges on the bottom bar: unread messages (all chats) and friend requests. */
+class MainTabsViewModel(container: AppContainer) : ViewModel() {
+    val unreadChats: StateFlow<Int> = container.social.dms.observeUnreadCounts()
+        .map { it.values.sum() }
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val friendRequests: StateFlow<Int> = container.social.friends.observeIncomingRequests()
+        .map { it.size }
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+}
 
 @Composable
 private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewModel, deletion: DeleteAccountViewModel) {
@@ -300,17 +391,20 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     viewModel = vm,
                     onEnterRoom = { code -> nav.push(Screen.Room(code)) },
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
-                    onJoinCode = { code -> nav.push(Screen.JoinPreview(code)) },
-                    onOpenSettings = { nav.push(Screen.Settings) },
                     onOpenProfile = { nav.push(Screen.Profile) },
-                    onOpenFriends = { nav.push(Screen.Friends) },
+                    onOpenFriends = { nav.reset(Screen.Friends) },
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
                 )
             }
 
+            Screen.Chats -> {
+                val vm: ChatsViewModel = viewModel(factory = viewModelFactory { initializer { ChatsViewModel(container) } })
+                ChatsScreen(vm, onOpenChat = { uid -> nav.push(Screen.Chat(uid)) })
+            }
+
             Screen.Friends -> {
                 val vm: FriendsViewModel = viewModel(factory = viewModelFactory { initializer { FriendsViewModel(container) } })
-                FriendsScreen(vm, onBack = nav::pop)
+                FriendsScreen(vm, onBack = if (entry.depth > 1) nav::pop else null)
             }
 
             is Screen.Chat -> {
@@ -327,7 +421,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     viewModel = vm,
                     deleteAccount = deletion,
                     useFakeGoogle = container.social.isFake,
-                    onBack = nav::pop,
+                    onBack = if (entry.depth > 1) nav::pop else null,
                     onEditProfile = { nav.push(Screen.EditProfile) },
                     onOpenSetup = { nav.push(Screen.Permissions) },
                     onOpenDiagnostics = { nav.push(Screen.Diagnostics) },

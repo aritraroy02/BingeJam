@@ -5,6 +5,7 @@ import com.syncit.core.model.Friend
 import com.syncit.core.model.FriendRequest
 import com.syncit.core.model.WatchSessionReport
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Friend requests and friendships. friends/{a}/{b} and friends/{b}/{a} are written together on
@@ -65,6 +66,12 @@ interface DirectMessages {
      * Returns the card's duration after the write, or null if nothing was written.
      */
     suspend fun recordWatchedTogether(friendUid: String, report: WatchSessionReport): Long?
+
+    /**
+     * Friend uid → the newest message in our chat with them (cards included, "deleted for me" left
+     * out), for the Chats list. Friends we've never messaged are missing.
+     */
+    fun observeLatest(): Flow<Map<String, DirectMessage>> = flowOf(emptyMap())
 
     /** Friend uid → number of messages since we last opened that chat (in-app badges). */
     fun observeUnreadCounts(): Flow<Map<String, Int>>

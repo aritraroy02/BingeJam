@@ -191,6 +191,40 @@ class FirebaseDirectMessages internal constructor(
         return null
     }
 
+    override fun observeLatest(): Flow<Map<String, DirectMessage>> = session.uid.flatMapLatest { me ->
+        if (me == null) return@flatMapLatest flowOf(emptyMap())
+        val friendIds = db.getReference("friends").child(me).snapshots()
+            .map { s -> s?.children?.mapNotNull { it.key }.orEmpty() }
+            .distinctUntilChanged()
+        // dmId → ids deleted for me. Starts empty so the list shows at once.
+        val hidden = flow {
+            emit(emptyMap())
+            emitAll(
+                db.getReference("dmHidden").child(me).snapshots().map { s ->
+                    s?.children?.associate { d -> d.key.orEmpty() to d.children.mapNotNull { it.key }.toSet() }.orEmpty()
+                },
+            )
+        }.distinctUntilChanged()
+        friendIds.flatMapLatest { friends ->
+            if (friends.isEmpty()) return@flatMapLatest flowOf(emptyMap())
+            // One small query per friend: their last few messages (a few, so "deleted for me" can be skipped).
+            val latest = combineAll(
+                friends.map { friend ->
+                    db.getReference("dms").child(DmIds.dmId(me, friend))
+                        .orderByChild("sentAt").limitToLast(LATEST_WINDOW)
+                        .snapshots()
+                        .map { s -> friend to s?.children?.mapNotNull(SocialParser::message).orEmpty() }
+                },
+            )
+            combine(latest, hidden) { lists, gone ->
+                lists.mapNotNull { (friend, messages) ->
+                    val skip = gone[DmIds.dmId(me, friend)].orEmpty()
+                    messages.lastOrNull { it.id !in skip }?.let { friend to it }
+                }.toMap()
+            }
+        }
+    }
+
     override fun observeUnreadCounts(): Flow<Map<String, Int>> = session.uid.flatMapLatest { me ->
         if (me == null) return@flatMapLatest flowOf(emptyMap())
         val friendIds = db.getReference("friends").child(me).snapshots()
@@ -288,5 +322,8 @@ class FirebaseDirectMessages internal constructor(
 
         /** Badges show "99+" beyond this, so there's no need to download more. */
         const val MAX_UNREAD_COUNTED = 100
+
+        /** Messages read per chat for the Chats list, so a few "deleted for me" in a row are skipped. */
+        private const val LATEST_WINDOW = 5
     }
 }

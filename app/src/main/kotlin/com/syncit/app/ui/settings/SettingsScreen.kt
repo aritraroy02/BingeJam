@@ -58,6 +58,7 @@ import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSegmented
 import com.syncit.app.ui.glass.GlassSwitchRow
 import com.syncit.app.ui.glass.GlassTopBar
+import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.theme.Glass
@@ -73,7 +74,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     deleteAccount: DeleteAccountViewModel,
     useFakeGoogle: Boolean,
-    onBack: () -> Unit,
+    /** Null when Settings is a tab (no back arrow). */
+    onBack: (() -> Unit)?,
     onEditProfile: () -> Unit,
     onOpenSetup: () -> Unit,
     onOpenDiagnostics: () -> Unit,
@@ -101,7 +103,7 @@ fun SettingsScreen(
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(
                 title = "Settings",
-                navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) },
+                navigation = onBack?.let { back -> { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", back) } },
             )
             Column(
                 Modifier
@@ -109,7 +111,7 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .navigationBarsPadding()
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 24.dp + LocalBottomBarInset.current),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 // Your profile, "Invisible" and what friends see now are on the Profile screen.
