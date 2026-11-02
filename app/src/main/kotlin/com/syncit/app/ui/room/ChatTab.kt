@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,11 +47,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -58,10 +62,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.syncit.app.ui.chat.ChatTimes
 import com.syncit.app.ui.chat.DaySeparator
+import com.syncit.app.ui.chat.copyToClipboard
+import com.syncit.app.ui.chat.systemShowsCopies
 import com.syncit.app.ui.chat.messageGap
 import com.syncit.app.ui.chat.rememberChatRows
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassTextField
+import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.glass.PillShape
 import com.syncit.app.ui.glass.glass
 import com.syncit.app.ui.glass.popOn
@@ -83,6 +90,10 @@ fun ChatTab(
 ) {
     val p = Glass.palette
     val rows = rememberChatRows(chat, { it.id }, { it.uid }, { it.sentAt }, serverNowMs)
+    val context = LocalContext.current
+    val longPressHaptics = LocalHapticFeedback.current
+    // Long-press copies a message (room chat has no forward/delete).
+    var copied by remember { mutableStateOf<String?>(null) }
     Column(modifier) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val listState = rememberLazyListState()
@@ -118,11 +129,16 @@ fun ChatTab(
                             grouped = row.grouped,
                             // New messages slide into place.
                             modifier = Modifier.padding(top = messageGap(row.grouped)).animateItem(),
+                            onLongPress = {
+                                longPressHaptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (copyToClipboard(context, row.item.text) && !systemShowsCopies()) copied = "Message copied"
+                            },
                         )
                     }
                 }
             }
             FloatingReactions(reactions, Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp))
+            NoticeBanner(copied, { copied = null }, Modifier.align(Alignment.BottomCenter))
         }
 
         val haptics = LocalHapticFeedback.current
@@ -154,7 +170,9 @@ fun ChatTab(
 /**
  * Speech bubble shared by room chat and direct messages. [senderName] null hides avatar and name
  * (DMs). [time] sits bottom-right after the text, WhatsApp-style. [grouped] continues the previous
- * message from the same sender: no repeated name or avatar.
+ * message from the same sender: no repeated name or avatar. [forwarded] adds a small "Forwarded"
+ * label above the text; [deleted] shows [text] (the placeholder) in italics. [onLongPress] opens
+ * the message's actions (Copy, Forward, Delete); the caller gives the haptic feedback.
  */
 @Composable
 internal fun MessageBubble(
@@ -164,6 +182,9 @@ internal fun MessageBubble(
     time: String,
     modifier: Modifier = Modifier,
     grouped: Boolean = false,
+    forwarded: Boolean = false,
+    deleted: Boolean = false,
+    onLongPress: (() -> Unit)? = null,
 ) {
     val p = Glass.palette
     // The corner nearest the sender is tighter, like a speech bubble's tail.
@@ -200,18 +221,46 @@ internal fun MessageBubble(
         } else {
             Modifier.glass(shape)
         }
+        val press = if (onLongPress != null) {
+            Modifier.combinedClickable(
+                interactionSource = null,
+                indication = null,
+                onLongClickLabel = "Message options",
+                onLongClick = onLongPress,
+                onClick = {},
+            )
+        } else {
+            Modifier
+        }
         Box(
             bubble
+                .then(press)
                 .widthIn(max = 280.dp)
                 .padding(start = 14.dp, end = 12.dp, top = 9.dp, bottom = 7.dp)
                 // Read as one item ("Asha, see you at 9, 10:42 pm"), without the invisible copy.
                 .clearAndSetSemantics {
-                    contentDescription = listOfNotNull(senderName.takeIf { showName }, text, time).joinToString(", ")
+                    contentDescription = listOfNotNull(
+                        senderName.takeIf { showName },
+                        "Forwarded".takeIf { forwarded },
+                        text,
+                        time,
+                    ).joinToString(", ")
                 },
         ) {
             Column {
                 if (showName) Text(senderName.orEmpty(), style = MaterialTheme.typography.labelMedium, color = p.accentText)
-                Text(body, style = MaterialTheme.typography.bodyMedium, color = textColor)
+                if (forwarded) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 2.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = timeColor, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("Forwarded", style = timeStyle.copy(fontStyle = FontStyle.Italic), color = timeColor)
+                    }
+                }
+                Text(
+                    body,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontStyle = if (deleted) FontStyle.Italic else FontStyle.Normal),
+                    color = if (deleted) timeColor else textColor,
+                )
             }
             Text(time, style = timeStyle, color = timeColor, maxLines = 1, modifier = Modifier.align(Alignment.BottomEnd))
         }

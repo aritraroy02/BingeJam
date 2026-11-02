@@ -184,7 +184,14 @@ sentFriendRequests/{from}/{to}: true   index for listing outgoing requests (RTDB
                                        written/deleted in the same multi-path update as the request
 friends/{uid}/{friendUid}: { since }                                                 written pairwise on accept
 blocked/{uid}/{otherUid}: true                                                        owner only
-dms/{dmId}/{msgId}:       { from, text, sentAt }     dmId = sorted uids "a_b"; only the two, only friends
+dms/{dmId}/{msgId}:       { from, text, sentAt, forwarded? }   dmId = sorted uids "a_b"; only the two, only friends
+                          forwarded: true (create only). Delete for everyone (sender only, once, 2026-11-02):
+                          { from, sentAt, deleted: true }, text + forwarded removed; nobody else edits a message
+dms/{dmId}/w-{CODE}-{hash8}[-n]: { kind: "watch", by, title, service, durationMs, items, sentAt, lastAt }
+                          "watched together" card (2026-11-02): either participant creates/extends it; durationMs
+                          (5 min..24 h) and items only grow; by/title/service/sentAt fixed; no from/text, so it's
+                          never unread and the relay never notifies for it. See "DM message actions + watched together"
+dmHidden/{uid}/{dmId}/{msgId}: true   "delete for me" (2026-11-02), owner read/write only; in account deletion
 dmReads/{uid}/{friendUid}: lastReadAt                                                owner only
 typing/{dmId}/{uid}:      server timestamp while typing (≤ every 3 s); readers treat > 6 s as stopped; onDisconnect removes
 presence/{uid}:           { online, lastSeen, activity? { app, title, subtitle, artwork, playing,
@@ -305,6 +312,59 @@ screen before joining, and keep it visible in the room.
   hostName}`, written by the host, readable by any authenticated user (the code itself is
   the secret). Rules + emulator test needed. The web page would need it readable without
   auth, so decide what is OK to show publicly.
+
+## DM message actions + watched together (built 2026-11-02, branch chat-features)
+
+**Long-press a DM** (haptic) → glass sheet: **Copy** (clipboard; our "Message copied" notice only below
+Android 13, which shows its own), **Forward** (pick friends with avatars, multi-select; each gets a normal
+`DirectMessages.send(…, forwarded = true)`, so the relay notifies as usual; "Forwarded" label above the text),
+**Delete** → "Delete for everyone" (own, not yet deleted messages) / "Delete for me" / Cancel.
+- Delete for everyone: `updateChildren(text = null, forwarded = null, deleted = true)` on the message. The
+  node keeps `from` + `sentAt`, so order and unread counts don't move; both sides show "This message was
+  deleted" ("You deleted this message" for the sender). Rules: only the sender, only from a message that
+  still has text, only to `deleted: true` without text/forwarded; no un-delete, no edits, no node removal.
+- Notifications: the relay reads the message itself, so a deleted message (no text) or a card never
+  notifies. A notification already shown is retracted: the app pings the relay with `type: "dm_deleted"`;
+  if that message is still the sender's latest (no later message from them), the relay sends a
+  data-only FCM message and the app replaces the notification tagged `dm-<uid>` with "This message was
+  deleted", silently, only if it's still showing (`PushNotifications.retractChat`). Messages older than
+  24 h aren't retracted. Older relays answer 400 (logged, nothing else).
+- Delete for me: `dmHidden/{me}/{dmId}/{msgId} = true`; `observe()` filters it (all my devices), the
+  friend never sees it. Cards can be hidden too (their menu only has Delete → Delete for me).
+- Room chat (ChatTab): long-press copies the message (no menu).
+- Old app versions: deleted messages vanish for them (their parser needs text), cards are skipped,
+  forwarded messages show without the label. No chat-list preview of the last message exists, so there
+  was nothing to update there.
+
+**Watched together cards**: "Watched Leo together · Netflix · 1h 42m" (jams: "Listened to Blinding
+Lights + 3 more together · Spotify · 45m"; YouTube says "Watched") as a centred glass card in the DM
+timeline, for both people, once per session.
+- Where: `WatchTogetherRecorder` (`app/social/`), created in AppContainer (process lifetime), driven by
+  `SyncSessionController.state`, so it doesn't depend on the room screen being visible. While the session
+  has a room it observes `rooms/{code}` (members, state), `previews/{code}` (title, service) and our
+  friends; it samples on every change and every 30 s.
+- Together = we're on the room's title (session status SYNCING/CORRECTING/CATCHING_UP), the room state is
+  `playing`, the preview names a title, and the friend is a room member who is online, a friend, and (if
+  they report positions) reported within 60 s. Only friends get cards (only friends have DMs); a room
+  with 4 people writes a card into each friend pair's DM, from both phones of the pair.
+- `WatchTogetherTracker` (pure) adds up time per friend with elapsedRealtime (gaps capped at 90 s, so a
+  frozen process doesn't count). First write once a pair has 5 min together, then every 5 min while
+  together, and once more when they stop (pause, leave, title change, friend gone). Apart > 2 h = new
+  session.
+- Dedupe: session key `w-{roomCode}-{fnv1a32(service|normalized title)}` (jams: no title, the whole jam is
+  one session; `items` counts tracks). Both phones derive the same key and walk the same slots: key,
+  key-2, key-3, … A slot whose card was updated within 2 h (`lastAt`, server time) is joined (duration =
+  max of the card and ours, items = max), an older one is skipped, an empty one is created. Two phones
+  creating at once: the rules reject the second create (by/sentAt can't change) and it re-reads and joins.
+  The returned duration is adopted by the tracker, so a restarted app continues from the card's value.
+- No push (the relay is never pinged for cards and ignores `kind`), never unread (no `from`).
+- Rules (2026-11-02, need deploying): see database.rules.json `dms/$dmId/$messageId` and `dmHidden`.
+  Emulator check (68 cases: create/extend/shrink/fields/keys/outsiders/ex-friends, delete/undelete,
+  hide) passed locally. **Deploy the rules before releasing this**: account deletion now also clears
+  `dmHidden/{uid}` and would be refused by the old rules.
+- Known limits: a room member counts while online even if their app is in a fallback mode without
+  position reports; the card's time is when it was created (5 min into the session), not the start;
+  the same title in the same room within 2 h of the last card merges into that card.
 
 ## Voice chat in rooms, HD / SD (built 2026-10-29, Discord-style)
 Our own stack, no paid service: phone ↔ our relay ↔ phones.

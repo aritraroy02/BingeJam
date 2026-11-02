@@ -32,10 +32,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,6 +55,7 @@ import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.room.ChatInputBar
 import com.syncit.app.ui.room.MessageBubble
 import com.syncit.app.ui.theme.Glass
+import com.syncit.core.model.DirectMessage
 
 /** How long the typing bubble takes to grow in; the list follows it to the bottom meanwhile. */
 private const val TYPING_ENTER_MS = 220
@@ -67,7 +73,22 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
     val list = messages
     val notFriends = friendState.loaded && friend == null
     val showTyping = friendTyping && !notFriends
-    val rows = rememberChatRows(list.orEmpty(), { it.id }, { it.fromUid }, { it.sentAt }, viewModel::serverNowMs)
+    // Watched-together cards never group with the messages around them.
+    val rows = rememberChatRows(list.orEmpty(), { it.id }, { if (it.watched != null) "card:${it.id}" else it.fromUid }, { it.sentAt }, viewModel::serverNowMs)
+    val forwardTargets by viewModel.forwardTargets.collectAsStateWithLifecycle()
+    val haptics = LocalHapticFeedback.current
+
+    // Long-press menu → Delete / Forward. Each keeps its last message while the sheet slides away.
+    var menuFor by remember { mutableStateOf<DirectMessage?>(null) }
+    var deleteFor by remember { mutableStateOf<DirectMessage?>(null) }
+    var forwardText by remember { mutableStateOf<String?>(null) }
+    var lastMenu by remember { mutableStateOf<DirectMessage?>(null) }
+    var lastDelete by remember { mutableStateOf<DirectMessage?>(null) }
+    val openMenu = { message: DirectMessage ->
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        menuFor = message
+        lastMenu = message
+    }
 
     // Opening the chat, and each message arriving while it's open, counts as read.
     LaunchedEffect(list?.size) { viewModel.markRead() }
@@ -168,14 +189,35 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
                     items(rows, key = { it.key }) { row ->
                         when (row) {
                             is ChatTimes.Row.Day -> DaySeparator(row.label)
-                            is ChatTimes.Row.Message -> MessageBubble(
-                                row.item.text,
-                                senderName = null,
-                                isMine = row.item.fromUid == viewModel.myUid,
-                                time = row.time,
-                                grouped = row.grouped,
-                                modifier = Modifier.padding(top = messageGap(row.grouped)).animateItem(),
-                            )
+                            is ChatTimes.Row.Message -> {
+                                val message = row.item
+                                val mine = message.fromUid == viewModel.myUid
+                                val card = message.watched
+                                if (card != null) {
+                                    WatchedTogetherCard(
+                                        card,
+                                        row.time,
+                                        modifier = Modifier.padding(top = 8.dp).animateItem(),
+                                        onLongPress = { openMenu(message) },
+                                    )
+                                } else {
+                                    MessageBubble(
+                                        when {
+                                            !message.deleted -> message.text
+                                            mine -> "You deleted this message"
+                                            else -> "This message was deleted"
+                                        },
+                                        senderName = null,
+                                        isMine = mine,
+                                        time = row.time,
+                                        grouped = row.grouped,
+                                        forwarded = message.forwarded,
+                                        deleted = message.deleted,
+                                        modifier = Modifier.padding(top = messageGap(row.grouped)).animateItem(),
+                                        onLongPress = { openMenu(message) },
+                                    )
+                                }
+                            }
                         }
                     }
                     item(key = "typing") { TypingRow(showTyping, name) }
@@ -201,6 +243,64 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
             }
         }
         NoticeBanner(error, viewModel::dismissError, Modifier.align(Alignment.BottomCenter))
+
+        // Copy and Forward only for real text; deleted messages and cards can only be hidden.
+        val menuMessage = lastMenu
+        val hasText = menuMessage != null && !menuMessage.deleted && menuMessage.watched == null
+        MessageActionsSheet(
+            visible = menuFor != null,
+            onDismiss = { menuFor = null },
+            onCopy = if (hasText) {
+                {
+                    menuMessage?.let { if (copyToClipboard(context, it.text) && !systemShowsCopies()) viewModel.showNotice("Message copied") }
+                    menuFor = null
+                }
+            } else {
+                null
+            },
+            onForward = if (hasText) {
+                {
+                    forwardText = menuMessage?.text
+                    menuFor = null
+                }
+            } else {
+                null
+            },
+            onDelete = {
+                deleteFor = menuFor
+                lastDelete = menuFor
+                menuFor = null
+            },
+        )
+
+        val toDelete = lastDelete
+        DeleteMessageSheet(
+            visible = deleteFor != null,
+            canDeleteForEveryone = toDelete != null && toDelete.fromUid == viewModel.myUid && !toDelete.deleted && toDelete.watched == null,
+            onDeleteForMe = {
+                deleteFor?.let(viewModel::deleteForMe)
+                deleteFor = null
+            },
+            onDeleteForEveryone = {
+                deleteFor?.let(viewModel::deleteForEveryone)
+                deleteFor = null
+            },
+            onDismiss = { deleteFor = null },
+        )
+
+        ForwardSheet(
+            visible = forwardText != null,
+            friends = forwardTargets,
+            onSend = { uids ->
+                val text = forwardText
+                forwardText = null
+                if (text != null) {
+                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    viewModel.forward(text, uids, forwardTargets.associate { it.profile.uid to it.profile.displayName })
+                }
+            },
+            onDismiss = { forwardText = null },
+        )
     }
 }
 

@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 /**
  * FCM entry point. Messages from push-relay/ carry a notification payload, so in the background
  * Android shows them itself; this only runs for messages that arrive while the app is open, and
- * for data-only new-version announcements (always).
+ * for data-only messages (always): new-version announcements and "message deleted" retractions.
  */
 class VyroMessagingService : FirebaseMessagingService() {
 
@@ -24,6 +24,10 @@ class VyroMessagingService : FirebaseMessagingService() {
         if (message.data[PushNotifications.EXTRA_TYPE] == PushNotifications.TYPE_UPDATE) {
             val version = message.data["version"] ?: return
             PushNotifications.showUpdate(this, version, message.data["notes"])
+            return
+        }
+        if (message.data[PushNotifications.EXTRA_TYPE] == PushNotifications.TYPE_DM_DELETED) {
+            message.data[PushNotifications.EXTRA_UID]?.let { PushNotifications.retractChat(this, it) }
             return
         }
         val notification = message.notification ?: return

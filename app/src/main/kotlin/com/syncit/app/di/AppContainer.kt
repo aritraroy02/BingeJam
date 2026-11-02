@@ -2,6 +2,7 @@ package com.syncit.app.di
 
 import android.app.Application
 import com.syncit.app.data.UserPrefs
+import com.syncit.app.social.WatchTogetherRecorder
 import com.syncit.core.lookup.TitleLookup
 import com.syncit.core.media.MediaControllerGateway
 import com.syncit.core.session.SyncDependencies
@@ -67,6 +68,9 @@ class AppContainer(app: Application) : SyncDependencies {
 
     /** Presence + activity tracker while signed in. */
     val socialSession = SocialSession(social, prefs, sessionController, transport, appScope)
+
+    /** "Watched together" cards in DMs, while the sync session runs (any screen). */
+    val watchTogether = WatchTogetherRecorder(social, sessionController, transport, appScope)
 
     /** Room voice chat through our relay (unsupported with the debug fakes). */
     val voice: VoiceController = AndroidVoiceController(app, firebase?.voiceAuth)

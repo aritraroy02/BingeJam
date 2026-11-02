@@ -31,10 +31,19 @@ class DmViewModel(val friendUid: String, private val container: AppContainer) : 
     /** [friend] is null once they're no longer friends (DMs are friends-only). */
     data class FriendState(val loaded: Boolean, val friend: Friend?)
 
-    val friend: StateFlow<FriendState> = social.friends.observeFriends()
-        .map { list -> FriendState(true, list.firstOrNull { it.profile.uid == friendUid }) }
-        .catch { emit(FriendState(true, null)) }
+    private val allFriends: StateFlow<List<Friend>?> = social.friends.observeFriends()
+        .map<List<Friend>, List<Friend>?> { it }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val friend: StateFlow<FriendState> = allFriends
+        .map { list -> FriendState(list != null, list?.firstOrNull { it.profile.uid == friendUid }) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FriendState(false, null))
+
+    /** Everyone a message can be forwarded to (this friend included, like WhatsApp). */
+    val forwardTargets: StateFlow<List<Friend>> = allFriends
+        .map { list -> list.orEmpty().sortedBy { it.profile.displayName.lowercase() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val messages: StateFlow<List<DirectMessage>?> = social.dms.observe(friendUid)
         .catch { emit(emptyList()) }
@@ -108,6 +117,62 @@ class DmViewModel(val friendUid: String, private val container: AppContainer) : 
 
     fun dismissError() {
         _error.value = null
+    }
+
+    /** Short confirmations ("Copied", "Forwarded to Riya") in the same banner as errors. */
+    fun showNotice(text: String) {
+        _error.value = text
+    }
+
+    /** Sends [text] as a new, forwarded message to each friend, through the normal send (push included). */
+    fun forward(text: String, toUids: Collection<String>, names: Map<String, String>) {
+        val trimmed = text.trim().take(MAX_LENGTH)
+        if (trimmed.isEmpty() || toUids.isEmpty()) return
+        viewModelScope.launch {
+            val failed = ArrayList<String>()
+            for (uid in toUids) {
+                try {
+                    social.dms.send(uid, trimmed, forwarded = true)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    failed += names[uid] ?: "a friend"
+                }
+            }
+            val sent = toUids.size - failed.size
+            _error.value = when {
+                failed.isNotEmpty() -> "Not forwarded to ${failed.joinToString()}"
+                sent == 1 -> "Forwarded to ${names[toUids.first()] ?: "1 friend"}"
+                else -> "Forwarded to $sent friends"
+            }
+        }
+    }
+
+    /** Our own message, for both of us: "This message was deleted". */
+    fun deleteForEveryone(message: DirectMessage) {
+        if (message.fromUid != myUid || message.deleted || message.watched != null) return
+        viewModelScope.launch {
+            try {
+                social.dms.deleteForEveryone(friendUid, message.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _error.value = "Couldn't delete: ${e.message ?: e.javaClass.simpleName}"
+            }
+        }
+    }
+
+    /** Hidden on all our devices; the friend still has it. */
+    fun deleteForMe(message: DirectMessage) {
+        viewModelScope.launch {
+            try {
+                social.dms.deleteForMe(friendUid, message.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _error.value = "Couldn't delete: ${e.message ?: e.javaClass.simpleName}"
+            }
+        }
     }
 
     companion object {

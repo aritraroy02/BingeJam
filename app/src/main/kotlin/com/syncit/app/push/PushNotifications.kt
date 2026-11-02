@@ -1,6 +1,7 @@
 package com.syncit.app.push
 
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -44,6 +45,9 @@ object PushNotifications {
     const val TYPE_FRIEND_REQUEST = "friend_request"
     const val TYPE_JOIN_REQUEST = "join_request"
     const val TYPE_INVITE = "invite"
+
+    /** Data-only: the friend deleted their latest message for everyone (see [retractChat]). */
+    const val TYPE_DM_DELETED = "dm_deleted"
     private val TYPES = setOf(TYPE_DM, TYPE_FRIEND_REQUEST, TYPE_JOIN_REQUEST, TYPE_INVITE)
 
     /** Same id as FCM uses, so the tag alone decides what replaces what. */
@@ -155,6 +159,33 @@ object PushNotifications {
             .setContentIntent(tap)
             .build()
         manager.notify(TYPE_UPDATE, NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * The friend deleted their latest message for everyone. If our notification for their chat
+     * is still showing (it shows their latest message), its text is replaced with "This message
+     * was deleted", silently; a dismissed one stays dismissed.
+     */
+    @SuppressLint("MissingPermission")
+    fun retractChat(context: Context, uid: String) {
+        val tag = tag(TYPE_DM, uid)
+        val shown = context.getSystemService(NotificationManager::class.java).activeNotifications
+            .firstOrNull { it.tag == tag && it.id == NOTIFICATION_ID } ?: return
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return
+        val title = shown.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: return
+        val body = "This message was deleted"
+        val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+            .setSmallIcon(R.drawable.ic_stat_vyro)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setAutoCancel(true)
+            .setContentIntent(shown.notification.contentIntent)
+            .build()
+        manager.notify(tag, NOTIFICATION_ID, notification)
     }
 
     /** Clears the notification for a chat once it's opened. */
