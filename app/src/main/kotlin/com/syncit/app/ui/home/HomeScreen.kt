@@ -79,7 +79,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.data.UpdateChecker
 import com.syncit.app.social.ActivityLinks
 import com.syncit.app.social.ActivityText
-import com.syncit.app.ui.common.BrandWordmark
 import com.syncit.app.ui.common.rememberArtwork
 import com.syncit.app.ui.glass.SkeletonRows
 import com.syncit.app.ui.glass.rememberReduceMotion
@@ -138,7 +137,7 @@ fun HomeScreen(
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(
                 navigation = {
-                    // Instagram-style top bar: picture, small wordmark, plain icons.
+                    // Instagram-style top bar: your picture and plain icons.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Avatar(
                             me?.displayName ?: "?",
@@ -149,8 +148,6 @@ fun HomeScreen(
                                 .clickable(role = Role.Button, onClick = onOpenProfile)
                                 .semantics { contentDescription = "Your profile" },
                         )
-                        Spacer(Modifier.width(12.dp))
-                        BrandWordmark(style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp))
                     }
                 },
                 actions = {

@@ -25,6 +25,12 @@ class UserPrefs(context: Context) {
         get() = prefs.getString(KEY_LAST_ROOM, null)
         set(value) = prefs.edit { putString(KEY_LAST_ROOM, value) }
 
+    /** Room code + when we entered it (wall clock), for the "In a room · 05:12" bar. */
+    var roomJoinedAt: Pair<String, Long>?
+        get() = prefs.getString(KEY_ROOM_JOINED_AT, null)?.split('|')?.takeIf { it.size == 2 }
+            ?.let { (code, at) -> at.toLongOrNull()?.let { code to it } }
+        set(value) = prefs.edit { putString(KEY_ROOM_JOINED_AT, value?.let { "${it.first}|${it.second}" }) }
+
     private val _onboarded = MutableStateFlow(prefs.getBoolean(KEY_ONBOARDED, false))
 
     /** The permissions walkthrough (Notification Access etc.) has been finished once. */
@@ -154,6 +160,7 @@ class UserPrefs(context: Context) {
     private companion object {
         const val KEY_NAME = "display_name"
         const val KEY_LAST_ROOM = "last_room"
+        const val KEY_ROOM_JOINED_AT = "room_joined_at"
         const val KEY_ONBOARDED = "onboarding_done"
         const val KEY_PENDING_JOIN = "pending_join"
         const val KEY_CLIPBOARD_CHECKED = "invite_clipboard_checked"

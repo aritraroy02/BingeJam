@@ -171,6 +171,8 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
             if (service == StreamingService.NETFLIX) {
                 viewModel.netflixRetry.opened(SystemClock.elapsedRealtime())
                 openNetflix(context, netflixId, NetflixLinks.query(preview), currentRoom?.title)
+            } else if (service == StreamingService.JIOHOTSTAR) {
+                openJioHotstar(context, preview?.takeIf { it.service == service }?.playableRef, currentRoom?.title)
             } else {
                 openForPlay(context, service, currentRoom?.title)
             }
@@ -498,7 +500,8 @@ private fun HeroBadges(service: StreamingService?, jamLabel: String?, labelColor
 
 /**
  * Watch parties: members who aren't watching the host's title yet get one tap into it. For a
- * Netflix movie whose ID was found ([netflixId]), that starts the movie itself; otherwise we open
+ * Netflix movie whose ID was found ([netflixId]), or a JioHotstar title with the host's content ID
+ * (preview playableRef), that starts the title itself; otherwise we open
  * the app (the host's link, or a search for the movie) and say which episode to start. Once it
  * matches, the coordinator joins it to the room's position.
  */
@@ -522,7 +525,9 @@ private fun WatchPartyPrompt(
         onClick = { onPlay(service) },
         modifier = Modifier.fillMaxWidth(),
     )
-    val direct = netflixId != null && service == StreamingService.NETFLIX
+    val netflixDirect = netflixId != null && service == StreamingService.NETFLIX
+    val hotstarDirect = service == StreamingService.JIOHOTSTAR && preview?.service == service && preview.playableRef != null
+    val direct = netflixDirect || hotstarDirect
     val start = when {
         direct -> "Opens ${preview?.title ?: "the movie"} in ${service.displayName}"
         episode.isNotEmpty() -> "Start $episode"
@@ -534,7 +539,7 @@ private fun WatchPartyPrompt(
         style = MaterialTheme.typography.bodySmall,
         color = if (sync.status == SyncStatus.OTHER_TITLE) p.warning else p.textSecondary,
     )
-    if (direct) {
+    if (netflixDirect) {
         // Required credit for Watchmode's free plan, which found the Netflix ID.
         Text(
             "Movie found with Watchmode",

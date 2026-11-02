@@ -114,9 +114,39 @@ class PlayableRefParserTest {
         assertTrue(PlayableRefParser.readsMediaUri(SPOTIFY_PACKAGE))
         assertTrue(PlayableRefParser.readsMediaUri(YOUTUBE_PACKAGE))
         assertTrue(PlayableRefParser.readsMediaUri(YOUTUBE_MUSIC_PACKAGE))
-        assertFalse(PlayableRefParser.readsMediaUri(JIOHOTSTAR_PACKAGE))
+        assertTrue(PlayableRefParser.readsMediaUri(JIOHOTSTAR_PACKAGE))
         assertFalse(PlayableRefParser.readsMediaUri(NETFLIX_PACKAGE))
         assertFalse(PlayableRefParser.readsMediaUri(AMAZON_MUSIC_PACKAGE))
+    }
+
+    // ---- JioHotstar (MEDIA_URI measured on the OPPO with "October", 2026-11-02) ----
+
+    private val hotstarStream =
+        "https://hses9.hotstar.com/gsvod1/movies-prod-origin1/videos/hotstarint/v3/1271713346/1791213049860/c811af9e895e40605b055"
+    private val hotstarWatch = "https://www.hotstar.com/in/movies/x/1271713346/watch"
+
+    @Test fun jioHotstarContentIdFromStreamUrl() =
+        assertEquals(hotstarWatch, PlayableRefParser.parse(JIOHOTSTAR_PACKAGE, null, hotstarStream))
+
+    @Test fun jioHotstarNeverKeepsTheStreamUrl() {
+        val ref = PlayableRefParser.parse(JIOHOTSTAR_PACKAGE, "", hotstarStream)!!
+        assertFalse(ref.contains("hses9"))
+        assertFalse(ref.contains("c811af9e"))
+    }
+
+    @Test fun jioHotstarRejectsOtherHostsAndShapes() {
+        assertNull(PlayableRefParser.parse(JIOHOTSTAR_PACKAGE, null, hotstarStream.replace("hotstar.com", "hotstar.com.evil.io")))
+        assertNull(PlayableRefParser.parse(JIOHOTSTAR_PACKAGE, null, "http://hses9.hotstar.com/videos/hotstarint/v3/1271713346/x"))
+        assertNull(PlayableRefParser.parse(JIOHOTSTAR_PACKAGE, null, "https://hses9.hotstar.com/videos/hotstarint/1271713346/x"))
+        assertNull(PlayableRefParser.parse(JIOHOTSTAR_PACKAGE, "1271713346", null))
+        assertNull(PlayableRefParser.parse(JIOHOTSTAR_PACKAGE, null, "https://www.youtube.com/watch?v=$videoId"))
+    }
+
+    @Test fun jioHotstarWatchLinkIsValidOnlyForJioHotstar() {
+        assertEquals(hotstarWatch, PlayableRefParser.validFor(JIOHOTSTAR_PACKAGE, hotstarWatch))
+        assertNull(PlayableRefParser.validFor(NETFLIX_PACKAGE, hotstarWatch))
+        assertNull(PlayableRefParser.validFor(JIOHOTSTAR_PACKAGE, hotstarStream))
+        assertNull(PlayableRefParser.validFor(JIOHOTSTAR_PACKAGE, "$hotstarWatch?x=1"))
     }
 
     @Test fun nullAndBlankInputs() {

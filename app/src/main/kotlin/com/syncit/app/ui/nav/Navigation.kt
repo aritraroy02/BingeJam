@@ -2,6 +2,9 @@ package com.syncit.app.ui.nav
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,8 +14,11 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -56,6 +62,8 @@ import com.syncit.app.ui.join.JoinPreviewViewModel
 import com.syncit.app.ui.onboarding.OnboardingScreen
 import com.syncit.app.ui.profile.ProfileScreen
 import com.syncit.app.ui.profile.ProfileViewModel
+import com.syncit.app.ui.room.OngoingRoomBar
+import com.syncit.app.ui.room.OngoingRoomViewModel
 import com.syncit.app.ui.room.RoomScreen
 import com.syncit.app.ui.room.RoomViewModel
 import com.syncit.app.ui.settings.DeleteAccountViewModel
@@ -98,6 +106,14 @@ class NavViewModel : ViewModel() {
 
     fun pop() {
         if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+    }
+
+    /** Back to [code]'s room: the existing entry (keeping its state) if it's in the stack, else a new one. */
+    fun openRoom(code: String) {
+        val existing = backStack.lastOrNull { it is Screen.Room && it.code == code } ?: Screen.Room(code)
+        if (current == existing) return
+        backStack.remove(existing)
+        backStack.add(existing)
     }
 
     fun reset(vararg screens: Screen) {
@@ -225,32 +241,49 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
 
     BackHandler(enabled = nav.backStack.size > 1) { nav.pop() }
 
-    val reduceMotion = rememberReduceMotion()
-    Box(Modifier.fillMaxSize()) {
-        // Deeper screens slide in from the right, going back slides them out; jumps elsewhere
-        // (notification, invite) crossfade. Depth travels with the screen so a screen that's
-        // leaving keeps the depth it was shown at.
-        AnimatedContent(
-            targetState = NavEntry(nav.current, nav.backStack.size),
-            transitionSpec = {
-                val forward = targetState.depth > initialState.depth
-                val back = targetState.depth < initialState.depth
-                when {
-                    reduceMotion -> fadeIn(tween(0)) togetherWith fadeOut(tween(0))
-                    forward -> (slideInHorizontally(tween(320, easing = EmphasizedEase)) { it / 4 } + fadeIn(tween(220))) togetherWith
-                        (slideOutHorizontally(tween(320, easing = EmphasizedEase)) { -it / 8 } + fadeOut(tween(180)))
-                    back -> (slideInHorizontally(tween(300, easing = EmphasizedEase)) { -it / 8 } + fadeIn(tween(220))) togetherWith
-                        (slideOutHorizontally(tween(260, easing = EmphasizedEase)) { it / 4 } + fadeOut(tween(160)))
-                    else -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
-                }
-            },
-            contentKey = { it.screen },
-            label = "screens",
-        ) { entry ->
-            NavScreen(entry, container, nav, deletion)
-        }
+    val roomBar: OngoingRoomViewModel = viewModel(factory = viewModelFactory { initializer { OngoingRoomViewModel(container) } })
+    val ongoing by roomBar.ongoing.collectAsStateWithLifecycle()
+    val showRoomBar = ongoing?.let { o -> (nav.current as? Screen.Room)?.code != o.code } == true
 
-        SocialBanners(events)
+    val reduceMotion = rememberReduceMotion()
+    Column(Modifier.fillMaxSize()) {
+        AnimatedVisibility(visible = showRoomBar, enter = expandVertically(), exit = shrinkVertically()) {
+            ongoing?.let { o ->
+                OngoingRoomBar(
+                    ongoing = o,
+                    onOpen = { nav.openRoom(o.code) },
+                    onMute = roomBar::setMuted,
+                    onLeave = roomBar::leave,
+                )
+            }
+        }
+        // Under the bar, screens skip their own status-bar padding (the bar already covers it).
+        Box(Modifier.fillMaxSize().then(if (showRoomBar) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier)) {
+            // Deeper screens slide in from the right, going back slides them out; jumps elsewhere
+            // (notification, invite) crossfade. Depth travels with the screen so a screen that's
+            // leaving keeps the depth it was shown at.
+            AnimatedContent(
+                targetState = NavEntry(nav.current, nav.backStack.size),
+                transitionSpec = {
+                    val forward = targetState.depth > initialState.depth
+                    val back = targetState.depth < initialState.depth
+                    when {
+                        reduceMotion -> fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                        forward -> (slideInHorizontally(tween(320, easing = EmphasizedEase)) { it / 4 } + fadeIn(tween(220))) togetherWith
+                            (slideOutHorizontally(tween(320, easing = EmphasizedEase)) { -it / 8 } + fadeOut(tween(180)))
+                        back -> (slideInHorizontally(tween(300, easing = EmphasizedEase)) { -it / 8 } + fadeIn(tween(220))) togetherWith
+                            (slideOutHorizontally(tween(260, easing = EmphasizedEase)) { it / 4 } + fadeOut(tween(160)))
+                        else -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+                    }
+                },
+                contentKey = { it.screen },
+                label = "screens",
+            ) { entry ->
+                NavScreen(entry, container, nav, deletion)
+            }
+
+            SocialBanners(events)
+        }
     }
 }
 

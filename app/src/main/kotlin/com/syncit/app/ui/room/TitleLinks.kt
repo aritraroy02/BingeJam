@@ -130,6 +130,18 @@ internal fun openNetflix(context: Context, netflixId: String?, query: NetflixLin
     return openForPlay(context, service, null)
 }
 
+/**
+ * JioHotstar watch parties: the host's exact title from its content ID ([ref] = the preview's
+ * playableRef, a hotstar.com watch link that starts it playing, see PlayableRefParser), else the
+ * host's link, else the app. No search. The sync session then jumps to the room's position.
+ * False if JioHotstar isn't installed.
+ */
+internal fun openJioHotstar(context: Context, ref: String?, title: RoomTitle?): Boolean {
+    val service = StreamingService.JIOHOTSTAR
+    MemberPrompts.safePlayableRef(service, ref)?.let { if (openInPackage(context, service, it)) return true }
+    return openForPlay(context, service, title)
+}
+
 private fun openInPackage(context: Context, service: StreamingService, url: String): Boolean = try {
     context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).setPackage(service.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     true

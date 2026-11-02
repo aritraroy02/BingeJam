@@ -7,9 +7,10 @@ import com.syncit.core.config.StreamingConfig
  * exact item in the same app, so jam members can start the host's track. Pure (no Android) so the
  * patterns are unit-tested.
  *
- * Inputs are the session's own MediaMetadata MEDIA_ID and, for the jam apps below only, MEDIA_URI.
- * Never notification content. Only strict, known public formats are accepted; anything else
- * (including private stream/CDN URLs such as JioHotstar's MEDIA_URI) gives null.
+ * Inputs are the session's own MediaMetadata MEDIA_ID and, for the apps in [URI_PACKAGES] only,
+ * MEDIA_URI. Never notification content. Only strict, known public formats are accepted; anything
+ * else gives null. JioHotstar's MEDIA_URI is a private stream URL: only the public content ID inside
+ * it is kept (the URL itself is never stored or shared).
  *
  * What these apps actually put in MEDIA_ID / MEDIA_URI is UNVERIFIED on a real device; if they
  * publish something else, playableRef stays null and jams fall back to title matching + search.
@@ -18,6 +19,10 @@ import com.syncit.core.config.StreamingConfig
  *  - Spotify:       spotify:track:<22 base62> or spotify:episode:<22 base62>
  *  - YouTube:       https://www.youtube.com/watch?v=<11 char id>
  *  - YouTube Music: https://music.youtube.com/watch?v=<11 char id>
+ *  - JioHotstar:    https://www.hotstar.com/in/movies/x/<content id>/watch (the content ID is the
+ *                   number after /v3/ in its MEDIA_URI, e.g. hses9.hotstar.com/…/hotstarint/v3/1271713346/…;
+ *                   measured with October on the OPPO, 2026-11-02. The link starts it playing, even
+ *                   with JioHotstar closed; the "movies"/"x" parts are ignored by the app.)
  *  - Amazon Music and every other app: null (no known public format).
  */
 internal object PlayableRefParser {
@@ -31,7 +36,14 @@ internal object PlayableRefParser {
     )
     private val YOUTU_BE = Regex("""https?://youtu\.be/([A-Za-z0-9_-]{11})(?:[?#].*)?""")
 
-    /** True for the packages whose MEDIA_URI may be read (jam apps with a public format). */
+    /** JioHotstar's stream URL: the content ID is the path segment after /v<n>/. */
+    private val HOTSTAR_STREAM = Regex("""https://(?:[a-z0-9-]+\.)*hotstar\.com/[^?#]*?/v\d+/(\d{6,12})/.*""")
+    private val HOTSTAR_WATCH = Regex("""https://www\.hotstar\.com/in/movies/x/(\d{6,12})/watch""")
+
+    /** The link that opens JioHotstar's content [id] and starts playing it. */
+    fun hotstarWatchUrl(id: String): String = "https://www.hotstar.com/in/movies/x/$id/watch"
+
+    /** True for the packages whose MEDIA_URI may be read (apps with a public format in it). */
     fun readsMediaUri(packageName: String): Boolean = packageName in URI_PACKAGES
 
     /**
@@ -56,6 +68,8 @@ internal object PlayableRefParser {
             StreamingConfig.SPOTIFY_PACKAGE -> value.takeIf { SPOTIFY.matches(it) }
             StreamingConfig.YOUTUBE_PACKAGE -> videoId(value)?.let { "https://www.youtube.com/watch?v=$it" }
             StreamingConfig.YOUTUBE_MUSIC_PACKAGE -> videoId(value)?.let { "https://music.youtube.com/watch?v=$it" }
+            StreamingConfig.JIOHOTSTAR_PACKAGE ->
+                (HOTSTAR_WATCH.matchEntire(value) ?: HOTSTAR_STREAM.matchEntire(value))?.let { hotstarWatchUrl(it.groupValues[1]) }
             else -> null
         }
     }
@@ -74,5 +88,6 @@ internal object PlayableRefParser {
         StreamingConfig.SPOTIFY_PACKAGE,
         StreamingConfig.YOUTUBE_PACKAGE,
         StreamingConfig.YOUTUBE_MUSIC_PACKAGE,
+        StreamingConfig.JIOHOTSTAR_PACKAGE,
     )
 }

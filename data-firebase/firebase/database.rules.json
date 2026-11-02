@@ -375,7 +375,7 @@
         "subtitle": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "artwork": { ".validate": "newData.isString() && newData.val().length <= 70000" },
         "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-        "playableRef": { ".validate": "newData.isString() && newData.val().length <= 200 && (newData.val().matches(/^spotify:track:[A-Za-z0-9]{22}$/) || newData.val().matches(/^spotify:episode:[A-Za-z0-9]{22}$/) || newData.val().matches(/^https:\\/\\/www\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/music\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/))" },
+        "playableRef": { ".validate": "newData.isString() && newData.val().length <= 200 && (newData.val().matches(/^spotify:track:[A-Za-z0-9]{22}$/) || newData.val().matches(/^spotify:episode:[A-Za-z0-9]{22}$/) || newData.val().matches(/^https:\\/\\/www\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/music\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/www\\.hotstar\\.com\\/in\\/movies\\/x\\/[0-9]{6,12}\\/watch$/))" },
         "updatedAt": { ".validate": "newData.val() === now" },
         "$other": { ".validate": false }
       }
