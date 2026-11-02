@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -97,29 +98,33 @@ private fun TabIcon(icon: ImageVector, label: String, selected: Boolean, badge: 
     val haptics = LocalHapticFeedback.current
     val tint by animateColorAsState(if (selected) p.onAccent else p.textSecondary, label = "tabTint")
     val fill by animateColorAsState(if (selected) p.accent else Color.Transparent, label = "tabFill")
-    Box(
-        Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .clickable(role = Role.Tab) {
-                if (!selected) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                onClick()
+    // Only the round tap target is clipped; the badge sits on top of it, uncut.
+    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .clickable(role = Role.Tab) {
+                    if (!selected) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    onClick()
+                }
+                .semantics {
+                    contentDescription = if (badge > 0) "$label, $badge new" else label
+                    this.selected = selected
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(42.dp).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp))
             }
-            .semantics {
-                contentDescription = if (badge > 0) "$label, $badge new" else label
-                this.selected = selected
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(Modifier.size(42.dp).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp))
         }
         if (badge > 0) {
             Box(
                 Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 2.dp, y = (-2).dp)
-                    .clip(CircleShape)
+                    .offset(x = 4.dp, y = 2.dp)
+                    .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                    .clip(RoundedCornerShape(9.dp))
                     .background(p.danger)
                     .padding(horizontal = 5.dp, vertical = 1.dp),
                 contentAlignment = Alignment.Center,
