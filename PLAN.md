@@ -302,6 +302,10 @@ movies across platforms.
   deleted", "Watched Leo together"), unread badge. Data: `DirectMessages.observeLatest()`: per friend
   `dms/{dmId}` orderByChild(sentAt).limitToLast(5), skipping `dmHidden` ("deleted for me").
 - DM notification taps open Chats → the chat, so Back lands on the Chats list.
+- Chats has a search box over all friends (name or username, "@" ignored; names starting with it first);
+  tapping a result opens or starts that chat.
+- Home no longer lists friends (user's request): only "Live now" (friends playing something; tap → friend
+  sheet with Start a room / Ask to join), the update banner, and a placeholder when nobody is live.
 
 ### Agents
 - backend-agent (`:data-firebase` + rules + emulator tests), media-agent (`:media`: ActivityTracker,

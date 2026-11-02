@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -67,19 +66,15 @@ import com.syncit.app.data.UpdateChecker
 import com.syncit.app.social.ActivityLinks
 import com.syncit.app.social.ActivityText
 import com.syncit.app.ui.common.rememberArtwork
-import com.syncit.app.ui.glass.SkeletonRows
 import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.glass.staggerIn
 import com.syncit.app.ui.social.color
 import com.syncit.app.ui.glass.Avatar
-import com.syncit.app.ui.glass.CountBadge
-import com.syncit.app.ui.glass.Dot
 import com.syncit.app.ui.glass.GlassBottomSheet
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
-import com.syncit.app.ui.glass.GlassSmallButton
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.glass.NoticeBanner
@@ -95,7 +90,6 @@ fun HomeScreen(
     onEnterRoom: (String) -> Unit,
     onStartRoomWith: (code: String, friendUid: String) -> Unit,
     onOpenProfile: () -> Unit,
-    onOpenFriends: () -> Unit,
     onOpenChat: (String) -> Unit,
 ) {
     val p = Glass.palette
@@ -146,6 +140,16 @@ fun HomeScreen(
                 val live = friends.orEmpty().filter { it.online && it.activity != null }
                 if (live.isNotEmpty()) {
                     LiveNowRow(live, onOpen = { sheetUid = it.uid }, modifier = Modifier.staggerIn(0))
+                } else if (friends != null) {
+                    GlassPanel(Modifier.fillMaxWidth().staggerIn(0)) {
+                        Text("Nothing live right now", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+                        Text(
+                            "When friends play something on Netflix, JioHotstar, Prime Video, Spotify or YouTube, " +
+                                "it shows up here and you can jump in.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = p.textSecondary,
+                        )
+                    }
                 }
 
                 update?.let { available ->
@@ -160,40 +164,6 @@ fun HomeScreen(
                             onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, UpdateChecker.DOWNLOAD_URL.toUri())) },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp).staggerIn(4)) {
-                    val online = friends?.count { it.online } ?: 0
-                    SectionLabel(if (online > 0) "Friends · $online online" else "Friends", Modifier.weight(1f))
-                    GlassSmallButton("Add friends", onClick = onOpenFriends, primary = false)
-                }
-                val rows = friends
-                when {
-                    rows == null -> GlassPanel(Modifier.fillMaxWidth().staggerIn(5), spacing = 0.dp, contentPadding = PaddingValues(10.dp)) {
-                        SkeletonRows(3)
-                    }
-                    rows.isEmpty() -> GlassPanel(Modifier.fillMaxWidth().staggerIn(5)) {
-                        Text("Better with friends", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
-                        Text(
-                            "Add friends by their username. You'll see what they're watching or listening to, " +
-                                "and can jump into their watch party or jam with one tap.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = p.textSecondary,
-                        )
-                        GlassButton("Find friends", onClick = onOpenFriends, icon = Icons.Filled.Add, modifier = Modifier.fillMaxWidth())
-                    }
-                    else -> GlassPanel(Modifier.fillMaxWidth().staggerIn(5), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
-                        // Online first, then whoever was around most recently (the VM's order).
-                        for (row in rows.sortedByDescending { it.online }) {
-                            FriendRowView(
-                                row = row,
-                                onClick = { sheetUid = row.uid },
-                                onChat = { onOpenChat(row.uid) },
-                                onAskToJoin = { viewModel.askToJoin(row) },
-                                onOpenApp = { openActivity(row) },
-                            )
-                        }
                     }
                 }
             }
@@ -332,78 +302,6 @@ private fun LivePulse() {
                 .background(red),
         )
         Box(Modifier.size(8.dp).clip(CircleShape).background(red))
-    }
-}
-
-@Composable
-private fun FriendRowView(
-    row: FriendRow,
-    onClick: () -> Unit,
-    onChat: () -> Unit,
-    onAskToJoin: () -> Unit,
-    onOpenApp: () -> Unit,
-) {
-    val p = Glass.palette
-    val activity = row.activity
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Avatar(row.friend.profile.displayName, size = 46.dp, online = row.online, photoUrl = row.friend.profile.photoUrl)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(
-                row.friend.profile.displayName,
-                style = MaterialTheme.typography.titleSmall,
-                color = p.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (activity != null) {
-                    Dot(if (activity.playing) p.success else p.warning)
-                    Spacer(Modifier.width(6.dp))
-                }
-                Text(
-                    row.status,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (activity != null) p.textPrimary else p.textSecondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            ActivityText.watchPartyLabel(activity)?.let {
-                Text(it, style = MaterialTheme.typography.labelMedium, color = p.accentText)
-            }
-            if (activity != null) {
-                Spacer(Modifier.height(2.dp))
-                // Watch parties and jams alike: the room is the point. "Open in …" lives in the sheet.
-                val ask = row.askLabel
-                if (ask != null) {
-                    GlassSmallButton(ask, onClick = onAskToJoin, enabled = !row.joinRequested)
-                } else {
-                    GlassSmallButton("Open in ${activity.app.displayName}", onClick = onOpenApp, primary = false)
-                }
-            }
-        }
-        if (activity != null) {
-            Spacer(Modifier.width(10.dp))
-            ActivityThumb(activity, size = 40.dp)
-        }
-        Spacer(Modifier.width(6.dp))
-        Box {
-            Box(
-                Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onChat),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.AutoMirrored.Filled.Send, "Message ${row.friend.profile.displayName}", tint = p.textSecondary, modifier = Modifier.size(20.dp))
-            }
-            CountBadge(row.unread, Modifier.align(Alignment.TopEnd))
-        }
     }
 }
 

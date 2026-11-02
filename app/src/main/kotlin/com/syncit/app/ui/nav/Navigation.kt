@@ -392,7 +392,6 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     onEnterRoom = { code -> nav.push(Screen.Room(code)) },
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
                     onOpenProfile = { nav.push(Screen.Profile) },
-                    onOpenFriends = { nav.reset(Screen.Friends) },
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
                 )
             }
