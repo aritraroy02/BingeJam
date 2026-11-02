@@ -26,6 +26,10 @@ android {
         targetSdk = 36
         versionCode = 16
         versionName = "0.6.6"
+        // Store builds (-Pstore=indus) leave updates to the store: no GitHub update check,
+        // banner or "new version" notification, as app stores require.
+        val store = (findProperty("store") as String?) ?: "github"
+        buildConfigField("boolean", "SELF_UPDATE", (store == "github").toString())
     }
 
     signingConfigs {

@@ -129,6 +129,7 @@ object PushNotifications {
 
     /** Every install listens for new-version announcements. Idempotent; best effort. */
     fun subscribeToUpdates() {
+        if (!UpdateChecker.enabled) return
         runCatching { FirebaseMessaging.getInstance().subscribeToTopic(TOPIC_UPDATES) }
     }
 
@@ -138,7 +139,7 @@ object PushNotifications {
      */
     @SuppressLint("MissingPermission")
     fun showUpdate(context: Context, version: String, notes: String?) {
-        if (!UpdateChecker.isNewer(version, BuildConfig.VERSION_NAME)) return
+        if (!UpdateChecker.enabled || !UpdateChecker.isNewer(version, BuildConfig.VERSION_NAME)) return
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
         val open = Intent(context, MainActivity::class.java)

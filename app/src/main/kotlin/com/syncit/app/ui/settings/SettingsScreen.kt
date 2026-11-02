@@ -207,21 +207,24 @@ fun SettingsScreen(
                     val available = ((check as? SettingsViewModel.UpdateCheck.Done)?.result as? UpdateChecker.Result.Available)?.update
                     GlassRow(
                         title = "${Brand.NAME} ${BuildConfig.VERSION_NAME}",
-                        subtitle = when (check) {
-                            SettingsViewModel.UpdateCheck.Idle -> "Tap to check for updates"
-                            SettingsViewModel.UpdateCheck.Checking -> "Checking for updates…"
-                            is SettingsViewModel.UpdateCheck.Done -> when (check.result) {
+                        subtitle = when {
+                            !UpdateChecker.enabled -> "Updates come through the app store you installed from"
+                            check == SettingsViewModel.UpdateCheck.Idle -> "Tap to check for updates"
+                            check == SettingsViewModel.UpdateCheck.Checking -> "Checking for updates…"
+                            else -> when ((check as SettingsViewModel.UpdateCheck.Done).result) {
                                 UpdateChecker.Result.UpToDate -> "You're on the latest version"
                                 is UpdateChecker.Result.Available -> "Version ${available?.version} is available. Tap to download."
                                 UpdateChecker.Result.Failed -> "Couldn't check. Tap to try again."
                             }
                         },
                         icon = Icons.Filled.Info,
-                        onClick = {
-                            if (available != null) {
-                                openLegal(UpdateChecker.DOWNLOAD_URL)
-                            } else {
-                                viewModel.checkForUpdate()
+                        onClick = if (!UpdateChecker.enabled) null else {
+                            {
+                                if (available != null) {
+                                    openLegal(UpdateChecker.DOWNLOAD_URL)
+                                } else {
+                                    viewModel.checkForUpdate()
+                                }
                             }
                         },
                         trailing = {

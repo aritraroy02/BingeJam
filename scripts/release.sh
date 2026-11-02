@@ -44,8 +44,12 @@ git tag -a "v$VERSION" -m "BingeJam $VERSION"
 
 echo "Released: https://github.com/$REPO/releases/tag/v$VERSION"
 
-# Indus Appstore: push the same APK as an update when this machine has the API key
+# Indus Appstore: push the version as an update when this machine has the API key
 # (~/.syncit/indus-api.key or $INDUS_API_KEY). Skip with INDUS_UPLOAD=0. Never fails the release.
 if [ "${INDUS_UPLOAD:-1}" != "0" ] && { [ -n "${INDUS_API_KEY:-}" ] || [ -f "$HOME/.syncit/indus-api.key" ]; }; then
-  bash scripts/indus-upload.sh "$NOTES" dist/sync-it.apk || echo "Indus upload failed; GitHub release is fine. Retry: bash scripts/indus-upload.sh \"notes\""
+  # Indus gets its own build without the GitHub updater (store policy: no downloads from outside).
+  ./gradlew assembleRelease -Pstore=indus \
+    && cp app/build/outputs/apk/release/app-release.apk dist/sync-it-indus.apk \
+    && bash scripts/indus-upload.sh "$NOTES" dist/sync-it-indus.apk \
+    || echo "Indus upload failed; GitHub release is fine. Retry: bash scripts/indus-upload.sh \"notes\" dist/sync-it-indus.apk"
 fi

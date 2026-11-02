@@ -71,7 +71,7 @@ watch party, watch together, sync, music together, jam, listen together, friends
 - App icon 512×512 PNG: `icon-512.png` (done)
 - Feature graphic 1024×500 PNG: `feature-graphic.png` (done)
 - Phone screenshots (2–8, PNG/JPG): `screenshots/` — see SCREENSHOTS.md (needs a device)
-- Signed APK: `dist/sync-it.apk` (versionCode 16 / 0.6.6)
+- Signed APK: `dist/sync-it-indus.apk` (`./gradlew assembleRelease -Pstore=indus`; no GitHub updater, versionCode 16 / 0.6.6)
 
 ## Notes for the submission form
 - **Notification Access / special permission:** Indus review will ask why the app needs Notification

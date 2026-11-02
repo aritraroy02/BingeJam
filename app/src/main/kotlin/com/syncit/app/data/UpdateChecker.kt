@@ -19,6 +19,9 @@ object UpdateChecker {
     /** Always the newest release's APK; the invite site links here too. */
     const val DOWNLOAD_URL = "https://github.com/$RELEASES_REPO/releases/latest/download/sync-it.apk"
 
+    /** False in store builds (Indus): the store updates the app, so we never point at GitHub. */
+    val enabled: Boolean get() = BuildConfig.SELF_UPDATE
+
     data class Update(val version: String, val notes: String?)
 
     /** Outcome of a check, for "Check for updates" in Settings. */
@@ -29,7 +32,7 @@ object UpdateChecker {
     }
 
     /** The newer release, or null if we're current or the check failed (offline, rate-limited). */
-    suspend fun check(): Update? = (checkNow() as? Result.Available)?.update
+    suspend fun check(): Update? = if (enabled) (checkNow() as? Result.Available)?.update else null
 
     suspend fun checkNow(): Result = withContext(Dispatchers.IO) {
         runCatching {
