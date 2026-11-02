@@ -104,7 +104,9 @@ function item(t) {
 }
 
 async function tmdb(path, env) {
-  const res = await fetch(TMDB + path, { headers: { Authorization: `Bearer ${env.TMDB_READ_TOKEN}`, Accept: 'application/json' } });
+  // Secrets piped in from a Windows shell can carry a byte-order mark; TMDB then answers 401.
+  const token = String(env.TMDB_READ_TOKEN).replace(/^\uFEFF/, '').trim();
+  const res = await fetch(TMDB + path, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
   if (!res.ok) throw new Error(`tmdb ${res.status}`);
   return res.json();
 }
