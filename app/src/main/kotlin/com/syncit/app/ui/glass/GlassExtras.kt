@@ -1,5 +1,22 @@
 package com.syncit.app.ui.glass
 
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animate
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.MutableIntState
@@ -76,11 +93,54 @@ fun GlassBottomSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composab
             onDispose { openSheets.intValue-- }
         }
     }
+    // Swipe down to close: the sheet follows the finger (and overscroll of its content); past
+    // DISMISS_DRAG or a fast flick it closes, otherwise it springs back.
+    var dragY by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(visible) { if (visible) dragY = 0f }
+    val scope = rememberCoroutineScope()
+    val dismissPx = with(LocalDensity.current) { DISMISS_DRAG.toPx() }
+    val dismiss by rememberUpdatedState(onDismiss)
+    val settle: (Float) -> Unit = { velocity ->
+        if (dragY > dismissPx || velocity > DISMISS_VELOCITY) {
+            dismiss()
+        } else {
+            scope.launch { animate(dragY, 0f) { value, _ -> dragY = value } }
+        }
+    }
+    val sheetScroll = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Pulled down already and now dragging up: bring the sheet back before scrolling.
+                if (available.y < 0 && dragY > 0) {
+                    val used = maxOf(available.y, -dragY)
+                    dragY += used
+                    return Offset(0f, used)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                // The content is at its top (or can't scroll): the rest of a downward drag moves the sheet.
+                if (available.y > 0 && source == NestedScrollSource.UserInput) {
+                    dragY += available.y
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragY <= 0f) return Velocity.Zero
+                settle(available.y)
+                return available
+            }
+        }
+    }
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible, enter = fadeIn(), exit = fadeOut()) {
             Box(
                 Modifier
                     .fillMaxSize()
+                    .graphicsLayer { alpha = (1f - dragY / (dismissPx * 3f)).coerceIn(0.3f, 1f) }
                     .background(Color.Black.copy(alpha = 0.35f))
                     .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
             )
@@ -93,6 +153,7 @@ fun GlassBottomSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composab
         ) {
             Column(
                 Modifier
+                    .offset { IntOffset(0, dragY.roundToInt()) }
                     .fillMaxWidth()
                     .padding(8.dp)
                     .glass(RoundedCornerShape(32.dp), tint = Glass.palette.glassFallback.copy(alpha = 0.55f))
@@ -101,6 +162,7 @@ fun GlassBottomSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composab
                     .navigationBarsPadding()
                     .imePadding()
                     .heightIn(max = 640.dp)
+                    .nestedScroll(sheetScroll)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -276,3 +338,9 @@ fun NoticeBanner(message: String?, onDismiss: () -> Unit, modifier: Modifier = M
 fun Dot(color: Color, modifier: Modifier = Modifier) {
     Box(modifier.size(8.dp).clip(CircleShape).background(color))
 }
+
+/** How far a bottom sheet must be pulled down to close when let go. */
+private val DISMISS_DRAG = 120.dp
+
+/** A downward flick faster than this (px/s) closes a bottom sheet. */
+private const val DISMISS_VELOCITY = 1_800f
