@@ -1,5 +1,8 @@
 package com.syncit.app.ui.home
 
+import com.syncit.core.model.StreamingService
+import com.syncit.core.lookup.TrendingTitle
+import com.syncit.core.lookup.TrendingRow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.data.UpdateChecker
@@ -129,6 +132,36 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             container.prefs.lastRoomCode = code
             social.watchInvites.inviteToRoom(row.uid, code, null, null)
             onStarted(code, row.uid)
+        }
+    }
+
+    /** Trending titles per platform (TMDB, through the relay); null while loading, empty if unavailable. */
+    val trending: StateFlow<List<TrendingRow>?> = flow { emit(container.trending.trending()) }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Looks up [title]'s link in [service] (null = not found) and hands it to [open]. */
+    fun watchAlone(title: TrendingTitle, service: StreamingService, open: (String?) -> Unit) {
+        if (_ui.value.busy) return
+        launchAction("Couldn't open ${title.title}", busy = true) {
+            open(container.trending.watchLink(title, service))
+        }
+    }
+
+    /**
+     * Starts a room for [title] (or uses the one we're syncing in) with its link as the room's title,
+     * so everyone's "Play in <app>" opens it; then [onStarted] opens the room on "Invite friends".
+     */
+    fun watchWithFriends(title: TrendingTitle, service: StreamingService, onStarted: (code: String) -> Unit) {
+        if (_ui.value.busy) return
+        val name = container.prefs.displayName.trim().ifBlank { myProfile.value?.displayName.orEmpty() }
+        launchAction("Couldn't start a room", busy = true) {
+            val link = container.trending.watchLink(title, service)
+            val code = container.sessionController.state.value.roomCode
+                ?: container.transport.createRoom(name.ifBlank { "Host" })
+            container.prefs.lastRoomCode = code
+            if (link != null) container.transport.setTitle(code, service, link)
+            onStarted(code)
         }
     }
 

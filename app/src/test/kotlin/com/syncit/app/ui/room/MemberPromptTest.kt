@@ -95,4 +95,12 @@ class MemberPromptTest {
         assertNull(MemberPrompts.safePlayableRef(StreamingService.SPOTIFY, null))
         assertNull(MemberPrompts.safePlayableRef(StreamingService.SPOTIFY, "spotify:track:" + "a".repeat(600)))
     }
+
+    @Test fun hostGetsPlayOnlyForARoomWithALinkBeforePlaying() {
+        val netflix = StreamingService.NETFLIX
+        assertEquals(MemberPrompt.OPEN_APP, MemberPrompts.of(true, netflix, SyncStatus.APP_NOT_OPEN, JamFollow.IDLE, hostHasLink = true))
+        assertEquals(MemberPrompt.NONE, MemberPrompts.of(true, netflix, SyncStatus.APP_NOT_OPEN, JamFollow.IDLE, hostHasLink = false))
+        assertEquals(MemberPrompt.NONE, MemberPrompts.of(true, netflix, SyncStatus.SYNCING, JamFollow.IDLE, hostHasLink = true))
+        assertEquals(MemberPrompt.NONE, MemberPrompts.of(true, StreamingService.SPOTIFY, SyncStatus.APP_NOT_OPEN, JamFollow.IDLE, hostHasLink = true))
+    }
 }

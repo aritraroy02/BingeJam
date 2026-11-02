@@ -110,7 +110,8 @@ sealed interface Screen {
     data object Permissions : Screen
     data object Diagnostics : Screen
     data class JoinPreview(val code: String, val autoJoin: Boolean = false) : Screen
-    data class Room(val code: String, val waitingFor: String? = null) : Screen
+    /** [invite]: open on "Invite friends" (rooms started from a trending title). */
+    data class Room(val code: String, val waitingFor: String? = null, val invite: Boolean = false) : Screen
 }
 
 /** A tiny back stack. A handful of screens don't justify a navigation library. */
@@ -392,6 +393,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     onEnterRoom = { code -> nav.push(Screen.Room(code)) },
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
                     onOpenProfile = { nav.push(Screen.Profile) },
+                    onWatchWithFriends = { code -> nav.push(Screen.Room(code, invite = true)) },
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
                 )
             }
@@ -475,6 +477,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     viewModel = vm,
                     onBack = nav::pop,
                     onLeft = { nav.reset(Screen.Home) },
+                    startWithInvite = screen.invite,
                 )
             }
         }

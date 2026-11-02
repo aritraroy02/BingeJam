@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.syncit.core.auth.AuthService
 import com.syncit.core.lookup.TitleLookup
+import com.syncit.core.lookup.TrendingCatalog
 import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendsRepository
@@ -23,6 +24,7 @@ import com.syncit.firebase.social.FirebasePushRegistry
 import com.syncit.firebase.social.FirebaseWatchInvites
 import com.syncit.firebase.social.PushRelay
 import com.syncit.firebase.social.RelayTitleLookup
+import com.syncit.firebase.social.RelayTrending
 import com.syncit.firebase.social.RelayVoiceAuth
 
 /**
@@ -62,6 +64,7 @@ class FirebaseServices private constructor(context: Context) {
 
     /** Netflix title IDs for "Play in Netflix" (relay + Watchmode). */
     val titleLookup: TitleLookup = RelayTitleLookup(session)
+    val trending: TrendingCatalog = RelayTrending(session)
 
     /** Room voice chat's sign-in to the relay. */
     val voiceAuth: VoiceAuth = RelayVoiceAuth(session)

@@ -113,7 +113,7 @@ private const val NETFLIX_RETRY_DELAY_MS = 500L
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit) {
+fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit, startWithInvite: Boolean = false) {
     val context = LocalContext.current
     val p = Glass.palette
     val room by viewModel.room.collectAsStateWithLifecycle()
@@ -126,7 +126,8 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit)
     val message by viewModel.message.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
-    var inviteOpen by rememberSaveable { mutableStateOf(false) }
+    // Rooms started from a trending title open straight on "Invite friends".
+    var inviteOpen by rememberSaveable { mutableStateOf(startWithInvite) }
     val friends by viewModel.friends.collectAsStateWithLifecycle()
     val invited by viewModel.invited.collectAsStateWithLifecycle()
     val waiting by viewModel.waiting.collectAsStateWithLifecycle()
@@ -414,7 +415,7 @@ private fun RoomHero(
     val statusText = MemberPrompts.statusLabel(sync.status, service)
     // Jams: "Jam with Riya" next to the platform badge (just "Jam" for the host).
     val jamLabel = if (jam) preview?.hostName?.takeIf { it.isNotBlank() && !isHost }?.let { "Jam with $it" } ?: "Jam" else null
-    val prompt = MemberPrompts.of(isHost, service, sync.status, sync.jamFollow)
+    val prompt = MemberPrompts.of(isHost, service, sync.status, sync.jamFollow, hostHasLink = room?.title != null)
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (artwork != null && artwork.width >= artwork.height) {
@@ -457,7 +458,7 @@ private fun RoomHero(
             if (jam) {
                 JamPrompt(prompt, service, preview, sync, onPlay, onFollowHost)
             } else if (prompt == MemberPrompt.OPEN_APP) {
-                WatchPartyPrompt(service, preview, room, sync, serverNow, netflixId, onPlay)
+                WatchPartyPrompt(service, preview, room, sync, serverNow, netflixId, onPlay, isHost)
             }
         }
     }
@@ -514,9 +515,25 @@ private fun WatchPartyPrompt(
     serverNow: Long,
     netflixId: String?,
     onPlay: (StreamingService) -> Unit,
+    isHost: Boolean = false,
 ) {
     val p = Glass.palette
     val uriHandler = LocalUriHandler.current
+    if (isHost) {
+        // A room started from a trending title: the host starts the movie, friends follow.
+        GlassButton(
+            text = "Play in ${service.displayName}",
+            icon = Icons.Filled.PlayArrow,
+            onClick = { onPlay(service) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "Opens the movie in ${service.displayName}. Friends who join are lined up with you.",
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textSecondary,
+        )
+        return
+    }
     val episode = listOfNotNull(preview?.subtitle, preview?.title).joinToString(" · ")
     val at = room?.state?.let { formatClock(PositionMath.roomExpectedPositionMs(it, serverNow)) }
     GlassButton(

@@ -1,6 +1,7 @@
 // Push relay + profile-picture store for Vyro (Cloudflare Worker, free tier).
 // Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid>, GET /netflix (title lookup),
-// GET /voice/<code> (room voice chat WebSocket, src/voice.js).
+// GET /voice/<code> (room voice chat WebSocket, src/voice.js), GET /trending and GET /watch-link
+// (Home's trending titles and the link that opens one, src/trending.js).
 //
 // Firebase Cloud Messaging is free, but sending needs a trusted server, and Cloud Functions need
 // the paid Blaze plan. This Worker is that server:
@@ -16,6 +17,7 @@
 // admin access to the database and FCM, so it lives only in Cloudflare's secret store.
 
 import { connectVoice, VoiceRoom } from './voice.js';
+import { refreshTrendingIfStale, trending, watchLink } from './trending.js';
 
 export { VoiceRoom };
 
@@ -41,6 +43,8 @@ export default {
     if (path.startsWith('/avatar/') && request.method === 'GET') return serveAvatar(path, env);
     if (path === '/avatar' && (request.method === 'PUT' || request.method === 'DELETE')) return changeAvatar(request, env);
     if (path === '/netflix' && request.method === 'GET') return netflixLookup(request, env);
+    if (path === '/trending' && request.method === 'GET') return trending(request, env, { verifyIdToken, bearer, json });
+    if (path === '/watch-link' && request.method === 'GET') return watchLink(request, env, { verifyIdToken, bearer, json });
     if (path.startsWith('/voice/') && request.method === 'GET') {
       return connectVoice(request, env, path.slice('/voice/'.length), { verifyIdToken, bearer, Database, clip });
     }
@@ -48,9 +52,10 @@ export default {
     return notify(request, env);
   },
 
-  /** Cron trigger (wrangler.toml): tell every phone about a new release, once per version. */
+  /** Cron trigger (wrangler.toml): tell every phone about a new release, once per version; keep trending fresh. */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(announceRelease(env).catch((e) => console.error('release check failed', e && e.message)));
+    ctx.waitUntil(refreshTrendingIfStale(env).catch((e) => console.error('trending refresh failed', e && e.message)));
   },
 };
 

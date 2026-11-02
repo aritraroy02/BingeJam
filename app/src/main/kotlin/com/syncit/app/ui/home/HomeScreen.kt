@@ -44,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -83,6 +84,8 @@ import com.syncit.app.ui.social.ActivityAppBadge
 import com.syncit.app.ui.social.ActivityThumb
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.config.Brand
+import com.syncit.core.lookup.TrendingTitle
+import com.syncit.core.model.StreamingService
 
 @Composable
 fun HomeScreen(
@@ -90,6 +93,7 @@ fun HomeScreen(
     onEnterRoom: (String) -> Unit,
     onStartRoomWith: (code: String, friendUid: String) -> Unit,
     onOpenProfile: () -> Unit,
+    onWatchWithFriends: (code: String) -> Unit,
     onOpenChat: (String) -> Unit,
 ) {
     val p = Glass.palette
@@ -99,6 +103,8 @@ fun HomeScreen(
     val friends by viewModel.friends.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var sheetUid by rememberSaveable { mutableStateOf<String?>(null) }
+    val trending by viewModel.trending.collectAsStateWithLifecycle()
+    var pick by remember { mutableStateOf<Pair<TrendingTitle, StreamingService>?>(null) }
     LaunchedEffect(Unit) { viewModel.refreshLastRoom() }
 
     val openActivity: (FriendRow) -> Unit = { row ->
@@ -140,7 +146,7 @@ fun HomeScreen(
                 val live = friends.orEmpty().filter { it.online && it.activity != null }
                 if (live.isNotEmpty()) {
                     LiveNowRow(live, onOpen = { sheetUid = it.uid }, modifier = Modifier.staggerIn(0))
-                } else if (friends != null) {
+                } else if (friends != null && trending.isNullOrEmpty()) {
                     GlassPanel(Modifier.fillMaxWidth().staggerIn(0)) {
                         Text("Nothing live right now", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
                         Text(
@@ -150,6 +156,10 @@ fun HomeScreen(
                             color = p.textSecondary,
                         )
                     }
+                }
+
+                trending?.takeIf { it.isNotEmpty() }?.let { rows ->
+                    TrendingSection(rows, onOpen = { title, service -> pick = title to service }, modifier = Modifier.staggerIn(1))
                 }
 
                 update?.let { available ->
@@ -166,6 +176,32 @@ fun HomeScreen(
                         )
                     }
                 }
+            }
+        }
+
+        val picked = pick
+        GlassBottomSheet(visible = picked != null, onDismiss = { pick = null }) {
+            if (picked != null) {
+                val (title, service) = picked
+                TrendingSheetContent(
+                    title = title,
+                    service = service,
+                    busy = ui.busy,
+                    onWithFriends = {
+                        viewModel.watchWithFriends(title, service) { code ->
+                            pick = null
+                            onWatchWithFriends(code)
+                        }
+                    },
+                    onAlone = {
+                        viewModel.watchAlone(title, service) { link ->
+                            pick = null
+                            if (!openTrending(context, service, link, title)) {
+                                viewModel.showMessage("${service.displayName} isn't installed")
+                            }
+                        }
+                    },
+                )
             }
         }
 

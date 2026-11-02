@@ -27,8 +27,16 @@ internal object MemberPrompts {
     /** Watch parties: states where a member isn't on the host's title yet. */
     private val WATCH_PARTY_PLAY = setOf(SyncStatus.APP_NOT_OPEN, SyncStatus.SESSION_LOST, SyncStatus.OTHER_TITLE)
 
-    fun of(isHost: Boolean, service: StreamingService?, status: SyncStatus, jamFollow: JamFollow): MemberPrompt {
-        if (isHost || service == null) return MemberPrompt.NONE
+    /**
+     * [hostHasLink]: the room has a title link (e.g. started from a trending movie), so a host who
+     * isn't playing yet gets "Play in <app>" too.
+     */
+    fun of(isHost: Boolean, service: StreamingService?, status: SyncStatus, jamFollow: JamFollow, hostHasLink: Boolean = false): MemberPrompt {
+        if (service == null) return MemberPrompt.NONE
+        if (isHost) {
+            val notPlaying = status == SyncStatus.APP_NOT_OPEN || status == SyncStatus.SESSION_LOST
+            return if (hostHasLink && !service.isJam && notPlaying) MemberPrompt.OPEN_APP else MemberPrompt.NONE
+        }
         if (!service.isJam) return if (status in WATCH_PARTY_PLAY) MemberPrompt.OPEN_APP else MemberPrompt.NONE
         return when {
             jamFollow == JamFollow.STARTING -> MemberPrompt.STARTING

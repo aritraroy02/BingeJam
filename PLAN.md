@@ -307,6 +307,24 @@ movies across platforms.
 - Home no longer lists friends (user's request): only "Live now" (friends playing something; tap → friend
   sheet with Start a room / Ask to join), the update banner, and a placeholder when nobody is live.
 
+### Trending on Home (2026-11-02)
+Home shows "Trending on Netflix / JioHotstar / Prime Video" poster rows, updated automatically.
+- Relay `push-relay/src/trending.js`: `GET /trending` = TMDB `/discover/movie` per provider in India (TMDB
+  provider IDs: Netflix 8, JioHotstar 2336, Prime Video 119; `with_watch_monetization_types=flatrate`),
+  popularity order, Indian-origin and all titles interleaved, 20 per row, posters `image.tmdb.org/t/p/w342`.
+  Cached in KV `trending:v1`, refreshed when > 12 h old (cron every 30 min, or the next request).
+  `GET /watch-link?tmdb=&service=` = Watchmode `/title/movie-<tmdbId>/details?append_to_response=sources&regions=IN`
+  (exact match by TMDB ID) → Netflix `netflix.com/watch/<id>`, JioHotstar `hotstar.com/in/movies/x/<id>/watch`,
+  Prime Video its `primevideo.com/detail/…` page; KV `wlink:<service>:movie-<id>` 25 days (3 if missing).
+  Both signed-in only. Secret `TMDB_READ_TOKEN` (TMDB "API Read Access Token").
+- App: `TrendingCatalog` (`:core`), `RelayTrending` (`:data-firebase`, links checked again by
+  `TrendingCatalog.isSafeLink`). Tap a poster → sheet: **Watch with friends** (room created or reused, the
+  title's link set as the room title, room opens on "Invite friends"; the host gets "Play in <app>" while not
+  playing, `MemberPrompts.of(hostHasLink)`), **Watch alone** (opens the link; Netflix falls back to search).
+- Credits: "Movie data from TMDB · Where to watch by JustWatch" under the rows; TMDB notice in Settings →
+  Licences. TMDB and Watchmode free plans are non-commercial.
+- Unverified: Prime Video detail links opening in the Prime app.
+
 ### Agents
 - backend-agent (`:data-firebase` + rules + emulator tests), media-agent (`:media`: ActivityTracker,
   Prime Video + music/YouTube session checks on the phone), ui-agent (`:app`: auth, username,

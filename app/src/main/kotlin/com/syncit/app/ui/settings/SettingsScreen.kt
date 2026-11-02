@@ -264,7 +264,8 @@ fun SettingsScreen(
                     )
                     GlassRow(
                         title = "Licences",
-                        subtitle = "Inter typeface, SIL Open Font License 1.1. Haze, Apache 2.0.",
+                        subtitle = "Inter typeface, SIL Open Font License 1.1. Haze, Apache 2.0. Trending titles from TMDB: " +
+                            "this product uses the TMDB API but is not endorsed or certified by TMDB. Where to watch by JustWatch.",
                     )
                     Text(
                         LegalLinks.NOT_AFFILIATED,

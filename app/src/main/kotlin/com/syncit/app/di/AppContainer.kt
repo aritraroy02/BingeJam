@@ -4,6 +4,7 @@ import android.app.Application
 import com.syncit.app.data.UserPrefs
 import com.syncit.app.social.WatchTogetherRecorder
 import com.syncit.core.lookup.TitleLookup
+import com.syncit.core.lookup.TrendingCatalog
 import com.syncit.core.media.MediaControllerGateway
 import com.syncit.core.session.SyncDependencies
 import com.syncit.core.session.SyncSessionController
@@ -51,6 +52,7 @@ class AppContainer(app: Application) : SyncDependencies {
 
     /** Exact-title IDs for the room's "Play in Netflix" (none with the debug fakes). */
     val titleLookup: TitleLookup = firebase?.titleLookup ?: TitleLookup.None
+    val trending: TrendingCatalog = firebase?.trending ?: TrendingCatalog.None
 
     val social: SocialServices = firebase?.let { fb ->
         SocialServices(
