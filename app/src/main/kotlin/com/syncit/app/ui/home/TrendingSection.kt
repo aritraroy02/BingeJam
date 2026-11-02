@@ -89,14 +89,25 @@ private fun PosterCard(title: TrendingTitle, onClick: () -> Unit) {
     Column(
         Modifier
             .width(120.dp)
-            .clip(shape)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = listOfNotNull(title.title, title.year?.toString()).joinToString(", ") },
+            .semantics { contentDescription = listOfNotNull(title.title, title.year?.toString()).joinToString(", ") }
+            .padding(bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Poster(title, Modifier.width(120.dp).height(180.dp).clip(shape))
-        Spacer(Modifier.height(6.dp))
-        Text(title.title, style = MaterialTheme.typography.labelLarge, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        title.year?.let { Text(it.toString(), style = MaterialTheme.typography.labelSmall, color = p.textSecondary) }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            title.title,
+            style = MaterialTheme.typography.labelLarge,
+            color = p.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 2.dp),
+        )
+        title.year?.let {
+            Text(it.toString(), style = MaterialTheme.typography.bodySmall, color = p.textSecondary, modifier = Modifier.padding(horizontal = 2.dp))
+        }
     }
 }
 

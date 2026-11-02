@@ -235,7 +235,11 @@ fun HomeScreen(
             }
         }
 
-        NoticeBanner(ui.message, viewModel::dismissMessage, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        NoticeBanner(
+            ui.message,
+            viewModel::dismissMessage,
+            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = LocalBottomBarInset.current),
+        )
     }
 }
 

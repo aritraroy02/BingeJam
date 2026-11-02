@@ -78,11 +78,14 @@ import com.syncit.core.config.Brand
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.ui.chat.ChatsScreen
 import com.syncit.app.ui.chat.ChatsViewModel
 import com.syncit.app.ui.glass.LocalHazeState
+import com.syncit.app.ui.glass.LocalOpenSheets
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -269,6 +272,8 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
     // The bar shows on the four tab screens themselves, not on screens opened from them.
     val currentTab = if (nav.backStack.size == 1) tabFor(nav.current) else null
     val tabHaze = rememberHazeState()
+    // Sheets (movie, friend, message actions) hide the bar so it doesn't cover their buttons.
+    val openSheets = remember { mutableIntStateOf(0) }
 
     val roomBar: OngoingRoomViewModel = viewModel(factory = viewModelFactory { initializer { OngoingRoomViewModel(container) } })
     val ongoing by roomBar.ongoing.collectAsStateWithLifecycle()
@@ -288,7 +293,10 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
         }
         // Under the bar, screens skip their own status-bar padding (the bar already covers it).
         Box(Modifier.fillMaxSize().then(if (showRoomBar) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier)) {
-            CompositionLocalProvider(LocalBottomBarInset provides if (currentTab != null) TabBarInset else 0.dp) {
+            CompositionLocalProvider(
+                LocalBottomBarInset provides if (currentTab != null) TabBarInset else 0.dp,
+                LocalOpenSheets provides openSheets,
+            ) {
                 Box(Modifier.fillMaxSize().hazeSource(tabHaze)) {
                     // Deeper screens slide in from the right, going back slides them out; jumps elsewhere
                     // (notification, invite) crossfade. Depth travels with the screen so a screen that's
@@ -318,7 +326,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
             SocialBanners(events)
 
             BottomTabs(
-                tab = currentTab,
+                tab = currentTab?.takeIf { openSheets.intValue == 0 },
                 unreadChats = unreadChats,
                 friendRequests = friendRequests,
                 haze = tabHaze,

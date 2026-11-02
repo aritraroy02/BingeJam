@@ -1,5 +1,8 @@
 package com.syncit.app.ui.glass
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.MutableIntState
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -54,12 +57,25 @@ import com.syncit.app.ui.theme.Inter
 import kotlinx.coroutines.delay
 
 /**
+ * Count of bottom sheets open on screen, provided by the main navigation so it can hide the
+ * floating tab bar (which would otherwise cover the sheet's buttons). Null outside it.
+ */
+val LocalOpenSheets = staticCompositionLocalOf<MutableIntState?> { null }
+
+/**
  * Bottom sheet drawn in the screen's own window (not a dialog), so the glass panel still blurs
- * the screen's backdrop. Back and a tap on the scrim dismiss it.
+ * the screen's backdrop. Back and a tap on the scrim dismiss it. While it's open the tab bar hides.
  */
 @Composable
 fun GlassBottomSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     BackHandler(enabled = visible, onBack = onDismiss)
+    val openSheets = LocalOpenSheets.current
+    if (visible && openSheets != null) {
+        DisposableEffect(openSheets) {
+            openSheets.intValue++
+            onDispose { openSheets.intValue-- }
+        }
+    }
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible, enter = fadeIn(), exit = fadeOut()) {
             Box(
