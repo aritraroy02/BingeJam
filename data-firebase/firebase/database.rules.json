@@ -176,8 +176,8 @@
           "sentAt"
         ],
         "$messageId": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists() && !data.exists() && newData.exists()",
-          ".validate": "newData.hasChildren(['from', 'text', 'sentAt'])",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists() && newData.exists() && (!data.exists() || (data.child('from').val() === auth.uid && data.child('text').exists() && !data.child('kind').exists() && newData.child('deleted').val() === true) || (data.child('kind').val() === 'watch' && newData.child('kind').val() === 'watch'))",
+          ".validate": "(newData.child('kind').val() === 'watch' && newData.hasChildren(['by', 'title', 'service', 'durationMs', 'items', 'sentAt', 'lastAt']) && !newData.hasChild('from') && !newData.hasChild('text') && !newData.hasChild('deleted') && !newData.hasChild('forwarded') && ($messageId.matches(/^w-[A-HJ-NP-Z2-9]{6}-[0-9a-f]{8}$/) || $messageId.matches(/^w-[A-HJ-NP-Z2-9]{6}-[0-9a-f]{8}-[1-9][0-9]{0,2}$/))) || (!newData.hasChild('kind') && newData.hasChildren(['from', 'sentAt']) && (newData.child('deleted').val() === true ? (data.exists() && !newData.hasChild('text') && !newData.hasChild('forwarded')) : (!data.exists() && newData.hasChild('text'))))",
           "from": {
             ".validate": "newData.val() === auth.uid"
           },
@@ -185,7 +185,34 @@
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
           },
           "sentAt": {
-            ".validate": "newData.val() === now"
+            ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === now"
+          },
+          "forwarded": {
+            ".validate": "newData.val() === true && (!data.parent().exists() || data.val() === true)"
+          },
+          "deleted": {
+            ".validate": "newData.val() === true"
+          },
+          "kind": {
+            ".validate": "newData.val() === 'watch'"
+          },
+          "by": {
+            ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === auth.uid"
+          },
+          "title": {
+            ".validate": "data.exists() ? newData.val() === data.val() : (newData.isString() && newData.val().length > 0 && newData.val().length <= 200)"
+          },
+          "service": {
+            ".validate": "data.exists() ? newData.val() === data.val() : (newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO' || newData.val() === 'SPOTIFY' || newData.val() === 'YOUTUBE_MUSIC' || newData.val() === 'AMAZON_MUSIC' || newData.val() === 'YOUTUBE')"
+          },
+          "durationMs": {
+            ".validate": "newData.isNumber() && newData.val() >= 300000 && newData.val() <= 86400000 && (!data.exists() || newData.val() >= data.val())"
+          },
+          "items": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000 && (!data.exists() || newData.val() >= data.val())"
+          },
+          "lastAt": {
+            ".validate": "newData.val() === now || (data.exists() && newData.val() === data.val())"
           },
           "$other": {
             ".validate": false
@@ -210,6 +237,18 @@
         "$friend": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
           ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+    "dmHidden": {
+      "$uid": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "$dmId": {
+          "$messageId": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid)",
+            ".validate": "newData.val() === true && $messageId.length <= 40"
+          }
         }
       }
     },

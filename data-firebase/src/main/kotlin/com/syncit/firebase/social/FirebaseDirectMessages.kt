@@ -9,6 +9,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import com.syncit.core.model.DirectMessage
+import com.syncit.core.model.WatchSessionReport
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.sync.ServerClock
 import com.syncit.firebase.FirebaseSession
@@ -24,14 +25,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
- * One-to-one chat between friends: dms/{dmId}/{pushId} {from, text, sentAt}. The rules let only
- * the two participants read or write, and only while they're friends.
+ * One-to-one chat between friends: dms/{dmId}/{pushId} {from, text, sentAt, forwarded?}. The
+ * rules let only the two participants read or write, and only while they're friends. The sender
+ * may later delete a message for everyone (text removed, deleted = true); "delete for me" is
+ * dmHidden/{me}/{dmId}/{id} = true. Watched-together cards share the thread ([WatchCards]).
  *
  * Unread counts: dmReads/{me}/{friend} holds the server time we last opened the chat; messages
  * from the friend with a later sentAt are unread. Both are server timestamps, so device clocks
@@ -75,27 +79,116 @@ class FirebaseDirectMessages internal constructor(
             if (me == null || me == friendUid) {
                 flowOf(emptyList())
             } else {
-                db.getReference("dms").child(DmIds.dmId(me, friendUid))
+                val dmId = DmIds.dmId(me, friendUid)
+                val messages = db.getReference("dms").child(dmId)
                     .orderByChild("sentAt").limitToLast(limit.coerceIn(1, MAX_LIMIT))
                     .snapshots()
                     .map { s -> s?.children?.mapNotNull(SocialParser::message).orEmpty() }
+                // Deleted for me: dmHidden/{me}/{dmId}/{id}. Starts empty, so the chat shows at
+                // once; a denied listener (rules not deployed yet) just hides nothing.
+                val hidden = flow {
+                    emit(emptySet())
+                    emitAll(
+                        db.getReference("dmHidden").child(me).child(dmId).snapshots()
+                            .map { s -> s?.children?.mapNotNull { it.key }?.toSet().orEmpty() },
+                    )
+                }
+                combine(messages, hidden.distinctUntilChanged()) { list, gone ->
+                    if (gone.isEmpty()) list else list.filterNot { it.id in gone }
+                }
             }
         }
 
     /** Also clears our typing indicator for this chat (callers needn't call setTyping(false)). */
-    override suspend fun send(friendUid: String, text: String) {
+    override suspend fun send(friendUid: String, text: String, forwarded: Boolean) {
         val me = session.requireUid()
         if (me != friendUid) stopTyping(DmIds.dmId(me, friendUid), me)
         val trimmed = text.trim().take(MAX_TEXT_LENGTH)
         if (trimmed.isEmpty()) return
         val ref = db.getReference("dms").child(DmIds.dmId(me, friendUid)).push()
+        val value = buildMap<String, Any> {
+            put("from", me)
+            put("text", trimmed)
+            put("sentAt", ServerValue.TIMESTAMP)
+            if (forwarded) put("forwarded", true)
+        }
         try {
-            ref.setValue(mapOf("from" to me, "text" to trimmed, "sentAt" to ServerValue.TIMESTAMP)).await()
+            ref.setValue(value).await()
         } catch (e: Exception) {
             if (e.isPermissionDenied()) throw NotFriendsException("You can only message friends")
             throw e
         }
         ref.key?.let { push?.directMessage(friendUid, it) }
+    }
+
+    /**
+     * Clears the text (and the forwarded label) and sets deleted = true, keeping from and sentAt.
+     * The rules allow this only on our own, not yet deleted message. Then the relay is asked to
+     * replace the friend's notification if it still shows this message.
+     */
+    override suspend fun deleteForEveryone(friendUid: String, messageId: String) {
+        val me = session.requireUid()
+        require(me != friendUid && messageId.isNotEmpty())
+        val ref = db.getReference("dms").child(DmIds.dmId(me, friendUid)).child(messageId)
+        ref.updateChildren(mapOf("text" to null, "forwarded" to null, "deleted" to true)).await()
+        push?.messageDeleted(friendUid, messageId)
+    }
+
+    override suspend fun deleteForMe(friendUid: String, messageId: String) {
+        val me = session.requireUid()
+        require(me != friendUid && messageId.isNotEmpty())
+        db.getReference("dmHidden").child(me).child(DmIds.dmId(me, friendUid)).child(messageId).setValue(true).await()
+    }
+
+    /**
+     * Finds this session's card slot ([WatchCards]) and creates or extends it. Never pings the
+     * relay: cards don't notify. The card's sentAt is when it was created (server time), so it
+     * sits in the timeline where the session reached the minimum time together.
+     */
+    override suspend fun recordWatchedTogether(friendUid: String, report: WatchSessionReport): Long? {
+        val me = session.requireUid()
+        if (me == friendUid || !WatchCards.isValidBaseKey(report.sessionKey)) return null
+        val title = report.title.trim().take(WatchCards.MAX_TITLE_LENGTH)
+        if (title.isEmpty() || report.togetherMs < WatchCards.MIN_DURATION_MS) return null
+        val thread = db.getReference("dms").child(DmIds.dmId(me, friendUid))
+        var slot = 0
+        var retried = false
+        while (slot < WatchCards.MAX_SLOTS) {
+            val ref = thread.child(WatchCards.slotKey(report.sessionKey, slot))
+            val existing = ref.get().await().value as? Map<*, *>
+            when (val decision = WatchCards.decide(existing, clock.serverNowMs())) {
+                WatchCards.Decision.Next -> slot++
+                is WatchCards.Decision.Join -> {
+                    val duration = WatchCards.mergedDuration(decision.durationMs, report.togetherMs)
+                    val items = WatchCards.mergedItems(decision.items, report.items)
+                    ref.updateChildren(mapOf("durationMs" to duration, "items" to items, "lastAt" to ServerValue.TIMESTAMP)).await()
+                    return duration
+                }
+                WatchCards.Decision.Create -> {
+                    val duration = WatchCards.mergedDuration(0L, report.togetherMs)
+                    val value = mapOf(
+                        "kind" to WatchCards.KIND,
+                        "by" to me,
+                        "title" to title,
+                        "service" to report.service.name,
+                        "durationMs" to duration,
+                        "items" to WatchCards.mergedItems(1, report.items),
+                        "sentAt" to ServerValue.TIMESTAMP,
+                        "lastAt" to ServerValue.TIMESTAMP,
+                    )
+                    try {
+                        ref.setValue(value).await()
+                        return duration
+                    } catch (e: Exception) {
+                        // The friend's phone created it a moment earlier: read it again and join.
+                        if (!e.isPermissionDenied() || retried) throw e
+                        retried = true
+                    }
+                }
+            }
+        }
+        Log.w(TAG, "No free watched-together slot for ${report.sessionKey}")
+        return null
     }
 
     override fun observeUnreadCounts(): Flow<Map<String, Int>> = session.uid.flatMapLatest { me ->

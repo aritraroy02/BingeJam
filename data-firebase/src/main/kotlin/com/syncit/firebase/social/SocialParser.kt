@@ -10,7 +10,9 @@ import com.syncit.core.model.JoinRequest
 import com.syncit.core.model.JoinStatus
 import com.syncit.core.model.Presence
 import com.syncit.core.model.RoomInvite
+import com.syncit.core.model.StreamingService
 import com.syncit.core.model.UserProfile
+import com.syncit.core.model.WatchedTogether
 import com.syncit.firebase.bool
 import com.syncit.firebase.long
 import com.syncit.firebase.string
@@ -69,12 +71,39 @@ internal object SocialParser {
     }
 
     fun message(s: DataSnapshot): DirectMessage? {
-        return DirectMessage(
-            id = s.key ?: return null,
-            fromUid = s.child("from").string() ?: return null,
-            text = s.child("text").string() ?: return null,
-            sentAt = s.child("sentAt").long() ?: 0L,
-        )
+        val id = s.key ?: return null
+        return message(id, s.value as? Map<*, *> ?: return null)
+    }
+
+    /**
+     * dms/{dmId}/{id}: a message {from, text, sentAt, forwarded?}, a message deleted for everyone
+     * {from, sentAt, deleted: true} (no text), or a watched-together card {kind: "watch", by, …}
+     * ([WatchCards]). Unknown kinds are skipped, so a later card type doesn't show as a message.
+     */
+    fun message(id: String, v: Map<*, *>): DirectMessage? {
+        val sentAt = (v["sentAt"] as? Number)?.toLong() ?: 0L
+        val kind = v["kind"]
+        if (kind != null) {
+            if (kind != WatchCards.KIND) return null
+            val title = (v["title"] as? String)?.takeIf { it.isNotBlank() } ?: return null
+            val duration = (v["durationMs"] as? Number)?.toLong() ?: return null
+            return DirectMessage(
+                id = id,
+                fromUid = v["by"] as? String ?: "",
+                text = "",
+                sentAt = sentAt,
+                watched = WatchedTogether(
+                    title = title,
+                    service = StreamingService.fromId(v["service"] as? String),
+                    durationMs = duration,
+                    items = ((v["items"] as? Number)?.toInt() ?: 1).coerceAtLeast(1),
+                ),
+            )
+        }
+        val from = v["from"] as? String ?: return null
+        if (v["deleted"] == true) return DirectMessage(id, from, "", sentAt, deleted = true)
+        val text = v["text"] as? String ?: return null
+        return DirectMessage(id, from, text, sentAt, forwarded = v["forwarded"] == true)
     }
 
     /** joinRequests/{host}/{from}. */

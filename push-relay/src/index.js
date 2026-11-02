@@ -5,7 +5,8 @@
 // Firebase Cloud Messaging is free, but sending needs a trusted server, and Cloud Functions need
 // the paid Blaze plan. This Worker is that server:
 //   1. The app sends POST {type, to, messageId?} with "Authorization: Bearer <Firebase ID token>"
-//      right after writing a direct message or a friend request.
+//      right after writing a direct message or a friend request (or deleting a message for
+//      everyone: type dm_deleted, a data-only message that clears the text from the notification).
 //   2. We verify the ID token (signed in, not anonymous), then read the message/request from the
 //      Realtime Database ourselves. The notification text never comes from the request, so a
 //      client can't make us send arbitrary text, and only to someone it actually wrote to.
@@ -28,6 +29,8 @@ const UID = /^[A-Za-z0-9]{1,128}$/;
 const PUSH_ID = /^[-_A-Za-z0-9]{1,40}$/;
 /** Only items written in the last few minutes get a notification (no replaying old ones). */
 const MAX_AGE_MS = 5 * 60_000;
+/** A deleted message's notification is only retracted if the message is younger than this. */
+const RETRACT_MAX_AGE_MS = 24 * 60 * 60_000;
 
 let jwksCache = null; // { keys, expiresAt }
 let accessCache = null; // { token, expiresAt }
@@ -115,6 +118,7 @@ async function notify(request, env) {
       const db = new Database(env);
       let note = null;
       if (body.type === 'dm') note = await directMessage(db, sender, to, String(body.messageId ?? ''));
+      else if (body.type === 'dm_deleted') note = await deletedMessage(db, sender, to, String(body.messageId ?? ''));
       else if (body.type === 'friend_request') note = await friendRequest(db, sender, to);
       else if (body.type === 'join_request') note = await joinRequest(db, sender, to);
       else if (body.type === 'invite') note = await roomInvite(db, sender, to);
@@ -287,7 +291,8 @@ async function directMessage(db, from, to, messageId) {
   // Same as DmIds.dmId in the app: the two uids sorted, joined with "_".
   const dmId = from < to ? `${from}_${to}` : `${to}_${from}`;
   const msg = await db.get(`dms/${dmId}/${messageId}`);
-  if (!msg || msg.from !== from || typeof msg.text !== 'string' || !isRecent(msg.sentAt)) return null;
+  // Deleted for everyone (no text) or a "watched together" card (kind, no from): nothing to send.
+  if (!msg || msg.from !== from || msg.deleted || msg.kind || typeof msg.text !== 'string' || !isRecent(msg.sentAt)) return null;
   const profile = (await db.get(`users/${from}`)) || {};
   return {
     title: profile.displayName || 'New message',
@@ -295,6 +300,22 @@ async function directMessage(db, from, to, messageId) {
     channel: 'messages',
     data: { type: 'dm', uid: from },
   };
+}
+
+/**
+ * `from` deleted one of their messages for everyone. If it's still their latest message to `to`,
+ * the notification on `to`'s phones may be showing its text: send a data-only message so the app
+ * replaces that notification (same tag "dm-<from>") with "This message was deleted", silently and
+ * only if it's still there. A newer message from `from` already replaced it, so then nothing is sent.
+ */
+async function deletedMessage(db, from, to, messageId) {
+  if (!PUSH_ID.test(messageId)) return null;
+  const dmId = from < to ? `${from}_${to}` : `${to}_${from}`;
+  const msg = await db.get(`dms/${dmId}/${messageId}`);
+  if (!msg || msg.from !== from || msg.deleted !== true || !isRecent(msg.sentAt, RETRACT_MAX_AGE_MS)) return null;
+  const later = (await db.get(`dms/${dmId}`, `?orderBy=${encodeURIComponent('"sentAt"')}&startAt=${msg.sentAt + 1}`)) || {};
+  if (Object.values(later).some((m) => m && m.from === from && typeof m.text === 'string')) return null;
+  return { dataOnly: true, data: { type: 'dm_deleted', uid: from } };
 }
 
 async function friendRequest(db, from, to) {
@@ -357,7 +378,8 @@ async function sendToAll(db, env, to, note) {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: {
+        // dataOnly: handled by the app itself (VyroMessagingService), even in the background.
+        message: note.dataOnly ? { token, data: note.data, android: { priority: 'HIGH' } } : {
           token,
           notification: { title: note.title, body: note.body },
           data: note.data,
@@ -378,8 +400,8 @@ async function sendToAll(db, env, to, note) {
   }));
 }
 
-function isRecent(sentAt) {
-  return typeof sentAt === 'number' && Math.abs(Date.now() - sentAt) <= MAX_AGE_MS;
+function isRecent(sentAt, maxAgeMs = MAX_AGE_MS) {
+  return typeof sentAt === 'number' && Math.abs(Date.now() - sentAt) <= maxAgeMs;
 }
 
 function clip(text, max) {
