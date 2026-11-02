@@ -88,12 +88,47 @@ class Activity(
             "watchingWith=$watchingWith, art=${artworkJpeg?.size ?: 0} B)"
 }
 
-/** dms/{dmId}/{id}: only the two friends read or write. [sentAt] is server time. */
+/**
+ * dms/{dmId}/{id}: only the two friends read or write. [sentAt] is server time.
+ *
+ * [forwarded]: sent with Forward (a small "Forwarded" label). [deleted]: the sender deleted it
+ * for everyone; the node stays (ordering, unread counts) but [text] is empty. [watched]: not a
+ * message but a "watched together" card both friends' phones keep up to date; [fromUid] is then
+ * whoever created it. Cards never count as unread and never notify.
+ */
 data class DirectMessage(
     val id: String,
     val fromUid: String,
     val text: String,
     val sentAt: Long,
+    val forwarded: Boolean = false,
+    val deleted: Boolean = false,
+    val watched: WatchedTogether? = null,
+)
+
+/**
+ * A "watched together" card in a DM: dms/{dmId}/w-{room}-{hash}[-n] (see [WatchSessionReport]).
+ * [durationMs] is the time both were in the room with the title playing. Jams follow the host
+ * from track to track, so for them [title] is the first track and [items] counts the tracks.
+ */
+data class WatchedTogether(
+    val title: String,
+    val service: StreamingService?,
+    val durationMs: Long,
+    val items: Int = 1,
+)
+
+/**
+ * One phone's measurement of a watch session with one friend, for
+ * [com.syncit.core.social.DirectMessages.recordWatchedTogether]. [sessionKey] is the same on both
+ * phones (derived from the room code, app and title), so both write the same card.
+ */
+data class WatchSessionReport(
+    val sessionKey: String,
+    val title: String,
+    val service: StreamingService,
+    val togetherMs: Long,
+    val items: Int,
 )
 
 /** A friend asked to join what you're watching: joinRequests/{hostUid}/{fromUid}. */

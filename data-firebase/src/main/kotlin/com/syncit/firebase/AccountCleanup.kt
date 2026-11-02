@@ -23,7 +23,7 @@ internal object AccountCleanup {
     /** The user's own subtrees, keyed by their uid. */
     val OWN_ROOTS = listOf(
         "users", "users_private", "presence", "pushTokens",
-        "friends", "friendRequests", "sentFriendRequests", "blocked", "dmReads", "joinRequests", "invites",
+        "friends", "friendRequests", "sentFriendRequests", "blocked", "dmReads", "dmHidden", "joinRequests", "invites",
     )
 
     /** Owner-readable lists whose keys are uids we're connected to (friends, requests, blocks, …). */

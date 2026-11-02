@@ -28,6 +28,10 @@ internal class PushRelay(
     fun directMessage(toUid: String, messageId: String) =
         post(JSONObject().put("type", "dm").put("to", toUid).put("messageId", messageId))
 
+    /** We deleted [messageId] for everyone: the relay replaces their notification if it still shows it. */
+    fun messageDeleted(toUid: String, messageId: String) =
+        post(JSONObject().put("type", "dm_deleted").put("to", toUid).put("messageId", messageId))
+
     fun friendRequest(toUid: String) =
         post(JSONObject().put("type", "friend_request").put("to", toUid))
 

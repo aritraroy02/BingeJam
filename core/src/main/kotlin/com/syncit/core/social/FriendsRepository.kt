@@ -3,6 +3,7 @@ package com.syncit.core.social
 import com.syncit.core.model.DirectMessage
 import com.syncit.core.model.Friend
 import com.syncit.core.model.FriendRequest
+import com.syncit.core.model.WatchSessionReport
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -42,9 +43,28 @@ class FriendRequestException(message: String) : Exception(message)
 
 /** One-to-one chat between friends. dmId = the two uids sorted and joined with "_". */
 interface DirectMessages {
+    /** Oldest first, without the ones we deleted for ourselves ([deleteForMe]). */
     fun observe(friendUid: String, limit: Int = 100): Flow<List<DirectMessage>>
 
-    suspend fun send(friendUid: String, text: String)
+    /** [forwarded]: sent with Forward, shown with a "Forwarded" label. */
+    suspend fun send(friendUid: String, text: String, forwarded: Boolean = false)
+
+    /**
+     * Our own message only: clears its text and marks it deleted for both of us (the node stays,
+     * so order and unread counts don't change). Can't be undone.
+     */
+    suspend fun deleteForEveryone(friendUid: String, messageId: String)
+
+    /** Hides a message (or card) for us only, on all our devices; the friend still sees it. */
+    suspend fun deleteForMe(friendUid: String, messageId: String)
+
+    /**
+     * Creates or extends the "watched together" card for [report]'s session in our chat with
+     * [friendUid]. Both phones call this for the same session and end up on the same card; its
+     * duration only grows (the larger of the two measurements). No notification, not unread.
+     * Returns the card's duration after the write, or null if nothing was written.
+     */
+    suspend fun recordWatchedTogether(friendUid: String, report: WatchSessionReport): Long?
 
     /** Friend uid → number of messages since we last opened that chat (in-app badges). */
     fun observeUnreadCounts(): Flow<Map<String, Int>>

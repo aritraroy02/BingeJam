@@ -15,7 +15,10 @@ import com.syncit.core.model.Presence
 import com.syncit.core.model.RoomInvite
 import com.syncit.core.model.SentInvite
 import com.syncit.core.model.SignInProvider
+import com.syncit.core.model.StreamingService
 import com.syncit.core.model.UserProfile
+import com.syncit.core.model.WatchSessionReport
+import com.syncit.core.model.WatchedTogether
 import com.syncit.core.social.ActivityTracker
 import com.syncit.core.social.AvatarException
 import com.syncit.core.social.AvatarStore
@@ -138,12 +141,17 @@ object FakeSocial {
         val messages = MutableStateFlow(
             mapOf(
                 "u-riya" to listOf(
+                    DirectMessage(
+                        "w-FAKE22-00000000", "u-riya", "", now() - 86_400_000,
+                        watched = WatchedTogether("Leo", StreamingService.NETFLIX, 6_120_000),
+                    ),
                     DirectMessage("m1", "u-riya", "Starting Witcher S2 tonight, want in?", now() - 900_000),
                     DirectMessage("m2", "u-riya", "Episode 4 already 😅", now() - 300_000),
                 ),
             ),
         )
         val reads = MutableStateFlow<Map<String, Long>>(emptyMap())
+        val hiddenMessages = MutableStateFlow<Set<String>>(emptySet())
 
         val joinRequestsToMe = MutableStateFlow<List<JoinRequest>>(emptyList())
         val myJoinRequests = MutableStateFlow<List<JoinRequest>>(emptyList())
@@ -339,10 +347,10 @@ object FakeSocial {
             private val typingFriends = MutableStateFlow<Set<String>>(emptySet())
 
             override fun observe(friendUid: String, limit: Int): Flow<List<DirectMessage>> =
-                messages.map { it[friendUid].orEmpty().takeLast(limit) }
+                combine(messages, hiddenMessages) { all, hidden -> all[friendUid].orEmpty().filterNot { it.id in hidden }.takeLast(limit) }
 
-            override suspend fun send(friendUid: String, text: String) {
-                add(friendUid, DirectMessage("local-${nextId++}", ME, text, now()))
+            override suspend fun send(friendUid: String, text: String, forwarded: Boolean) {
+                add(friendUid, DirectMessage("local-${nextId++}", ME, text, now(), forwarded = forwarded))
                 scope.launch {
                     delay(400)
                     typingFriends.update { it + friendUid }
@@ -358,11 +366,36 @@ object FakeSocial {
             override fun observeTyping(friendUid: String): Flow<Boolean> =
                 typingFriends.map { friendUid in it }.distinctUntilChanged()
 
+            override suspend fun deleteForEveryone(friendUid: String, messageId: String) = messages.update { all ->
+                all + (friendUid to all[friendUid].orEmpty().map { m ->
+                    if (m.id == messageId && m.fromUid == ME && m.watched == null) m.copy(text = "", forwarded = false, deleted = true) else m
+                })
+            }
+
+            override suspend fun deleteForMe(friendUid: String, messageId: String) = hiddenMessages.update { it + messageId }
+
+            override suspend fun recordWatchedTogether(friendUid: String, report: WatchSessionReport): Long {
+                val card = WatchedTogether(report.title, report.service, report.togetherMs, report.items)
+                var duration = report.togetherMs
+                messages.update { all ->
+                    val list = all[friendUid].orEmpty()
+                    val existing = list.firstOrNull { it.id == report.sessionKey }
+                    duration = maxOf(duration, existing?.watched?.durationMs ?: 0L)
+                    val updated = if (existing == null) {
+                        list + DirectMessage(report.sessionKey, ME, "", now(), watched = card)
+                    } else {
+                        list.map { if (it.id == report.sessionKey) it.copy(watched = card.copy(durationMs = duration)) else it }
+                    }
+                    all + (friendUid to updated)
+                }
+                return duration
+            }
+
             private fun add(friendUid: String, message: DirectMessage) =
                 messages.update { it + (friendUid to it[friendUid].orEmpty() + message) }
 
             override fun observeUnreadCounts(): Flow<Map<String, Int>> = combine(messages, reads) { all, read ->
-                all.mapValues { (uid, list) -> list.count { it.fromUid != ME && it.sentAt > (read[uid] ?: 0L) } }
+                all.mapValues { (uid, list) -> list.count { it.fromUid != ME && it.watched == null && it.sentAt > (read[uid] ?: 0L) } }
                     .filterValues { it > 0 }
             }
 
