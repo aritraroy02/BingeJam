@@ -13,6 +13,8 @@ class TrendingLinksTest {
         assertTrue(ok(StreamingService.JIOHOTSTAR, "https://www.hotstar.com/in/movies/x/1271713346/watch"))
         assertTrue(ok(StreamingService.PRIME_VIDEO, "https://www.primevideo.com/detail/0ABCDEF123/"))
         assertTrue(ok(StreamingService.PRIME_VIDEO, "https://app.primevideo.com/detail/0X1Y2Z"))
+        assertTrue(ok(StreamingService.PRIME_VIDEO, "https://app.primevideo.com/detail?gti=amzn1.dv.gti.32bf7a96-37d1-484f-abec-207dfcf09b99"))
+        assertFalse(ok(StreamingService.PRIME_VIDEO, "https://app.primevideo.com/detail?gti=amzn1.dv.gti.32bf7a96-37d1-484f-abec-207dfcf09b99&x=evil"))
     }
 
     @Test fun rejectsOtherHostsServicesAndShapes() {

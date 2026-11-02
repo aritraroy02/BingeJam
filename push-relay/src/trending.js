@@ -50,6 +50,15 @@ const LANGUAGES = new Set(['hi', 'en', 'ta', 'te', 'ml', 'kn', 'bn', 'mr', 'pa',
 const NOT_SERIES = '10763,10764,10766,10767';
 const SERIES_YEARS = 9;
 
+const WATCHMODE = 'https://api.watchmode.com/v1';
+const LINK_FOUND_TTL_S = 25 * 24 * 3600; // < Watchmode's 30-day refresh rule
+const LINK_MISSING_TTL_S = 3 * 24 * 3600;
+const NETFLIX_TITLE_URL = /^https:\/\/www\.netflix\.com\/title\/(\d{1,12})(?:[/?#]|$)/;
+const HOTSTAR_URL = /^https:\/\/(?:www\.)?(?:hotstar|jiohotstar)\.com\/.*?\/(\d{6,12})(?:\/watch)?\/?(?:[?#]|$)/;
+// Watchmode gives app.primevideo.com/detail?gti=amzn1.dv.gti.<uuid> (opens the title page in the app,
+// checked on the OPPO with Vadhandhi, 2026-11-02); /detail/<id> pages are accepted too.
+const PRIME_URL = /^https:\/\/(?:www\.|app\.)?primevideo\.com\/(?:(?:[a-z-]+\/)?(?:detail|dp)\/[A-Za-z0-9._-]{1,80}\/?|detail\?gti=amzn1\.dv\.gti\.[0-9a-f-]{36})$/;
+
 export async function trending(request, env, { verifyIdToken, bearer, json }) {
   try {
     await verifyIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
@@ -187,6 +196,11 @@ export async function watchLink(request, env, { verifyIdToken, bearer, json }) {
   try {
     const details = await watchmodeGet(`/title/${type}-${tmdbId}/details/?append_to_response=sources&regions=${REGION}`, env.WATCHMODE_API_KEY);
     url = pickLink(details.sources || [], service);
+    if (!url) {
+      // What the service's entries looked like, to extend the formats we accept (no secrets in these).
+      const seen = (details.sources || []).filter((s) => s.region === REGION).map((s) => `${s.source_id}|${s.name}|${s.type}|${s.web_url}|${s.android_url || ''}`);
+      console.log('watch-link: no link', service, `${type}-${tmdbId}`, JSON.stringify(seen).slice(0, 1500));
+    }
   } catch (e) {
     console.log('watch-link lookup failed', e.message);
     return json({ url: null }); // not cached: try again next time

@@ -27,7 +27,7 @@ internal class RelayTrending(
     private val session: FirebaseSession,
     private val baseUrl: String = FirebaseConfig.PUSH_RELAY_URL,
 ) : TrendingCatalog {
-    private val links = ConcurrentHashMap<String, String>() // "<service>:<tmdbId>" -> url, or "" for none
+    private val links = ConcurrentHashMap<String, String>() // "<service>:<type>:<tmdbId>" -> url (found ones only)
 
     private val cached = ConcurrentHashMap<TrendingFilter, Pair<Long, List<TrendingRow>>>()
 
@@ -48,16 +48,17 @@ internal class RelayTrending(
 
     override suspend fun watchLink(title: TrendingTitle, service: StreamingService): String? {
         val key = "${service.name}:${title.type.wire}:${title.tmdbId}"
-        links[key]?.let { return it.ifEmpty { null } }
+        links[key]?.let { return it }
         val url = Uri.parse(baseUrl).buildUpon()
             .appendPath("watch-link")
             .appendQueryParameter("tmdb", title.tmdbId.toString())
             .appendQueryParameter("type", title.type.wire)
             .appendQueryParameter("service", service.name)
             .build().toString()
-        val body = get(url) ?: return null // failed: not remembered, retried next time
+        // Misses aren't remembered here (the relay caches them), so a fixed lookup works without a restart.
+        val body = get(url) ?: return null
         val link = body.optString("url").takeIf { TrendingCatalog.isSafeLink(service, it) }
-        links[key] = link.orEmpty()
+        if (link != null) links[key] = link
         return link
     }
 

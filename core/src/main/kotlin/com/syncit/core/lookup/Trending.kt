@@ -122,6 +122,8 @@ interface TrendingCatalog {
 
         private val NETFLIX = Regex("""https://www\.netflix\.com/watch/\d{1,12}""")
         private val HOTSTAR = Regex("""https://www\.hotstar\.com/in/movies/x/\d{6,12}/watch""")
-        private val PRIME = Regex("""https://(?:www\.|app\.)?primevideo\.com/(?:[a-z-]+/)?(?:detail|dp)/[A-Za-z0-9._-]{1,80}/?(?:[?#].*)?""")
+        private val PRIME = Regex(
+            """https://(?:www\.|app\.)?primevideo\.com/(?:(?:[a-z-]+/)?(?:detail|dp)/[A-Za-z0-9._-]{1,80}/?|detail\?gti=amzn1\.dv\.gti\.[0-9a-f-]{36})""",
+        )
     }
 }
