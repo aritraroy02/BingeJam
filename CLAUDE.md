@@ -4,6 +4,13 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
+**Unreleased on main (2026-11-02), not yet deployed:** "Play in JioHotstar" opens the host's exact title by
+its content ID; WhatsApp-style in-room bar (timer, mute, Exit) over every other screen; no wordmark on Home;
+DM long-press Copy / Forward / Delete (for me / for everyone); "Watched X together" cards in DMs. See PLAN.md
+"JioHotstar exact title", "In-room bar", "DM message actions + watched together". **Before releasing:** deploy
+the rules (`npx -y firebase-tools deploy --only database`; account deletion breaks with the old rules) and the
+relay (`npx wrangler deploy` in `push-relay/`, new `dm_deleted` type), with the user's OK. Not yet tested on two phones.
+
 **Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app
 GitHub updater links outside the store and asked for an update right after install. Fixed with a separate Indus
 build (`-Pstore=indus`, no updater) at 0.6.6; the user re-uploads `dist/sync-it-indus.apk` and resubmits.
@@ -156,7 +163,7 @@ contract, update every implementation and the tests.
 | What | Where | How to fill |
 |---|---|---|
 | **`google-services.json`** | `app/google-services.json` (git-ignored; see `app/google-services.json.README.md`) | Present on the main dev machine and the Asus laptop (project `syncit-watchparty`). Elsewhere: `firebase apps:sdkconfig ANDROID 1:289263837364:android:627d7a1647f21ad28d77e1 -o app/google-services.json`, or rebuild it from a release APK's string resources (`aapt2 dump resources`). The build fails without it. |
-| Push relay | `push-relay/` at `https://vyro-push-relay.aritraroy02.workers.dev` (Cloudflare account aritraditya.roy@gmail.com, subdomain `aritraroy02`); URL in `FirebaseConfig.PUSH_RELAY_URL` | Redeploy with `npx wrangler deploy` in `push-relay/` (`npx wrangler login` first on a new machine). Routes: `POST /` notifications (`dm`, `friend_request`, `join_request`, `invite`); `PUT/DELETE /avatar`, `GET /avatar/<uid>` profile pictures in KV `AVATARS` (Firebase Storage needs Blaze); `GET /netflix?title=&durationMs=` Netflix ID lookup via Watchmode (signed-in only; cached in KV `nflx:<title>/<minutes>`, 25 days found, 3 days not found); cron `*/30 * * * *` announces new GitHub releases on FCM topic `updates` (KV `release:announced`). Secrets only in Cloudflare, never in git: `FIREBASE_SERVICE_ACCOUNT`, `WATCHMODE_API_KEY`. Logs: `npx wrangler tail`. |
+| Push relay | `push-relay/` at `https://vyro-push-relay.aritraroy02.workers.dev` (Cloudflare account aritraditya.roy@gmail.com, subdomain `aritraroy02`); URL in `FirebaseConfig.PUSH_RELAY_URL` | Redeploy with `npx wrangler deploy` in `push-relay/` (`npx wrangler login` first on a new machine). Routes: `POST /` notifications (`dm`, `friend_request`, `join_request`, `invite`, `dm_deleted` = data-only retraction of a deleted DM's notification); `PUT/DELETE /avatar`, `GET /avatar/<uid>` profile pictures in KV `AVATARS` (Firebase Storage needs Blaze); `GET /netflix?title=&durationMs=` Netflix ID lookup via Watchmode (signed-in only; cached in KV `nflx:<title>/<minutes>`, 25 days found, 3 days not found); cron `*/30 * * * *` announces new GitHub releases on FCM topic `updates` (KV `release:announced`). Secrets only in Cloudflare, never in git: `FIREBASE_SERVICE_ACCOUNT`, `WATCHMODE_API_KEY`. Logs: `npx wrangler tail`. |
 | JioHotstar link hosts | `core/.../model/StreamingService.kt` → `listOf("hotstar.com", "jiohotstar.com")` | Unverified guess; only used for a soft warning. Check against a real share link. |
 | Invite site | `web/` + `firebase.json` hosting; `RoomLinks.WEB_HOST` | `https://syncit-watchparty.web.app/join/CODE` (`firebase deploy --only hosting`, the user runs deploys). APK = `sync-it.apk` attached to GitHub releases of public repo `aritraroy02/sync-it-releases` (Spark plan can't host APKs). Ship a version with `bash scripts/release.sh X.Y.Z "notes"`. |
 | Release signing | `keystore.properties` (git-ignored) → `C:/Users/aritr/.syncit/syncit-release.jks` (main machine), `C:/Users/Asus/.syncit/syncit-release.jks` (Asus laptop) | Never commit or send in chat. SHA-256 `E8:89:BE:...:33:5F`, also in `web/.well-known/assetlinks.json`. |

@@ -266,6 +266,27 @@ Netflix publishes no content ID (see "Netflix behaviour"), so the room couldn't 
 - Measured coverage (IN): found The Paradise, Squid Game, Wednesday, Leo, Animal, Maharaja; missing
   Extraction, Red Notice, Glass Onion, RRR, Jawan (those fall back to search).
 
+### JioHotstar exact title (2026-11-02)
+JioHotstar publishes no MEDIA_ID, but its MEDIA_URI is the stream URL, e.g.
+`https://hses9.hotstar.com/gsvod1/movies-prod-origin1/videos/hotstarint/v3/1271713346/1791213049860/<hash>`;
+the segment after `/v3/` is the public content ID (measured with "October" on the OPPO, JioHotstar
+playing; `https://www.hotstar.com/in/movies/x/1271713346/watch` opened October and started it, also with
+JioHotstar force-stopped, and a `/in/shows/x/<id>/watch` path worked too: the app ignores the type/slug).
+- `:media` `PlayableRefParser` reads JioHotstar's MEDIA_URI and keeps **only** the content ID, as
+  `https://www.hotstar.com/in/movies/x/<6-12 digits>/watch` (the stream URL is never stored or shared).
+  `PlayableRefs` + the `previews/$code/playableRef` rule accept that form.
+- Room: "Play in JioHotstar" opens that link in JioHotstar (`openJioHotstar`), else the host's link, else
+  the app; no search. JioHotstar resumes at its own saved position; the sync session then jumps to the
+  room's position. Episodes: untested (the content ID should be the episode's).
+
+### In-room bar (2026-11-02)
+Back from the room keeps you in it (sync + voice keep running). `OngoingRoomBar` (WhatsApp-style ongoing
+call bar) sits above every other screen while `SyncSessionController.state.roomCode` is set: "In a room
+05:12" (time since entering, `UserPrefs.roomJoinedAt`, kept across restarts), mute while in voice, Exit
+(confirm, then the same as Leave: voice, sync, `leaveRoom`). Tapping it returns to the room's existing
+back-stack entry (`NavViewModel.openRoom`). Screens under the bar don't add status-bar padding again.
+Home's top bar no longer shows the wordmark (user's request).
+
 ### Agents
 - backend-agent (`:data-firebase` + rules + emulator tests), media-agent (`:media`: ActivityTracker,
   Prime Video + music/YouTube session checks on the phone), ui-agent (`:app`: auth, username,
@@ -313,7 +334,7 @@ screen before joining, and keep it visible in the room.
   the secret). Rules + emulator test needed. The web page would need it readable without
   auth, so decide what is OK to show publicly.
 
-## DM message actions + watched together (built 2026-11-02, branch chat-features)
+## DM message actions + watched together (built 2026-11-02)
 
 **Long-press a DM** (haptic) → glass sheet: **Copy** (clipboard; our "Message copied" notice only below
 Android 13, which shows its own), **Forward** (pick friends with avatars, multi-select; each gets a normal
