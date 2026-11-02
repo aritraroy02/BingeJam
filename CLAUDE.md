@@ -12,6 +12,14 @@ Settings; icons only, floating glass) with a new **Chats** list (newest first); 
 friend's sheet or an invite; trending movies on Home are planned). See PLAN.md "JioHotstar exact title",
 "In-room bar", "DM message actions + watched together", "Bottom tabs + Chats". **Rules and relay for these were
 deployed 2026-11-02** (user's go-ahead). Not yet tested on two phones; the user asked not to release yet.
+Later the same day (also unreleased, relay deployed): Home = "Trending now" (TMDB via relay `/trending`: Movies /
+Web series, genre and language chips, shimmer loader; see PLAN.md "Trending on Home"); tap a poster → sheet with
+**Watch with friends** (room with the title's link, opens on Invite friends; host gets "Play in <app>") or **Watch
+alone**. Exact links via relay `/watch-link` (Watchmode by TMDB ID), checked on the OPPO 2026-11-02: Netflix and
+JioHotstar open and start the exact title; Prime Video opens the title's page (`app.primevideo.com/detail?gti=…`;
+Prime has no public play link). Titles Watchmode doesn't know fall back to Netflix search / the app. Friends list
+removed from Home; Chats has a friend search; bottom sheets hide the tab bar and close with a swipe down. Both test
+phones (OPPO, Motorola) run this build (still labelled 0.6.6).
 
 **Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app
 GitHub updater links outside the store and asked for an update right after install. Fixed with a separate Indus
