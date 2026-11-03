@@ -7,13 +7,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.data.InviteHandoff
 import com.syncit.app.push.PushNotifications
 import com.syncit.app.ui.nav.SyncItApp
+import com.syncit.app.ui.splash.StartupSplash
 import com.syncit.app.ui.theme.SyncItTheme
 import com.syncit.app.ui.theme.isDark
 import com.syncit.core.config.RoomLinks
@@ -43,12 +49,16 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleLink(intent)
         // Opened from the link itself, so the clipboard fallback isn't needed.
         if (pendingJoinCode.value != null) container.prefs.inviteClipboardChecked = true
+        // The startup animation: only on a fresh launch from the home screen, not from a link or notification.
+        val playSplash = savedInstanceState == null && intent?.action == Intent.ACTION_MAIN
         setContent {
             val mode by container.prefs.themeMode.collectAsStateWithLifecycle()
             val dark = mode.isDark()
-            // Status/navigation bar icons follow the app's theme, not the phone's.
-            DisposableEffect(dark) {
-                val style = if (dark) {
+            var splash by rememberSaveable { mutableStateOf(playSplash) }
+            // Status/navigation bar icons follow the app's theme, not the phone's (light on the black splash).
+            val darkBars = dark || splash
+            DisposableEffect(darkBars) {
+                val style = if (darkBars) {
                     SystemBarStyle.dark(Color.TRANSPARENT)
                 } else {
                     SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
@@ -57,12 +67,15 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
             SyncItTheme(dark = dark) {
-                SyncItApp(
-                    container = container,
-                    pendingJoinCode = pendingJoinCode,
-                    pendingEmailLink = pendingEmailLink,
-                    pendingNotification = pendingNotification,
-                )
+                Box(Modifier.fillMaxSize()) {
+                    SyncItApp(
+                        container = container,
+                        pendingJoinCode = pendingJoinCode,
+                        pendingEmailLink = pendingEmailLink,
+                        pendingNotification = pendingNotification,
+                    )
+                    if (splash) StartupSplash(onDone = { splash = false })
+                }
             }
         }
     }

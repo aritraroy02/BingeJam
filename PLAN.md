@@ -458,3 +458,14 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
 - **Known limits / next**: Bluetooth headsets switch to call mode (lower quality) while in voice;
   MODE_IN_COMMUNICATION can make the movie a bit quieter on some phones; no push-to-talk yet;
   "Test mic" (echo) is in the relay but not in the UI yet.
+
+## Startup animation, "Two friends, one play" (built 2026-11-03)
+- `ui/splash/StartupSplash.kt`, drawn over the app from `MainActivity` on a fresh launch from the
+  home screen only (not from a link, notification or rotation). Approved from a browser preview first.
+- ~3.2 s: a red and an orange-red dot draw the two sync arrows, the ring spins once into sync (turns
+  white), play drops in, a dark-red flood reveals "BingeJam / Watch together", then it glides into Home.
+  Tap skips to the exit. Remove animations on → still logo for 1.2 s, then a fade.
+- Android 12+: the system splash is plain black (`values-v31`, `values-night-v31`), so the launcher icon
+  doesn't flash before the animation.
+- Known: Inter's bold weights don't apply on the OPPO (headings render regular app-wide); the splash
+  synthesises its bold. App-wide fix not done yet.

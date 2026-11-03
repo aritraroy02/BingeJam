@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="window_background">#FFFFF7F2</color>
+    <!-- Android 12+ system splash, before the startup animation draws. -->
+    <color name="splash_background">#FF050505</color>
 </resources>
