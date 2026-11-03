@@ -41,14 +41,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
-import com.syncit.app.R
 import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.theme.Inter
 import kotlinx.coroutines.delay
@@ -119,7 +115,7 @@ fun StartupSplash(onDone: () -> Unit) {
                     "BingeJam".forEachIndexed { i, letter ->
                         Text(
                             letter.toString(),
-                            style = WORD,
+                            style = WORD.copy(fontFamily = Inter),
                             modifier = Modifier.graphicsLayer {
                                 val p = progress(time.value, 1_400f + 40f * i, 380f, RISE)
                                 translationY = (1f - p) * 18.dp.toPx()
@@ -130,7 +126,7 @@ fun StartupSplash(onDone: () -> Unit) {
                 }
                 Text(
                     "Watch together",
-                    style = TAG,
+                    style = TAG.copy(fontFamily = Inter),
                     modifier = Modifier.graphicsLayer {
                         val p = progress(time.value, 1_800f, 400f, EASE_OUT)
                         translationY = (1f - p) * 6.dp.toPx()
@@ -275,16 +271,11 @@ private val FLOOD = CubicBezierEasing(0.3f, 0.7f, 0.2f, 1f)
 private val RISE = CubicBezierEasing(0.2f, 0.9f, 0.3f, 1.2f)
 private val EXIT = CubicBezierEasing(0.5f, 0f, 0.7f, 0.4f)
 
-/** Inter's variable weight doesn't take effect on some phones (seen on OPPO), so the name's weight is synthesised. */
-private val InterHeavy = FontFamily(Font(R.font.inter, FontWeight.Normal))
-
 private val WORD = TextStyle(
     color = Color.White,
-    fontFamily = InterHeavy,
     fontSize = 36.sp,
     fontWeight = FontWeight.ExtraBold,
-    fontSynthesis = FontSynthesis.Weight,
     letterSpacing = (-0.5).sp,
     shadow = Shadow(Color(0x73FF1E3C), Offset(0f, 4f), 40f),
 )
-private val TAG = TextStyle(color = Color(0xFFFF8A9A), fontFamily = Inter, fontSize = 14.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
+private val TAG = TextStyle(color = Color(0xFFFF8A9A), fontSize = 14.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)

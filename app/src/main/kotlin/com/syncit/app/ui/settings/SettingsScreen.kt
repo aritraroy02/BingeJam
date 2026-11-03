@@ -1,18 +1,23 @@
 package com.syncit.app.ui.settings
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,11 +25,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -42,21 +48,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.BuildConfig
+import com.syncit.app.R
 import com.syncit.app.data.LegalLinks
 import com.syncit.app.data.UpdateChecker
 import com.syncit.app.overlay.ChatBubbleService
 import com.syncit.app.ui.activity.ActivityAppToggles
-import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassRow
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSegmented
-import com.syncit.app.ui.glass.GlassSwitchRow
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.glass.NoticeBanner
@@ -64,17 +68,34 @@ import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.theme.Glass
 import com.syncit.app.ui.theme.ThemeMode
 import com.syncit.core.config.Brand
+import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SignInProvider
 import com.syncit.core.voice.VoiceDevice
+import com.syncit.core.voice.VoiceDevices
 import com.syncit.voice.R as VoiceR
 
+/** The category pages inside Settings; MAIN lists them. */
+private enum class SettingsPage(val title: String) {
+    MAIN("Settings"),
+    SHARING("Activity sharing"),
+    AUDIO("Audio"),
+    THEME("Theme"),
+    ACCOUNT("Account"),
+    ABOUT("About & legal"),
+}
+
+/**
+ * Settings as categories (user's request, 2026-11-03): Activity sharing, Audio, Theme, then Setup &
+ * permissions, Media diagnostics, Account and About & legal. Each category opens its own page here;
+ * back returns to the list.
+ */
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     deleteAccount: DeleteAccountViewModel,
     useFakeGoogle: Boolean,
-    /** Null when Settings is a tab (no back arrow). */
+    /** Null when Settings is a tab (no back arrow on the list). */
     onBack: (() -> Unit)?,
     onEditProfile: () -> Unit,
     onOpenSetup: () -> Unit,
@@ -84,14 +105,12 @@ fun SettingsScreen(
     val context = LocalContext.current
     val prefs = viewModel.prefs
     val mode by prefs.themeMode.collectAsStateWithLifecycle()
-    val profile by viewModel.profile.collectAsStateWithLifecycle()
     val auth by viewModel.auth.collectAsStateWithLifecycle()
     val shared by prefs.sharedApps.collectAsStateWithLifecycle()
     val invisible by prefs.invisible.collectAsStateWithLifecycle()
-    val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
-    val updateCheck by viewModel.updateCheck.collectAsStateWithLifecycle()
     val voiceDevices by viewModel.voiceDevices.collectAsStateWithLifecycle()
+    var page by rememberSaveable { mutableStateOf(SettingsPage.MAIN) }
     var devicePicker by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var linkError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -99,180 +118,59 @@ fun SettingsScreen(
         if (!LegalLinks.open(context, url)) linkError = "No browser found. The page is at $url"
     }
 
+    BackHandler(enabled = page != SettingsPage.MAIN) { page = SettingsPage.MAIN }
+
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            val back: (() -> Unit)? = if (page != SettingsPage.MAIN) ({ page = SettingsPage.MAIN }) else onBack
             GlassTopBar(
-                title = "Settings",
-                navigation = onBack?.let { back -> { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", back) } },
+                title = page.title,
+                navigation = back?.let { b -> { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", b) } },
             )
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .navigationBarsPadding()
-                    .padding(bottom = 24.dp + LocalBottomBarInset.current),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                // Your profile, "Invisible" and what friends see now are on the Profile screen.
-                SectionLabel("Activity sharing", Modifier.padding(top = 8.dp))
-                Text(
-                    if (invisible) {
-                        "You're invisible, so nothing is shared. Turn it off on your profile."
-                    } else {
-                        "Friends see what you play in the apps you turn on here."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = p.textSecondary,
-                    modifier = Modifier.padding(horizontal = 6.dp),
-                )
-                ActivityAppToggles(
-                    shared = shared,
-                    onToggle = { app, on -> prefs.setSharedApps(if (on) shared + app else shared - app) },
-                )
-
-                SectionLabel("Appearance", Modifier.padding(top = 12.dp))
-                GlassPanel {
-                    Text("Theme", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
-                    GlassSegmented(
-                        options = listOf("System", "Light", "Dark"),
-                        selected = mode.ordinal,
-                        onSelect = { prefs.setThemeMode(ThemeMode.entries[it]) },
-                    )
-                    Text("System follows your phone's dark mode setting.", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
-                }
-
-                SectionLabel("Voice chat", Modifier.padding(top = 12.dp))
-                GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
-                    GlassRow(
-                        title = "Microphone",
-                        subtitle = deviceLabel(voiceDevices.inputs, voiceDevices.selectedInput),
-                        icon = ImageVector.vectorResource(VoiceR.drawable.ic_voice_mic),
-                        onClick = { devicePicker = PICK_MIC },
-                        trailing = { Chevron() },
-                    )
-                    GlassRow(
-                        title = "Speaker",
-                        subtitle = deviceLabel(voiceDevices.outputs, voiceDevices.selectedOutput),
-                        icon = ImageVector.vectorResource(VoiceR.drawable.ic_voice_headset),
-                        onClick = { devicePicker = PICK_SPEAKER },
-                        trailing = { Chevron() },
-                    )
-                }
-
-                SectionLabel("App", Modifier.padding(top = 12.dp))
-                GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
-                    GlassRow(
-                        title = "Setup & permissions",
-                        subtitle = "Notification Access, notifications, battery",
-                        icon = Icons.Filled.Lock,
-                        onClick = onOpenSetup,
-                        trailing = { Chevron() },
-                    )
-                    GlassRow(
-                        title = "Media diagnostics",
-                        subtitle = "See what your streaming and music apps report",
-                        icon = Icons.Filled.Build,
-                        onClick = onOpenDiagnostics,
-                        trailing = { Chevron() },
-                    )
-                }
-
-                SectionLabel("Account", Modifier.padding(top = 12.dp))
-                GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
-                    val signedIn = auth as? AuthState.SignedIn
-                    GlassRow(
-                        title = if (signingOut) "Signing out…" else "Sign out",
-                        subtitle = signedIn?.let {
-                            val via = when (it.provider) {
-                                SignInProvider.GOOGLE -> "Google"
-                                SignInProvider.EMAIL_LINK -> "email link"
-                                SignInProvider.OTHER -> "another method"
-                            }
-                            listOfNotNull(it.email, "signed in with $via").joinToString(" · ")
-                        },
-                        icon = Icons.AutoMirrored.Filled.ExitToApp,
-                        onClick = { if (!signingOut) confirmSignOut = true },
-                    )
-                    GlassRow(
-                        title = "Delete account",
-                        subtitle = "Permanently delete your account, friends, messages and activity",
-                        icon = Icons.Filled.Delete,
-                        onClick = { if (!signingOut) deleteAccount.open() },
-                        trailing = { Chevron() },
-                    )
-                }
-
-                SectionLabel("About & legal", Modifier.padding(top = 12.dp))
-                GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
-                    val check = updateCheck
-                    val available = ((check as? SettingsViewModel.UpdateCheck.Done)?.result as? UpdateChecker.Result.Available)?.update
-                    GlassRow(
-                        title = "${Brand.NAME} ${BuildConfig.VERSION_NAME}",
-                        subtitle = when {
-                            !UpdateChecker.enabled -> "Updates come through the app store you installed from"
-                            check == SettingsViewModel.UpdateCheck.Idle -> "Tap to check for updates"
-                            check == SettingsViewModel.UpdateCheck.Checking -> "Checking for updates…"
-                            else -> when ((check as SettingsViewModel.UpdateCheck.Done).result) {
-                                UpdateChecker.Result.UpToDate -> "You're on the latest version"
-                                is UpdateChecker.Result.Available -> "Version ${available?.version} is available. Tap to download."
-                                UpdateChecker.Result.Failed -> "Couldn't check. Tap to try again."
-                            }
-                        },
-                        icon = Icons.Filled.Info,
-                        onClick = if (!UpdateChecker.enabled) null else {
-                            {
-                                if (available != null) {
-                                    openLegal(UpdateChecker.DOWNLOAD_URL)
-                                } else {
-                                    viewModel.checkForUpdate()
-                                }
-                            }
-                        },
-                        trailing = {
-                            if (check == SettingsViewModel.UpdateCheck.Checking) {
-                                CircularProgressIndicator(Modifier.size(18.dp), color = p.accent, strokeWidth = 2.dp)
-                            }
-                        },
-                    )
-                    Text(
-                        "${Brand.TAGLINE} Shared with your room: play, pause, position, and the title and artwork of " +
-                            "what you're playing. Shared with friends: only the apps you turn on above. Never video, " +
-                            "audio or notifications.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = p.textTertiary,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
-                    )
-                    GlassRow(
-                        title = "Terms of Service",
-                        icon = Icons.AutoMirrored.Filled.List,
-                        onClick = { openLegal(LegalLinks.TERMS) },
-                        trailing = { Chevron() },
-                    )
-                    GlassRow(
-                        title = "Privacy Policy",
-                        icon = Icons.Filled.Lock,
-                        onClick = { openLegal(LegalLinks.PRIVACY) },
-                        trailing = { Chevron() },
-                    )
-                    GlassRow(
-                        title = "Deleting your account",
-                        subtitle = "What gets deleted, and how to ask without the app",
-                        icon = Icons.Filled.Delete,
-                        onClick = { openLegal(LegalLinks.DELETE_ACCOUNT_HELP) },
-                        trailing = { Chevron() },
-                    )
-                    GlassRow(
-                        title = "Licences",
-                        subtitle = "Inter typeface, SIL Open Font License 1.1. Haze, Apache 2.0. Trending titles from TMDB: " +
-                            "this product uses the TMDB API but is not endorsed or certified by TMDB. Where to watch by JustWatch.",
-                    )
-                    Text(
-                        LegalLinks.NOT_AFFILIATED,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = p.textTertiary,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
-                    )
+            AnimatedContent(
+                targetState = page,
+                transitionSpec = {
+                    val forward = targetState != SettingsPage.MAIN
+                    (slideInHorizontally { w -> if (forward) w / 5 else -w / 5 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { w -> if (forward) -w / 5 else w / 5 } + fadeOut())
+                },
+                label = "settingsPage",
+            ) { current ->
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                        .navigationBarsPadding()
+                        .padding(top = 8.dp, bottom = 24.dp + LocalBottomBarInset.current),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    when (current) {
+                        SettingsPage.MAIN -> MainPage(
+                            sharingSummary = sharingSummary(shared, invisible),
+                            audioSummary = "Mic: ${deviceLabel(voiceDevices.inputs, voiceDevices.selectedInput)} · " +
+                                "Speaker: ${deviceLabel(voiceDevices.outputs, voiceDevices.selectedOutput)}",
+                            themeSummary = THEME_OPTIONS[mode.ordinal],
+                            accountSummary = (auth as? AuthState.SignedIn)?.email,
+                            onOpen = { page = it },
+                            onOpenSetup = onOpenSetup,
+                            onOpenDiagnostics = onOpenDiagnostics,
+                        )
+                        SettingsPage.SHARING -> SharingPage(
+                            shared = shared,
+                            invisible = invisible,
+                            onToggle = { app, on -> prefs.setSharedApps(if (on) shared + app else shared - app) },
+                        )
+                        SettingsPage.AUDIO -> AudioPage(voiceDevices, onPick = { devicePicker = it })
+                        SettingsPage.THEME -> ThemePage(mode, onSelect = { prefs.setThemeMode(it) })
+                        SettingsPage.ACCOUNT -> AccountPage(
+                            auth = auth,
+                            signingOut = signingOut,
+                            onSignOut = { if (!signingOut) confirmSignOut = true },
+                            onDelete = { if (!signingOut) deleteAccount.open() },
+                        )
+                        SettingsPage.ABOUT -> AboutPage(viewModel, openLegal)
+                    }
                 }
             }
         }
@@ -363,4 +261,209 @@ private fun DeviceOption(label: String, selected: Boolean, onClick: () -> Unit) 
 @Composable
 private fun Chevron() {
     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Glass.palette.textTertiary)
+}
+
+private val THEME_OPTIONS = listOf("System", "Light", "Dark")
+
+/** "Netflix, Spotify on", "Off for all apps", or the invisible note. */
+private fun sharingSummary(shared: Set<ActivityApp>, invisible: Boolean): String {
+    if (invisible) return "You're invisible, so nothing is shared"
+    val on = ActivityApp.entries.filter { it in shared }.map { it.displayName }
+    return when {
+        on.isEmpty() -> "Off for all apps"
+        on.size <= 3 -> on.joinToString(", ") + " on"
+        else -> on.take(2).joinToString(", ") + " and ${on.size - 2} more on"
+    }
+}
+
+@Composable
+private fun MainPage(
+    sharingSummary: String,
+    audioSummary: String,
+    themeSummary: String,
+    accountSummary: String?,
+    onOpen: (SettingsPage) -> Unit,
+    onOpenSetup: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
+) {
+    GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+        CategoryRow("Activity sharing", sharingSummary, Icons.Filled.Share) { onOpen(SettingsPage.SHARING) }
+        CategoryRow("Audio", audioSummary, ImageVector.vectorResource(VoiceR.drawable.ic_voice_headset)) { onOpen(SettingsPage.AUDIO) }
+        CategoryRow("Theme", themeSummary, ImageVector.vectorResource(R.drawable.ic_settings_theme)) { onOpen(SettingsPage.THEME) }
+    }
+    GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+        CategoryRow("Setup & permissions", "Notification Access, notifications, battery", Icons.Filled.Lock, onOpenSetup)
+        CategoryRow("Media diagnostics", "See what your streaming and music apps report", Icons.Filled.Build, onOpenDiagnostics)
+    }
+    GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+        CategoryRow("Account", accountSummary ?: "Sign out, delete account", Icons.Filled.AccountCircle) { onOpen(SettingsPage.ACCOUNT) }
+        CategoryRow("About & legal", "${Brand.NAME} ${BuildConfig.VERSION_NAME} · updates, terms, privacy", Icons.Filled.Info) {
+            onOpen(SettingsPage.ABOUT)
+        }
+    }
+}
+
+@Composable
+private fun CategoryRow(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
+    GlassRow(title = title, subtitle = subtitle, icon = icon, onClick = onClick, trailing = { Chevron() })
+}
+
+/** One switch per app (Netflix, JioHotstar, Prime Video, Spotify…), grouped by kind. */
+@Composable
+private fun SharingPage(shared: Set<ActivityApp>, invisible: Boolean, onToggle: (ActivityApp, Boolean) -> Unit) {
+    // Your profile, "Invisible" and what friends see now are on the Profile screen.
+    Text(
+        if (invisible) {
+            "You're invisible, so nothing is shared. Turn it off on your profile."
+        } else {
+            "Friends see what you play in the apps you turn on here. Everything else stays private."
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = Glass.palette.textSecondary,
+        modifier = Modifier.padding(horizontal = 6.dp),
+    )
+    ActivityAppToggles(shared = shared, onToggle = onToggle)
+}
+
+@Composable
+private fun AudioPage(voiceDevices: VoiceDevices, onPick: (String) -> Unit) {
+    SectionLabel("Voice chat in rooms")
+    GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+        GlassRow(
+            title = "Microphone",
+            subtitle = deviceLabel(voiceDevices.inputs, voiceDevices.selectedInput),
+            icon = ImageVector.vectorResource(VoiceR.drawable.ic_voice_mic),
+            onClick = { onPick(PICK_MIC) },
+            trailing = { Chevron() },
+        )
+        GlassRow(
+            title = "Speaker",
+            subtitle = deviceLabel(voiceDevices.outputs, voiceDevices.selectedOutput),
+            icon = ImageVector.vectorResource(VoiceR.drawable.ic_voice_headset),
+            onClick = { onPick(PICK_SPEAKER) },
+            trailing = { Chevron() },
+        )
+    }
+    Text(
+        "Automatic uses a headset when one is connected. Volume, HD / SD and mute are in the room's voice controls.",
+        style = MaterialTheme.typography.bodySmall,
+        color = Glass.palette.textSecondary,
+        modifier = Modifier.padding(horizontal = 6.dp),
+    )
+}
+
+@Composable
+private fun ThemePage(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    val p = Glass.palette
+    GlassPanel {
+        Text("App theme", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
+        GlassSegmented(
+            options = THEME_OPTIONS,
+            selected = mode.ordinal,
+            onSelect = { onSelect(ThemeMode.entries[it]) },
+        )
+        Text("System follows your phone's dark mode setting.", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
+    }
+}
+
+@Composable
+private fun AccountPage(auth: AuthState, signingOut: Boolean, onSignOut: () -> Unit, onDelete: () -> Unit) {
+    GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+        val signedIn = auth as? AuthState.SignedIn
+        GlassRow(
+            title = if (signingOut) "Signing out…" else "Sign out",
+            subtitle = signedIn?.let {
+                val via = when (it.provider) {
+                    SignInProvider.GOOGLE -> "Google"
+                    SignInProvider.EMAIL_LINK -> "email link"
+                    SignInProvider.OTHER -> "another method"
+                }
+                listOfNotNull(it.email, "signed in with $via").joinToString(" · ")
+            },
+            icon = Icons.AutoMirrored.Filled.ExitToApp,
+            onClick = onSignOut,
+        )
+        GlassRow(
+            title = "Delete account",
+            subtitle = "Permanently delete your account, friends, messages and activity",
+            icon = Icons.Filled.Delete,
+            onClick = onDelete,
+            trailing = { Chevron() },
+        )
+    }
+}
+
+@Composable
+private fun AboutPage(viewModel: SettingsViewModel, openLegal: (String) -> Unit) {
+    val p = Glass.palette
+    val check by viewModel.updateCheck.collectAsStateWithLifecycle()
+    GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+        val available = ((check as? SettingsViewModel.UpdateCheck.Done)?.result as? UpdateChecker.Result.Available)?.update
+        GlassRow(
+            title = "${Brand.NAME} ${BuildConfig.VERSION_NAME}",
+            subtitle = when {
+                !UpdateChecker.enabled -> "Updates come through the app store you installed from"
+                check == SettingsViewModel.UpdateCheck.Idle -> "Tap to check for updates"
+                check == SettingsViewModel.UpdateCheck.Checking -> "Checking for updates…"
+                else -> when ((check as SettingsViewModel.UpdateCheck.Done).result) {
+                    UpdateChecker.Result.UpToDate -> "You're on the latest version"
+                    is UpdateChecker.Result.Available -> "Version ${available?.version} is available. Tap to download."
+                    UpdateChecker.Result.Failed -> "Couldn't check. Tap to try again."
+                }
+            },
+            icon = Icons.Filled.Info,
+            onClick = if (!UpdateChecker.enabled) null else {
+                {
+                    if (available != null) {
+                        openLegal(UpdateChecker.DOWNLOAD_URL)
+                    } else {
+                        viewModel.checkForUpdate()
+                    }
+                }
+            },
+            trailing = {
+                if (check == SettingsViewModel.UpdateCheck.Checking) {
+                    CircularProgressIndicator(Modifier.size(18.dp), color = p.accent, strokeWidth = 2.dp)
+                }
+            },
+        )
+        Text(
+            "${Brand.TAGLINE} Shared with your room: play, pause, position, and the title and artwork of " +
+                "what you're playing. Shared with friends: only the apps you turn on in Activity sharing. Never " +
+                "video, audio or notifications.",
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textTertiary,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+        )
+        GlassRow(
+            title = "Terms of Service",
+            icon = Icons.AutoMirrored.Filled.List,
+            onClick = { openLegal(LegalLinks.TERMS) },
+            trailing = { Chevron() },
+        )
+        GlassRow(
+            title = "Privacy Policy",
+            icon = Icons.Filled.Lock,
+            onClick = { openLegal(LegalLinks.PRIVACY) },
+            trailing = { Chevron() },
+        )
+        GlassRow(
+            title = "Deleting your account",
+            subtitle = "What gets deleted, and how to ask without the app",
+            icon = Icons.Filled.Delete,
+            onClick = { openLegal(LegalLinks.DELETE_ACCOUNT_HELP) },
+            trailing = { Chevron() },
+        )
+        GlassRow(
+            title = "Licences",
+            subtitle = "Inter typeface, SIL Open Font License 1.1. Haze, Apache 2.0. Trending titles from TMDB: " +
+                "this product uses the TMDB API but is not endorsed or certified by TMDB. Where to watch by JustWatch.",
+        )
+        Text(
+            LegalLinks.NOT_AFFILIATED,
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textTertiary,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+        )
+    }
 }

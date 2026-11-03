@@ -467,5 +467,12 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
   Tap skips to the exit. Remove animations on → still logo for 1.2 s, then a fade.
 - Android 12+: the system splash is plain black (`values-v31`, `values-night-v31`), so the launcher icon
   doesn't flash before the animation.
-- Known: Inter's bold weights don't apply on the OPPO (headings render regular app-wide); the splash
-  synthesises its bold. App-wide fix not done yet.
+
+## Bold text fix + Settings categories (built 2026-11-03)
+- **Bold text**: Inter moved from res/font to assets/fonts. Compose sets a res/font variable font's weight
+  through Paint, which Android 15+ ignores for apps targeting it, so every weight drew as Regular (all
+  phones on Android 15+, not just the OPPO). Asset fonts are built with Typeface.Builder and the weight
+  baked in. `Inter` is now read from the theme (`MaterialTheme.typography`).
+- **Settings**: a list of categories, each opening its own page inside SettingsScreen (back returns to
+  the list): Activity sharing (switch per app), Audio (voice mic / speaker), Theme, Setup & permissions,
+  Media diagnostics, Account (sign out, delete), About & legal (version, updates, terms, licences).

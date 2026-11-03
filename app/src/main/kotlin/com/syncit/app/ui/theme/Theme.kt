@@ -1,5 +1,6 @@
 package com.syncit.app.ui.theme
 
+import android.content.res.AssetManager
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -8,14 +9,16 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.syncit.app.R
 
 /** User's choice in Settings. SYSTEM follows the phone. */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -111,17 +114,25 @@ object Glass {
         @Composable get() = LocalGlassPalette.current
 }
 
-/** Inter variable font; each weight sets the font's wght axis (the default variation settings). */
-val Inter = FontFamily(
-    Font(R.font.inter, FontWeight.Normal),
-    Font(R.font.inter, FontWeight.Medium),
-    Font(R.font.inter, FontWeight.SemiBold),
-    Font(R.font.inter, FontWeight.Bold),
-    Font(R.font.inter, FontWeight.ExtraBold),
+/**
+ * Inter (variable font, assets/fonts/inter.ttf), one instance per weight. Loaded from assets because
+ * Compose sets a res/font font's weight through Paint, which Android 15+ ignores for apps targeting
+ * it (every heading drew at regular weight); asset fonts are built with the weight baked in.
+ */
+private fun interFamily(assets: AssetManager) = FontFamily(
+    listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold, FontWeight.ExtraBold)
+        .map { Font(INTER_PATH, assets, it) },
 )
 
-private fun style(size: Int, weight: FontWeight, line: Int, tracking: Float = 0f) = TextStyle(
-    fontFamily = Inter,
+private const val INTER_PATH = "fonts/inter.ttf"
+
+/** The app font, for text that sets its own family. */
+val Inter: FontFamily
+    @Composable @ReadOnlyComposable
+    get() = MaterialTheme.typography.bodyMedium.fontFamily ?: FontFamily.Default
+
+private fun FontFamily.style(size: Int, weight: FontWeight, line: Int, tracking: Float = 0f) = TextStyle(
+    fontFamily = this,
     fontWeight = weight,
     fontSize = size.sp,
     lineHeight = line.sp,
@@ -130,21 +141,23 @@ private fun style(size: Int, weight: FontWeight, line: Int, tracking: Float = 0f
 
 // Sized like Instagram's Android app (user's choice, 2026-10-29): 14 sp body text and list titles,
 // 12 sp secondary text, ~20 sp screen titles.
-private val GlassTypography = Typography(
-    displaySmall = style(30, FontWeight.ExtraBold, 36, -0.8f),
-    headlineLarge = style(26, FontWeight.Bold, 32, -0.6f),
-    headlineMedium = style(22, FontWeight.Bold, 28, -0.4f),
-    headlineSmall = style(20, FontWeight.Bold, 26, -0.3f),
-    titleLarge = style(18, FontWeight.SemiBold, 24, -0.2f),
-    titleMedium = style(16, FontWeight.SemiBold, 21),
-    titleSmall = style(14, FontWeight.SemiBold, 19),
-    bodyLarge = style(15, FontWeight.Normal, 21),
-    bodyMedium = style(14, FontWeight.Normal, 19),
-    bodySmall = style(12, FontWeight.Normal, 16),
-    labelLarge = style(14, FontWeight.SemiBold, 18),
-    labelMedium = style(12, FontWeight.Medium, 16),
-    labelSmall = style(11, FontWeight.SemiBold, 14, 0.6f),
-)
+private fun glassTypography(inter: FontFamily) = with(inter) {
+    Typography(
+        displaySmall = style(30, FontWeight.ExtraBold, 36, -0.8f),
+        headlineLarge = style(26, FontWeight.Bold, 32, -0.6f),
+        headlineMedium = style(22, FontWeight.Bold, 28, -0.4f),
+        headlineSmall = style(20, FontWeight.Bold, 26, -0.3f),
+        titleLarge = style(18, FontWeight.SemiBold, 24, -0.2f),
+        titleMedium = style(16, FontWeight.SemiBold, 21),
+        titleSmall = style(14, FontWeight.SemiBold, 19),
+        bodyLarge = style(15, FontWeight.Normal, 21),
+        bodyMedium = style(14, FontWeight.Normal, 19),
+        bodySmall = style(12, FontWeight.Normal, 16),
+        labelLarge = style(14, FontWeight.SemiBold, 18),
+        labelMedium = style(12, FontWeight.Medium, 16),
+        labelSmall = style(11, FontWeight.SemiBold, 14, 0.6f),
+    )
+}
 
 @Composable
 fun SyncItTheme(dark: Boolean, content: @Composable () -> Unit) {
@@ -168,8 +181,10 @@ fun SyncItTheme(dark: Boolean, content: @Composable () -> Unit) {
             surfaceContainerHigh = Color(0xFFFCF2EC), error = p.danger,
         )
     }
+    val assets = LocalContext.current.applicationContext.assets
+    val typography = remember(assets) { glassTypography(interFamily(assets)) }
     CompositionLocalProvider(LocalGlassPalette provides p) {
-        MaterialTheme(colorScheme = scheme, typography = GlassTypography, content = content)
+        MaterialTheme(colorScheme = scheme, typography = typography, content = content)
     }
 }
 
