@@ -179,7 +179,11 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit,
             }
         }
         if (!opened) {
-            Toast.makeText(context, "${service.displayName} isn't installed", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                context,
+                "${service.displayName} isn't installed on this phone. Install it from your app store, then tap Play again.",
+                Toast.LENGTH_LONG,
+            ).show()
         }
     }
 
@@ -415,7 +419,7 @@ private fun RoomHero(
     val statusText = MemberPrompts.statusLabel(sync.status, service)
     // Jams: "Jam with Riya" next to the platform badge (just "Jam" for the host).
     val jamLabel = if (jam) preview?.hostName?.takeIf { it.isNotBlank() && !isHost }?.let { "Jam with $it" } ?: "Jam" else null
-    val prompt = MemberPrompts.of(isHost, service, sync.status, sync.jamFollow, hostHasLink = room?.title != null)
+    val prompt = MemberPrompts.of(isHost, service, sync.status, sync.jamFollow)
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (artwork != null && artwork.width >= artwork.height) {
@@ -459,6 +463,14 @@ private fun RoomHero(
                 JamPrompt(prompt, service, preview, sync, onPlay, onFollowHost)
             } else if (prompt == MemberPrompt.OPEN_APP) {
                 WatchPartyPrompt(service, preview, room, sync, serverNow, netflixId, onPlay, isHost)
+            } else if (prompt == MemberPrompt.OPEN_APP && isHost) {
+                // Host of a jam: back into the app they're playing from.
+                GlassButton(
+                    text = "Play in ${service.displayName}",
+                    icon = Icons.Filled.PlayArrow,
+                    onClick = { onPlay(service) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
@@ -528,7 +540,13 @@ private fun WatchPartyPrompt(
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            "Opens the movie in ${service.displayName}. Friends who join are lined up with you.",
+            when {
+                sync.status == SyncStatus.NO_NOTIFICATION_ACCESS ->
+                    "Turn on Notification Access for ${Brand.NAME} (Settings → Setup & permissions) so friends follow your play and pause."
+                sync.status in IN_SYNC -> "You're the host. Tap to go back to ${service.displayName}; everyone follows your play and pause."
+                room?.title != null -> "Opens the movie in ${service.displayName}. Friends who join are lined up with you."
+                else -> "Opens ${service.displayName}. Press play and everyone follows."
+            },
             style = MaterialTheme.typography.bodySmall,
             color = p.textSecondary,
         )
@@ -552,9 +570,15 @@ private fun WatchPartyPrompt(
     }
     val jump = if (at != null) " and ${Brand.NAME} jumps you to $at." else ", and ${Brand.NAME} lines you up with the room."
     Text(
-        (if (sync.status == SyncStatus.OTHER_TITLE) "You're on a different episode. " else "") + start + jump,
+        when (sync.status) {
+            SyncStatus.NO_NOTIFICATION_ACCESS ->
+                "$start. Turn on Notification Access for ${Brand.NAME} (Settings → Setup & permissions) to stay in sync with the room."
+            in IN_SYNC -> "You're watching along. Tap to go back to ${service.displayName}."
+            SyncStatus.OTHER_TITLE -> "You're on a different episode. $start$jump"
+            else -> start + jump
+        },
         style = MaterialTheme.typography.bodySmall,
-        color = if (sync.status == SyncStatus.OTHER_TITLE) p.warning else p.textSecondary,
+        color = if (sync.status == SyncStatus.OTHER_TITLE || sync.status == SyncStatus.NO_NOTIFICATION_ACCESS) p.warning else p.textSecondary,
     )
     if (netflixDirect) {
         // Required credit for Watchmode's free plan, which found the Netflix ID.
@@ -718,3 +742,6 @@ private fun WaitingBanner(friend: RoomViewModel.WaitingFriend, onCancel: () -> U
         }
     }
 }
+
+/** Statuses where this phone is already playing along with the room. */
+private val IN_SYNC = setOf(SyncStatus.SYNCING, SyncStatus.CORRECTING, SyncStatus.CATCHING_UP)

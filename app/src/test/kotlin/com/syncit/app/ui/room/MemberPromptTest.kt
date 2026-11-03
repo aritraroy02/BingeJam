@@ -13,19 +13,21 @@ class MemberPromptTest {
     private fun member(service: StreamingService?, status: SyncStatus, follow: JamFollow = JamFollow.IDLE) =
         MemberPrompts.of(isHost = false, service = service, status = status, jamFollow = follow)
 
-    @Test fun hostAndUnknownServiceNeverPrompt() {
-        assertEquals(MemberPrompt.NONE, MemberPrompts.of(true, StreamingService.SPOTIFY, SyncStatus.APP_NOT_OPEN, JamFollow.NEEDS_APP))
-        assertEquals(MemberPrompt.NONE, member(null, SyncStatus.APP_NOT_OPEN))
+    @Test fun unknownServiceNeverPrompts() = assertEquals(MemberPrompt.NONE, member(null, SyncStatus.APP_NOT_OPEN))
+
+    @Test fun watchPartyAlwaysHasThePlayButton() {
+        for (status in SyncStatus.entries) {
+            for (service in listOf(StreamingService.NETFLIX, StreamingService.JIOHOTSTAR, StreamingService.PRIME_VIDEO)) {
+                assertEquals("$service $status", MemberPrompt.OPEN_APP, member(service, status))
+                assertEquals("host $service $status", MemberPrompt.OPEN_APP, MemberPrompts.of(true, service, status, JamFollow.IDLE))
+            }
+        }
+        // jamFollow is meaningless outside jams.
+        assertEquals(MemberPrompt.OPEN_APP, member(StreamingService.NETFLIX, SyncStatus.SYNCING, JamFollow.FAILED))
     }
 
-    @Test fun watchPartyKeepsThePlayButton() {
-        assertEquals(MemberPrompt.OPEN_APP, member(StreamingService.NETFLIX, SyncStatus.APP_NOT_OPEN))
-        assertEquals(MemberPrompt.OPEN_APP, member(StreamingService.NETFLIX, SyncStatus.SESSION_LOST))
-        assertEquals(MemberPrompt.OPEN_APP, member(StreamingService.PRIME_VIDEO, SyncStatus.OTHER_TITLE))
-        assertEquals(MemberPrompt.NONE, member(StreamingService.JIOHOTSTAR, SyncStatus.SYNCING))
-        // jamFollow is meaningless outside jams.
-        assertEquals(MemberPrompt.NONE, member(StreamingService.NETFLIX, SyncStatus.SYNCING, JamFollow.FAILED))
-    }
+    @Test fun jamHostAlwaysHasThePlayButton() =
+        assertEquals(MemberPrompt.OPEN_APP, MemberPrompts.of(true, StreamingService.SPOTIFY, SyncStatus.SYNCING, JamFollow.IDLE))
 
     @Test fun jamPrompts() {
         val s = StreamingService.SPOTIFY
@@ -34,7 +36,8 @@ class MemberPromptTest {
         assertEquals(MemberPrompt.OPEN_APP, member(s, SyncStatus.SESSION_LOST))
         assertEquals(MemberPrompt.BACK_TO_JAM, member(s, SyncStatus.SYNCING, JamFollow.FAILED))
         assertEquals(MemberPrompt.BACK_TO_JAM, member(StreamingService.YOUTUBE, SyncStatus.OTHER_TITLE))
-        assertEquals(MemberPrompt.NONE, member(s, SyncStatus.SYNCING))
+        assertEquals(MemberPrompt.OPEN_APP, member(s, SyncStatus.SYNCING))
+        assertEquals(MemberPrompt.OPEN_APP, member(s, SyncStatus.NO_NOTIFICATION_ACCESS))
     }
 
     @Test fun jamStatusTalksAboutTracks() {
@@ -94,13 +97,5 @@ class MemberPromptTest {
         assertNull(MemberPrompts.safePlayableRef(StreamingService.SPOTIFY, "not a uri"))
         assertNull(MemberPrompts.safePlayableRef(StreamingService.SPOTIFY, null))
         assertNull(MemberPrompts.safePlayableRef(StreamingService.SPOTIFY, "spotify:track:" + "a".repeat(600)))
-    }
-
-    @Test fun hostGetsPlayOnlyForARoomWithALinkBeforePlaying() {
-        val netflix = StreamingService.NETFLIX
-        assertEquals(MemberPrompt.OPEN_APP, MemberPrompts.of(true, netflix, SyncStatus.APP_NOT_OPEN, JamFollow.IDLE, hostHasLink = true))
-        assertEquals(MemberPrompt.NONE, MemberPrompts.of(true, netflix, SyncStatus.APP_NOT_OPEN, JamFollow.IDLE, hostHasLink = false))
-        assertEquals(MemberPrompt.NONE, MemberPrompts.of(true, netflix, SyncStatus.SYNCING, JamFollow.IDLE, hostHasLink = true))
-        assertEquals(MemberPrompt.NONE, MemberPrompts.of(true, StreamingService.SPOTIFY, SyncStatus.APP_NOT_OPEN, JamFollow.IDLE, hostHasLink = true))
     }
 }

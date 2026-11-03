@@ -24,27 +24,18 @@ internal enum class MemberPrompt {
 }
 
 internal object MemberPrompts {
-    /** Watch parties: states where a member isn't on the host's title yet. */
-    private val WATCH_PARTY_PLAY = setOf(SyncStatus.APP_NOT_OPEN, SyncStatus.SESSION_LOST, SyncStatus.OTHER_TITLE)
-
     /**
-     * [hostHasLink]: the room has a title link (e.g. started from a trending movie), so a host who
-     * isn't playing yet gets "Play in <app>" too.
+     * "Play in <app>" is always offered once the room's app is known (user's request, 2026-11-03): with
+     * Notification Access off, with the app paused in the background, already in sync, or not installed
+     * (the tap then says so). Jams keep "Starting…" and "Back to the jam" for the member's own track.
      */
-    fun of(isHost: Boolean, service: StreamingService?, status: SyncStatus, jamFollow: JamFollow, hostHasLink: Boolean = false): MemberPrompt {
+    fun of(isHost: Boolean, service: StreamingService?, status: SyncStatus, jamFollow: JamFollow): MemberPrompt {
         if (service == null) return MemberPrompt.NONE
-        if (isHost) {
-            val notPlaying = status == SyncStatus.APP_NOT_OPEN || status == SyncStatus.SESSION_LOST
-            return if (hostHasLink && !service.isJam && notPlaying) MemberPrompt.OPEN_APP else MemberPrompt.NONE
-        }
-        if (!service.isJam) return if (status in WATCH_PARTY_PLAY) MemberPrompt.OPEN_APP else MemberPrompt.NONE
+        if (isHost || !service.isJam) return MemberPrompt.OPEN_APP
         return when {
             jamFollow == JamFollow.STARTING -> MemberPrompt.STARTING
-            // No media session yet: only the UI can open the app (a background service can't).
-            jamFollow == JamFollow.NEEDS_APP -> MemberPrompt.OPEN_APP
             jamFollow == JamFollow.FAILED || status == SyncStatus.OTHER_TITLE -> MemberPrompt.BACK_TO_JAM
-            status == SyncStatus.APP_NOT_OPEN || status == SyncStatus.SESSION_LOST -> MemberPrompt.OPEN_APP
-            else -> MemberPrompt.NONE
+            else -> MemberPrompt.OPEN_APP
         }
     }
 
