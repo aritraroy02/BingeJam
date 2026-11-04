@@ -21,6 +21,8 @@ Prime has no public play link). Titles Watchmode doesn't know fall back to Netfl
 removed from Home; Chats has a friend search; bottom sheets hide the tab bar and close with a swipe down. Both test
 phones (OPPO, Motorola) run this build (still labelled 0.6.6).
 
+**Indus only (2026-11-04):** updates come only from the Indus (PhonePe) Appstore. Every build defaults to `-Pstore=indus` (no GitHub updater; `-Pstore=github` restores it). Listing: https://indusapp.store/qcsredto. Website buttons open that link (web/download.js) and computers see web/indus-qr.svg. `release.sh` uploads to Indus only (`GITHUB_RELEASE=1` adds a GitHub release). API: `/devtools/app/versions|details/<pkg>` (GET), `/devtools/review/cancel/<pkg>` (POST `{"id": "<review id>"}`) when an upload gets 409 "under review/draft". 0.6.7 uploaded 2026-11-04 after cancelling a pending review; GitHub 0.6.6 installs were left as they are.
+
 **Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app
 GitHub updater links outside the store and asked for an update right after install. Fixed with a separate Indus
 build (`-Pstore=indus`, no updater) at 0.6.6; the user re-uploads `dist/sync-it-indus.apk` and resubmits.
