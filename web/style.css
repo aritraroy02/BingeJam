@@ -139,3 +139,7 @@ body {
 
 /* Indus Appstore QR code, shown to visitors on a computer. */
 .qr { display: block; margin: 12px auto 8px; background: #fff; border-radius: 16px; padding: 8px; }
+
+/* Official "Get it on PhonePe Appstore" badge (the download button). */
+.store-badge { display: block; width: fit-content; margin: 18px auto; border-radius: 12px; }
+.store-badge img { display: block; height: 64px; width: auto; }
