@@ -402,7 +402,7 @@ private fun AboutPage(viewModel: SettingsViewModel, openLegal: (String) -> Unit)
         GlassRow(
             title = "${Brand.NAME} ${BuildConfig.VERSION_NAME}",
             subtitle = when {
-                !UpdateChecker.enabled -> "Updates come through the app store you installed from"
+                !UpdateChecker.enabled -> "Updates come from the Indus Appstore. Tap to open it."
                 check == SettingsViewModel.UpdateCheck.Idle -> "Tap to check for updates"
                 check == SettingsViewModel.UpdateCheck.Checking -> "Checking for updates…"
                 else -> when ((check as SettingsViewModel.UpdateCheck.Done).result) {
@@ -412,7 +412,7 @@ private fun AboutPage(viewModel: SettingsViewModel, openLegal: (String) -> Unit)
                 }
             },
             icon = Icons.Filled.Info,
-            onClick = if (!UpdateChecker.enabled) null else {
+            onClick = if (!UpdateChecker.enabled) ({ openLegal(UpdateChecker.INDUS_URL) }) else {
                 {
                     if (available != null) {
                         openLegal(UpdateChecker.DOWNLOAD_URL)

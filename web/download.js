@@ -1,7 +1,8 @@
-// Shared by index.html and join.html: download button, help after tapping it, and a warning for
-// in-app browsers (Instagram, Facebook, Snapchat...) that can't install apps.
+// Shared by index.html and join.html: the "Get BingeJam" button (opens BingeJam on the Indus
+// Appstore, the only place it's distributed and updated from), help after tapping it, and a warning
+// for in-app browsers (Instagram, Facebook, Snapchat...) that can't open app stores.
 (function () {
-  const APK = 'https://github.com/aritraroy02/sync-it-releases/releases/latest/download/sync-it.apk';
+  const STORE = 'https://indusapp.store/qcsredto';
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
   // Chrome Custom Tabs (WhatsApp, Telegram, Gmail) report as Chrome and work fine. Full in-app
@@ -19,11 +20,11 @@
   }
 
   window.SyncItDownload = {
-    APK: APK,
+    STORE: STORE,
 
     /** Wires a download button. beforeDownload() may return a promise (e.g. a clipboard copy). */
     setup: function (button, beforeDownload) {
-      button.href = APK;
+      button.href = STORE;
       if (!isAndroid) {
         show('not-android');
         return;
@@ -39,10 +40,10 @@
         show('after-download');
         const help = document.getElementById('after-download');
         if (help) help.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        location.href = APK;
+        location.href = STORE;
       });
       const again = document.getElementById('download-again');
-      if (again) again.href = APK;
+      if (again) again.href = STORE;
     },
   };
 })();

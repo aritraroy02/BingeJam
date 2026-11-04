@@ -17,9 +17,12 @@ object UpdateChecker {
     const val RELEASES_REPO = "aritraroy02/sync-it-releases"
 
     /** Always the newest release's APK; the invite site links here too. */
+    /** BingeJam on the Indus Appstore (short link from the Indus marketing kit). */
+    const val INDUS_URL = "https://indusapp.store/qcsredto"
+
     const val DOWNLOAD_URL = "https://github.com/$RELEASES_REPO/releases/latest/download/sync-it.apk"
 
-    /** False in store builds (Indus): the store updates the app, so we never point at GitHub. */
+    /** False unless built with -Pstore=github: Indus updates the app, so we never point at GitHub. */
     val enabled: Boolean get() = BuildConfig.SELF_UPDATE
 
     data class Update(val version: String, val notes: String?)

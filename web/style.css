@@ -136,3 +136,6 @@ body {
 .help { margin-top: 18px; }
 .help h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
 [hidden] { display: none !important; }
+
+/* Indus Appstore QR code, shown to visitors on a computer. */
+.qr { display: block; margin: 12px auto 8px; background: #fff; border-radius: 16px; padding: 8px; }

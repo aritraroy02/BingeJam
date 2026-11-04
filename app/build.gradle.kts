@@ -24,11 +24,11 @@ android {
         minSdk = 26
         // Latest stable at authoring time; bump if a newer stable API level is out.
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.6.6"
-        // Store builds (-Pstore=indus) leave updates to the store: no GitHub update check,
-        // banner or "new version" notification, as app stores require.
-        val store = (findProperty("store") as String?) ?: "github"
+        versionCode = 17
+        versionName = "0.6.7"
+        // Updates come only from the Indus Appstore (user's decision, 2026-11-04): no GitHub update
+        // check, banner or "new version" notification. -Pstore=github brings the old updater back.
+        val store = (findProperty("store") as String?) ?: "indus"
         buildConfigField("boolean", "SELF_UPDATE", (store == "github").toString())
     }
 
