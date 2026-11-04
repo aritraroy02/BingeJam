@@ -24,7 +24,7 @@ android {
         minSdk = 26
         // Latest stable at authoring time; bump if a newer stable API level is out.
         targetSdk = 36
-        versionCode = 17
+        versionCode = 18
         versionName = "0.6.7"
         // Updates come only from the Indus Appstore (user's decision, 2026-11-04): no GitHub update
         // check, banner or "new version" notification. -Pstore=github brings the old updater back.
