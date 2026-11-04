@@ -29,3 +29,11 @@ Avoid: the room poster hero while a real title is on screen; any Netflix/Spotify
 - [ ] optional: framed + captioned versions
 
 Claude captures and frames these once a phone is connected.
+
+## 0.6.7 set (2026-11-04): `screenshots-0.6.7/`
+Six 1080x1920 PNGs, captioned, status bar cropped: 01-splash, 02-chats, 03-thread, 04-friends,
+05-profile, 06-settings. Taken from the debug build in demo mode (`DebugSocial.USE_FAKE_SOCIAL = true`,
+demo user Alex, alex@bingejam.com) with the sample titles swapped for made-up ones for the shoot only,
+so no real people, emails, posters or third-party logos appear (the chat's Netflix "watched together"
+card is cut out). Framed with an HTML template rendered by headless Edge. Upload them in the console
+(listing screenshots); the API's metadata call wasn't used.
