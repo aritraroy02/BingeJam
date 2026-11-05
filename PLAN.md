@@ -548,7 +548,18 @@ Teleparty). Games, your screen and your own videos can be streamed. Block DRM se
 
 ### Parts
 1. **Desktop app (Windows first; Electron, or Tauri if size matters more than easy screen capture)**
-   - Game streaming / screen share (Discord Go Live style): WebRTC, low latency, up to 1080p60.
+   - Game streaming / screen share (Discord Go Live style): WebRTC, low latency. Quality picker
+     **1080p60 (default) / 1440p60 / 4K60**, all free (peer-to-peer, hardware encoder: NVENC / AMF /
+     Quick Sync; H.264, or HEVC/AV1 where both ends support it). 4K60 needs ~25 Mbps upload per viewer,
+     so the app shows how many viewers the connection can carry and drops quality on its own when the
+     line is busy. 4K120 later (needs native Windows Graphics Capture; browser-style capture caps ~60 fps).
+   - **Look and motion (user, 2026-11-05):** glassmorphism like the phone app: frosted translucent panels
+     (backdrop blur) over a dark base with slowly drifting red / orange / violet / magenta glows; no flat
+     generic cards. Smooth motion that keeps up with high-refresh monitors (120/144/180 Hz+): panels rise in
+     with a short stagger, buttons and posters lift on hover and press, live dots pulse; animate only
+     transform and opacity (GPU-composited), Electron GPU acceleration on; all motion off when the OS asks
+     for reduced motion. Design mock-up: claude.ai artifact "BingeJam Desktop App" (Home, Room, Game stream,
+     Add to browser).
    - Voice (and later video) chat over the existing voice relay: push-to-talk, noise suppression,
      per-person volume.
    - Activity: running game (process detection), Spotify desktop, what the extension sees; same per-app
