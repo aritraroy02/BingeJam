@@ -478,19 +478,82 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
   Media diagnostics, Account (sign out, delete), About & legal (version, updates, terms, licences).
 
 ## Desktop app + browser extension (idea, 2026-11-05; not started)
-Goal: BingeJam on the computer, completely free to build and run. Same account, friends, chats and
-rooms as the phone; a phone and a PC can be in one room.
+Goal: BingeJam on the computer, completely free to build and run. **Same account, friends, chats,
+rooms and backend as the Android app**; a phone and a PC can be in one room together.
 
-**Hard limit:** Netflix, Prime Video and JioHotstar are DRM-protected. Screen-sharing them shows a black
-screen and breaks their terms, so movies stay "everyone plays on their own account, BingeJam syncs"
-(like the phone, like Teleparty). Games, your screen and your own videos can be streamed.
+### Read this first (handoff for a new Claude session)
+You are joining a running project. Nothing below is optional context: the desktop app must plug into
+what already exists, not start a parallel system.
+- **What BingeJam is:** Android watch-party / jam app. Each person plays the same title in the official
+  app (Netflix, JioHotstar, Prime Video, Spotify, YouTube Music, Amazon Music, YouTube) on their own
+  account; BingeJam syncs only play / pause / position (never video or audio). Plus friends, usernames,
+  DMs, live activity ("Watching … on Netflix"), voice chat in rooms, trending titles. Published on the
+  PhonePe (Indus) Appstore; 0.6.7 in review as of 2026-11-04.
+- **Repo:** `D:\sync-it` (GitHub `aritraroy02/sync-it`, private). Read **`CLAUDE.md` first** (status,
+  where every key/config lives, hard rules), then in this file: "Firebase data model", "v2 … Data model
+  (Realtime Database)", "Timing rules", "Sync rules", "Jams", "Voice chat in rooms".
+- **Where the new code goes:** the same repo, new top-level folders `desktop/` (desktop app) and
+  `extension/` (browser extension). Don't create a new repo, and don't move or restructure the Android
+  modules (`:core`, `:sync-engine`, `:media`, `:data-firebase`, `:voice`, `:app`).
+- **The user:** Aritraditya Roy (aritraditya.roy@gmail.com). Prefers short, simple replies.
+
+### Use the existing backend: do NOT create new accounts or projects
+| Thing | Use exactly this | Never |
+|---|---|---|
+| Firebase project | **`syncit-watchparty`** (owner aritraditya.roy@gmail.com, Spark free plan) | A new Firebase project, a second database, Firestore |
+| Realtime Database | `https://syncit-watchparty-default-rtdb.asia-southeast1.firebasedatabase.app` (also in `data-firebase/.../FirebaseConfig.kt`) | Copying data elsewhere |
+| Accounts / sign-in | The same Firebase Auth users (same uid on phone and PC). Providers already on: **Google** and **passwordless email link** (link handler `https://syncit-watchparty.web.app/__/auth/`). Every feature needs a real (non-anonymous) account | A separate login system, anonymous users |
+| Desktop's Firebase config | Register a **Web app inside the same project** (Firebase console → Project settings → Add app → Web) and use its config. Google sign-in on desktop: open the system browser (OAuth loopback / PKCE with the project's Web OAuth client), then `signInWithCredential(GoogleAuthProvider.credential(idToken))`. Ask the user before adding the Web app or any authorized domain | A new Google Cloud project or OAuth client in another project |
+| Database rules | The one file **`data-firebase/firebase/database.rules.json`**. Anything the desktop writes must pass these rules; new paths/fields are added there, must not break the Android app, and are deployed only with the user's go-ahead (`npx firebase-tools deploy --only database --project syncit-watchparty`) | A second rules file, loosening existing rules, deploying without asking |
+| Server side | The existing Cloudflare Worker **`push-relay/`** at `https://vyro-push-relay.aritraroy02.workers.dev` (Cloudflare account aritraditya.roy@gmail.com, subdomain `aritraroy02`). Add new routes there (e.g. game-stream signalling). Every call: `Authorization: Bearer <Firebase ID token>`. Deploy with `npx wrangler deploy` in `push-relay/`, only with the user's go-ahead | A new Worker, Cloud Functions (needs Blaze), any paid server |
+| Website | `web/` on Firebase Hosting, `https://syncit-watchparty.web.app` (invite links `/join/CODE`) | Another site/domain |
+| Secrets | Live only in Cloudflare (`FIREBASE_SERVICE_ACCOUNT`, `WATCHMODE_API_KEY`, `TMDB_READ_TOKEN`) and on the user's machines (`google-services.json`, release keystore, `keystore.properties`, Indus token in `~/.syncit/`) | Committing, printing or sending any of them; creating new keys |
+
+### Data the desktop must read/write (same paths, same formats as Android)
+Exact fields are in this file's two data-model sections and in the rules file; that rules file wins if
+anything disagrees. Summary:
+- **Rooms:** `rooms/{code}` = `hostUid, createdAt, title {service, deepLink, setBy, setAt}, state {status
+  "playing"|"paused", positionMs, updatedAt (server time), updatedBy, seq}, countdown {requestedAt, leadMs,
+  startedBy}, members/{uid} {name, online, joinedAt, lastSeen, positionMs, reportedAt, voice}`.
+  `previews/{code}` = `hostName, service, title, subtitle, artwork, durationMs, playableRef, updatedAt`.
+  `chats/{code}/{id}` and `reactions/{code}/{id}`.
+- **Room code:** 6 characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`; invite link
+  `https://syncit-watchparty.web.app/join/CODE` (`core/.../config/RoomLinks.kt`).
+- **Service ids** (`StreamingService`, used in rooms/previews): `NETFLIX, JIOHOTSTAR, PRIME_VIDEO, SPOTIFY,
+  YOUTUBE_MUSIC, AMAZON_MUSIC, YOUTUBE`. **Activity app ids** (`ActivityApp`, used in presence):
+  `netflix, jiohotstar, primevideo, spotify, ytmusic, amazonmusic, youtube`. A new kind (e.g. games, or a
+  "desktop" device flag) needs new ids + a rules change: ask first.
+- **Social:** `users/{uid}`, `users_private/{uid}`, `usernames/{key}`, `friends/{uid}/{friendUid}`,
+  `friendRequests/{to}/{from}` + `sentFriendRequests/{from}/{to}`, `blocked`, `dms/{dmId}/{msgId}` (dmId =
+  the two uids sorted, joined with `_`), `dmReads`, `dmHidden`, `typing/{dmId}/{uid}`,
+  `presence/{uid}` {online, lastSeen, activity {app, title, subtitle, artwork, playing, durationMs,
+  startedAt, inWatchParty, watchingWith?}} (onDisconnect clears online + activity), `joinRequests`,
+  `invites`. Notifications: after writing a DM / request, ping the relay `POST /` like the app
+  (`PushRelay.kt`); desktop has no FCM token, so it doesn't register in `pushTokens`.
+- **Sync behaviour must match `DefaultSyncEngine`** so phones and PCs agree: server-timestamped writes,
+  `seq` increments, last write wins, ignore own `updatedBy` echoes, expected position =
+  `positionMs + (serverNow − updatedAt)` while playing, seek detection > 3 s, drift correction > 1.5 s,
+  late joiners seek to the room. The extension may fix small drift with 0.98x / 1.02x speed nudges
+  instead of seeks, but writes the same `state`.
+- **Voice:** reuse the relay's `GET /voice/<CODE>` WebSocket (Opus frames, same binary/JSON format as
+  documented at the top of `push-relay/src/voice.js`, max 8 per room) so desktop and phone voice talk to
+  each other. Membership check = `rooms/<code>/members/<uid>`.
+- **Profile pictures:** relay `GET /avatar/<uid>` (KV), uploads `PUT /avatar` (≤ 1 MB GIF, ≤ 300 KB still).
+- **Trending / exact links:** relay `GET /trending`, `GET /watch-link`, `GET /netflix` (signed-in only).
+
+### Hard limit
+Netflix, Prime Video and JioHotstar are DRM-protected. Screen-sharing them shows a black screen and breaks
+their terms, so movies stay "everyone plays on their own account, BingeJam syncs" (like the phone, like
+Teleparty). Games, your screen and your own videos can be streamed. Block DRM services from screen share.
 
 ### Parts
 1. **Desktop app (Windows first; Electron, or Tauri if size matters more than easy screen capture)**
    - Game streaming / screen share (Discord Go Live style): WebRTC, low latency, up to 1080p60.
-   - Voice (and later video) chat: push-to-talk, noise suppression, per-person volume.
+   - Voice (and later video) chat over the existing voice relay: push-to-talk, noise suppression,
+     per-person volume.
    - Activity: running game (process detection), Spotify desktop, what the extension sees; same per-app
-     toggles and Invisible as the phone.
+     toggles and Invisible as the phone, written to the same `presence/{uid}`.
+   - Login, friends, chats, rooms: same data as above.
    - Tray icon, desktop notifications, start with Windows. Later: in-game overlay.
    - Runs the room sync; the extension only drives the player.
 2. **Browser extension, shipped inside the desktop app** (user's decision): the app has an
@@ -510,18 +573,30 @@ screen and breaks their terms, so movies stay "everyone plays on their own accou
    - Without the extension the app still does voice, activity, chat and streaming; only precise movie
      sync needs it.
 
-### Completely free setup
+### Completely free setup (user's requirement: zero cost)
 | Normally paid | Free choice | Trade-off |
 |---|---|---|
 | Windows code signing ($100–300/yr) | Microsoft Store (free individual account, Store signs it); GitHub Releases installer as a backup | Unsigned installer shows "Windows protected your PC" until More info → Run anyway |
 | Chrome Web Store ($5 once) | Edge + Firefox stores (free) and Load unpacked for Chrome | Chrome users do the 30-second guide; the $5 listing stays optional |
-| Streaming servers (SFU/TURN) | Peer-to-peer WebRTC, Google public STUN, Cloudflare free TURN allowance as fallback | Game streaming good for about 3–4 viewers (host upload is shared) |
+| Streaming servers (SFU/TURN) | Peer-to-peer WebRTC, Google public STUN, Cloudflare free TURN allowance as fallback; signalling through RTDB or a new relay route | Game streaming good for about 3–4 viewers (host upload is shared) |
 | Mac notarization ($99/yr) | Windows only first; unsigned Mac build later | Mac users right-click → Open the first time |
-| Downloads + updates | GitHub Releases + Electron auto-update | None |
-| Backend | Existing Firebase Spark + Cloudflare Worker | Firebase free plan caps at 100 simultaneous connections (phones + PCs); connect only while the app is open |
+| Downloads + updates | GitHub Releases + Electron auto-update (ask the user which repo; Android updates come only from Indus and must stay that way) | None |
+| Backend | The existing Firebase Spark project + Cloudflare Worker above | Firebase free plan caps at 100 simultaneous connections (phones + PCs together); connect only while the app is open |
 
 ### Build order
 1. Extension + "Add to browser" flow, joining existing rooms (biggest sync improvement first).
 2. Desktop app: login, friends, chats, voice, activity, tray.
 3. Game streaming / screen share (P2P).
 4. Overlay, Mac, extras.
+
+### Working rules with this user (also in CLAUDE.md and memory)
+- Commit messages short; **no Co-Authored-By trailer**. Push code when asked, but **never release, deploy
+  rules/relay/hosting or publish to a store without the user's explicit go-ahead.**
+- Never commit, print or send secrets (Firebase service account, release keystore, `keystore.properties`,
+  `google-services.json`, Indus/TMDB/Watchmode tokens). Never create a new release/signing key.
+- Ask before installing software on the user's machine or phone.
+- Edit files with the editor tools or Python (UTF-8), not PowerShell `Set-Content`.
+- Keep the brand in one place (name may change): **BingeJam**, "Your world. In sync." (`core/.../config/Brand.kt`).
+  Colours: dark base `#0A0606`, accent burnt orange `#C2410C`, accent 2 magenta `#BE185D`, startup-animation
+  reds `#FF2E4D` / `#FF7A45`. Font Inter (`web/fonts`, OFL). Logo: play triangle inside two sync arrows
+  (`app/src/main/res/drawable/ic_launcher_foreground.xml`).
