@@ -476,3 +476,52 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
 - **Settings**: a list of categories, each opening its own page inside SettingsScreen (back returns to
   the list): Activity sharing (switch per app), Audio (voice mic / speaker), Theme, Setup & permissions,
   Media diagnostics, Account (sign out, delete), About & legal (version, updates, terms, licences).
+
+## Desktop app + browser extension (idea, 2026-11-05; not started)
+Goal: BingeJam on the computer, completely free to build and run. Same account, friends, chats and
+rooms as the phone; a phone and a PC can be in one room.
+
+**Hard limit:** Netflix, Prime Video and JioHotstar are DRM-protected. Screen-sharing them shows a black
+screen and breaks their terms, so movies stay "everyone plays on their own account, BingeJam syncs"
+(like the phone, like Teleparty). Games, your screen and your own videos can be streamed.
+
+### Parts
+1. **Desktop app (Windows first; Electron, or Tauri if size matters more than easy screen capture)**
+   - Game streaming / screen share (Discord Go Live style): WebRTC, low latency, up to 1080p60.
+   - Voice (and later video) chat: push-to-talk, noise suppression, per-person volume.
+   - Activity: running game (process detection), Spotify desktop, what the extension sees; same per-app
+     toggles and Invisible as the phone.
+   - Tray icon, desktop notifications, start with Windows. Later: in-game overlay.
+   - Runs the room sync; the extension only drives the player.
+2. **Browser extension, shipped inside the desktop app** (user's decision): the app has an
+   "Add to browser" button that detects the browser and picks the easiest free route:
+   | Browser | Route | Updates |
+   |---|---|---|
+   | Edge | Opens the free Edge Add-ons listing, one click "Get" | Automatic |
+   | Firefox | Mozilla signs it free (unlisted); the app opens the signed .xpi, one click "Add" | Automatic or pushed by the app |
+   | Chrome, Brave, Opera | Chrome blocks off-store installs, so "Load unpacked": the app unpacks the extension into a folder, opens the extensions page and shows a 3-step guide (Developer mode → Load unpacked → pick folder) | The app rewrites the folder and tells the extension to reload |
+   - Extension does what only it can: frame-accurate seek, 0.98x/1.02x speed nudges instead of jumps,
+     pause everyone while someone buffers, exact title/episode, follow the host to the next episode,
+     same subtitle language. No Notification Access needed.
+   - Fixed extension ID (`key` in manifest) so the app always recognises it, even unpacked.
+   - App ↔ extension via native messaging (registered per user under HKCU; no server, free).
+   - Minimal permissions: only Netflix, Prime Video and JioHotstar pages.
+   - Never force-install through registry/policy tricks: Chrome treats that as malware.
+   - Without the extension the app still does voice, activity, chat and streaming; only precise movie
+     sync needs it.
+
+### Completely free setup
+| Normally paid | Free choice | Trade-off |
+|---|---|---|
+| Windows code signing ($100–300/yr) | Microsoft Store (free individual account, Store signs it); GitHub Releases installer as a backup | Unsigned installer shows "Windows protected your PC" until More info → Run anyway |
+| Chrome Web Store ($5 once) | Edge + Firefox stores (free) and Load unpacked for Chrome | Chrome users do the 30-second guide; the $5 listing stays optional |
+| Streaming servers (SFU/TURN) | Peer-to-peer WebRTC, Google public STUN, Cloudflare free TURN allowance as fallback | Game streaming good for about 3–4 viewers (host upload is shared) |
+| Mac notarization ($99/yr) | Windows only first; unsigned Mac build later | Mac users right-click → Open the first time |
+| Downloads + updates | GitHub Releases + Electron auto-update | None |
+| Backend | Existing Firebase Spark + Cloudflare Worker | Firebase free plan caps at 100 simultaneous connections (phones + PCs); connect only while the app is open |
+
+### Build order
+1. Extension + "Add to browser" flow, joining existing rooms (biggest sync improvement first).
+2. Desktop app: login, friends, chats, voice, activity, tray.
+3. Game streaming / screen share (P2P).
+4. Overlay, Mac, extras.
