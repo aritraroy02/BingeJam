@@ -31,15 +31,32 @@ object Permissions {
         context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
 
     /**
-     * Opens the battery-optimization list, where the user picks the app → "Don't optimize".
-     * We don't use ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS: it needs an extra permission
-     * that Play restricts.
+     * Android's own "Let the app always run in the background?" dialog (setup carousel, 2026-11-05);
+     * falls back to the battery-optimization list (pick the app → "Don't optimize") on builds without
+     * it. The app ships through the Indus Appstore, which allows REQUEST_IGNORE_BATTERY_OPTIMIZATIONS.
      */
     fun openBatteryOptimizationSettings(context: Context) {
         context.startFirst(
+            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, "package:${context.packageName}".toUri()),
             Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
             appDetails(context),
         )
+    }
+
+    /** The app's notification settings, for when the system prompt was turned down for good. */
+    fun openAppNotificationSettings(context: Context) {
+        context.startFirst(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+            appDetails(context),
+        )
+    }
+
+    fun canRecordAudio(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    /** App info, where a turned-down permission can still be allowed. */
+    fun openAppDetails(context: Context) {
+        context.startFirst(appDetails(context))
     }
 
     fun canPostNotifications(context: Context): Boolean =

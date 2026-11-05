@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Optional floating chat bubble over the movie. Special access, user-granted in settings. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Setup carousel (2026-11-05): Android's own "let the app run in the background?" dialog, so the
+         sync isn't killed mid-movie. Syncing playback is the app's core job. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Package visibility (Android 11+) for the room's "Play in …" button (getLaunchIntentForPackage)
          and friends' "Open in …" buttons. Keep in sync with StreamingConfig / ActivityApp. Jams open

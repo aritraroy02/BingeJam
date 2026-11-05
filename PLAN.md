@@ -495,7 +495,12 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
   `.read: false` (no prefix listing). Phones on older versions can't search until they update.
 - **Relay:** types `group_message`, `group_invite`, `room_ping` (2-minute cooldown per pair, KV `ping:*`).
 - **Memory:** Coil memory cache 10%, cleared on TRIM_MEMORY_UI_HIDDEN.
-- Rules deployed 2026-11-05 (user's go-ahead). Relay changes written, deploy pending the user's go-ahead.
+- Rules and relay deployed 2026-11-05 (user's go-ahead).
+- **Setup carousel** (`ui/onboarding/OnboardingScreen.kt`): swipeable pages (HorizontalPager), one permission
+  each, with Android's own prompts: Notification Access opens our own switch (ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS),
+  POST_NOTIFICATIONS and RECORD_AUDIO system dialogs (turned down for good → app notification settings / app info),
+  battery = ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS dialog (new manifest permission; fine on Indus, Play restricts it).
+  Pages auto-advance once granted; each can be skipped; last page = checklist with "Set up" links.
 
 ## Desktop app + browser extension (idea, 2026-11-05; not started)
 Goal: BingeJam on the computer, completely free to build and run. **Same account, friends, chats,
