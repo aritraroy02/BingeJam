@@ -546,6 +546,40 @@ Netflix, Prime Video and JioHotstar are DRM-protected. Screen-sharing them shows
 their terms, so movies stay "everyone plays on their own account, BingeJam syncs" (like the phone, like
 Teleparty). Games, your screen and your own videos can be streamed. Block DRM services from screen share.
 
+### Chats and rooms are one thing (user's decision, 2026-11-05)
+There is no separate "Rooms" area. **Every chat has its own room**, the way a WhatsApp chat has a call
+button and a Discord server has a voice channel.
+- **1:1 chat:** open the chat with a friend → a **Start room** button in the top-right corner of the chat
+  header (where WhatsApp puts its call buttons). It starts the room that belongs to this chat, or rejoins it
+  if it's already running. Inside the room you can watch a movie together (synced through the extension),
+  stream a game or your screen, talk in voice, and the chat stays open beside it.
+- **Groups:** create a group with several friends, give it a name and **rename it** any time (picture
+  later). The group has its own chat and its own room: **Start room with everyone**. Admins add and remove
+  members.
+- **Join later, like a Discord voice channel:** the room stays open while anyone is in it. Everyone in the
+  chat sees it in the header and in the chat list ("Room live · 3 in · Join") and can join whenever they
+  want. Anyone inside can **Ping** a member who hasn't joined: they get a notification ("Riya wants you in
+  the room in Movie Night"). Rate-limit pings (about once per 2 minutes per person). The room ends when the
+  last person leaves.
+- **Navigation:** Home, **Chats** (1:1 and groups together, newest first, each with a live-room badge),
+  Friends, Settings. No "Rooms" item. The design mock-up's "Rooms" screen becomes "a chat with its room open".
+- **Data model proposal** (needs new rules: build it in the rules file, keep the Android app working, and
+  deploy only with the user's go-ahead):
+  - Chat id: a 1:1 chat keeps the existing `dmId` (the two uids sorted, joined with `_`); a group is
+    `g-<pushId>`.
+  - `groups/{gid}` = `{name (1–50 chars), createdBy, createdAt, photoUrl?}`, `groups/{gid}/members/{uid}` =
+    `{role: "admin"|"member", joinedAt}`, plus the index `userGroups/{uid}/{gid}: true` so a user can list
+    their groups.
+  - `groupMessages/{gid}/{msgId}`: same message shape as `dms` (from, text, sentAt, forwarded, deleted).
+  - `chatRooms/{chatId}` = `{code, startedBy, startedAt}`: which room is live for this chat. The room itself
+    stays at `rooms/{code}` in today's format, so phones can join it too. Only members of the chat may join
+    that room.
+  - Pings: new relay type `room_ping` (`POST /` with `{chatId, to}`); the relay checks both people are in
+    the chat and the rate limit, then sends the push to the phone. The desktop app shows its own
+    notification while it's running.
+- **Android:** the phone app should get the same model later (room button in the chat header, groups,
+  join-later and ping). Plan it together, and ask the user before changing the Android app.
+
 ### Parts
 1. **Desktop app (Windows first; Electron, or Tauri if size matters more than easy screen capture)**
    - Game streaming / screen share (Discord Go Live style): WebRTC, low latency. Quality picker
@@ -564,7 +598,7 @@ Teleparty). Games, your screen and your own videos can be streamed. Block DRM se
      per-person volume.
    - Activity: running game (process detection), Spotify desktop, what the extension sees; same per-app
      toggles and Invisible as the phone, written to the same `presence/{uid}`.
-   - Login, friends, chats, rooms: same data as above.
+   - Login, friends, chats (1:1 and groups) with a room inside each chat: see "Chats and rooms are one thing".
    - Tray icon, desktop notifications, start with Windows. Later: in-game overlay.
    - Runs the room sync; the extension only drives the player.
 2. **Browser extension, shipped inside the desktop app** (user's decision): the app has an
