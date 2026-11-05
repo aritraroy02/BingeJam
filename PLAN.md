@@ -477,6 +477,26 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
   the list): Activity sharing (switch per app), Audio (voice mic / speaker), Theme, Setup & permissions,
   Media diagnostics, Account (sign out, delete), About & legal (version, updates, terms, licences).
 
+## Phone: rooms inside chats, groups, delete chat, private usernames (built 2026-11-05)
+- **1:1 chat header:** Start room (uses the room we're syncing in or creates one, links it to the chat at
+  `dmRooms/{dmId}`, invites the friend) → turns into "Join · N" while anyone is in it. ⋮ → Delete chat.
+- **Groups:** `groups/{gid}` {name, createdBy, createdAt, members/{uid} {role admin|member, joinedAt}},
+  `userGroups/{uid}/{gid}`, `groupMessages`, `groupReads`, `groupRooms/{gid}`. New group (name + friends), rename
+  (any member), add/remove (admins, own friends only), leave any time (last admin hands admin to the oldest
+  member). Group chat: Start room / Join room, "Room live" banner, info sheet with Ping for members not in the room.
+- **Room links:** `{code, startedBy, startedAt, in/{uid}: true}` (ChatRoomLinks). Rooms are member-read only, so
+  the link keeps its own "who's in" list: set on start/join, removed on leave (ChatRoomTracker watches the sync
+  session) and by onDisconnect. Live = list not empty.
+- **Group invites setting** (Settings → Privacy): `users/{uid}/groupInvites` "ask" (default) | "direct". Rules
+  only let someone be added directly if they chose direct; otherwise `groupInvites/{to}/{gid}` and they accept
+  (top of Chats) or decline.
+- **Delete chat:** `dmCleared/{me}/{friend}` = server time; older messages hidden for us; list/unread respect it.
+- **Private usernames:** friend search = exact full username only (`findByUsername`); rules: `usernames` root
+  `.read: false` (no prefix listing). Phones on older versions can't search until they update.
+- **Relay:** types `group_message`, `group_invite`, `room_ping` (2-minute cooldown per pair, KV `ping:*`).
+- **Memory:** Coil memory cache 10%, cleared on TRIM_MEMORY_UI_HIDDEN.
+- Rules deployed 2026-11-05 (user's go-ahead). Relay changes written, deploy pending the user's go-ahead.
+
 ## Desktop app + browser extension (idea, 2026-11-05; not started)
 Goal: BingeJam on the computer, completely free to build and run. **Same account, friends, chats,
 rooms and backend as the Android app**; a phone and a PC can be in one room together.

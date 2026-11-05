@@ -40,8 +40,8 @@ internal class FirebaseAccountEraser(
     private val relayConfigured: Boolean = FirebaseConfig.PUSH_RELAY_URL.isNotBlank(),
 ) {
 
-    private class Connections(val usernameKey: String?, val related: Set<String>) {
-        val isEmpty: Boolean get() = usernameKey == null && related.isEmpty()
+    private class Connections(val usernameKey: String?, val related: Set<String>, val groups: Set<String>) {
+        val isEmpty: Boolean get() = usernameKey == null && related.isEmpty() && groups.isEmpty()
     }
 
     /** The deletion didn't finish (erase or the Auth delete failed): let presence run again. */
@@ -56,7 +56,7 @@ internal class FirebaseAccountEraser(
             while (true) {
                 val found = readConnections(uid)
                 if (pass > 0 && found.isEmpty) break
-                db.reference.updateChildren(AccountCleanup.deletionPaths(uid, found.usernameKey, found.related)).await()
+                db.reference.updateChildren(AccountCleanup.deletionPaths(uid, found.usernameKey, found.related, found.groups)).await()
                 if (++pass == MAX_PASSES) break
             }
         }
@@ -83,7 +83,8 @@ internal class FirebaseAccountEraser(
         // one denied path would fail the whole update.
         val key = username?.let { UsernameRules.key(it) }
             ?.takeIf { db.getReference("usernames").child(it).get().await().string() == uid }
-        Connections(key, lists.awaitAll().flatten().toSet())
+        val groups = db.getReference("userGroups").child(uid).get().await().children.mapNotNull { it.key }.toSet()
+        Connections(key, lists.awaitAll().flatten().toSet(), groups)
     }
 
     /** Best effort: the room may be gone already, and nothing here blocks the deletion. */

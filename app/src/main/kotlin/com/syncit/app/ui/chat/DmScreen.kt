@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import com.syncit.app.ui.glass.GlassSmallButton
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -61,8 +65,17 @@ import com.syncit.core.model.DirectMessage
 private const val TYPING_ENTER_MS = 220
 
 @Composable
-fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
+fun DmScreen(
+    viewModel: DmViewModel,
+    onBack: () -> Unit,
+    /** Opens the room; waitingFor = the friend we just invited (null when joining a live room). */
+    onOpenRoom: (code: String, waitingFor: String?) -> Unit = { _, _ -> },
+    onChatDeleted: () -> Unit = onBack,
+) {
     val p = Glass.palette
+    val room by viewModel.room.collectAsStateWithLifecycle()
+    val startingRoom by viewModel.startingRoom.collectAsStateWithLifecycle()
+    var confirmClear by remember { mutableStateOf(false) }
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val friendState by viewModel.friend.collectAsStateWithLifecycle()
     val friend = friendState.friend
@@ -139,6 +152,36 @@ fun DmScreen(viewModel: DmViewModel, onBack: () -> Unit) {
                         )
                     }
                 }
+                // The chat's room, like WhatsApp's call button (user's request, 2026-11-05).
+                if (!notFriends && friend != null) {
+                    Spacer(Modifier.width(8.dp))
+                    val live = room
+                    if (live != null) {
+                        GlassSmallButton("Join · ${live.inRoom.size}", onClick = { viewModel.joinRoom(live.code) { onOpenRoom(it, null) } })
+                    } else {
+                        GlassSmallButton(
+                            if (startingRoom) "Starting…" else "Start room",
+                            onClick = { viewModel.startRoom { code -> onOpenRoom(code, viewModel.friendUid) } },
+                            enabled = !startingRoom,
+                        )
+                    }
+                }
+                Spacer(Modifier.width(6.dp))
+                GlassIconButton(Icons.Filled.MoreVert, "More", { confirmClear = true }, plain = true)
+            }
+            if (confirmClear) {
+                AlertDialog(
+                    onDismissRequest = { confirmClear = false },
+                    title = { Text("Delete this chat?") },
+                    text = { Text("It's removed from your phone and your Chats list. $name still has their copy.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            confirmClear = false
+                            viewModel.clearChat(onChatDeleted)
+                        }) { Text("Delete chat", color = p.danger) }
+                    },
+                    dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+                )
             }
 
             Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp)) {

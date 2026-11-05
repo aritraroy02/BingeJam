@@ -65,6 +65,7 @@ class AppContainer(app: Application) : SyncDependencies {
             activityTracker = AndroidActivityTracker(gateway, fb.presence, appScope),
             push = fb.push,
             avatars = fb.avatars,
+            groups = fb.groups,
         )
     } ?: DebugSocial.createFake(now = transport.serverClock::serverNowMs)
 
@@ -73,6 +74,9 @@ class AppContainer(app: Application) : SyncDependencies {
 
     /** "Watched together" cards in DMs, while the sync session runs (any screen). */
     val watchTogether = WatchTogetherRecorder(social, sessionController, transport, appScope)
+
+    /** Who's in each chat's room (1:1 chats and groups), see [ChatRoomTracker]. */
+    val chatRooms = ChatRoomTracker(social, sessionController, appScope)
 
     /** Room voice chat through our relay (unsupported with the debug fakes). */
     val voice: VoiceController = AndroidVoiceController(app, firebase?.voiceAuth)

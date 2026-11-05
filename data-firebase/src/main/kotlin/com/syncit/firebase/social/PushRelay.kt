@@ -42,6 +42,18 @@ internal class PushRelay(
     fun invite(toUid: String) =
         post(JSONObject().put("type", "invite").put("to", toUid))
 
+    /** A group message: the relay notifies the other members (it reads the members and the message itself). */
+    fun groupMessage(groupId: String, messageId: String) =
+        post(JSONObject().put("type", "group_message").put("group", groupId).put("messageId", messageId))
+
+    /** We invited [toUid] to a group (their setting is "Ask me first"). */
+    fun groupInvite(groupId: String, toUid: String) =
+        post(JSONObject().put("type", "group_invite").put("group", groupId).put("to", toUid))
+
+    /** "Join the room": the relay checks we're both in the group and limits how often it's sent. */
+    fun roomPing(groupId: String, toUid: String) =
+        post(JSONObject().put("type", "room_ping").put("group", groupId).put("to", toUid))
+
     private fun post(body: JSONObject) {
         if (url.isBlank()) return
         val user = session.auth.currentUser?.takeUnless { it.isAnonymous } ?: return

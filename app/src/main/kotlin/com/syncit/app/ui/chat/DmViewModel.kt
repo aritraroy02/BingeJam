@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
 import com.syncit.app.social.ActivityText
+import com.syncit.core.model.ChatRoomLink
 import com.syncit.core.model.DirectMessage
 import com.syncit.core.model.Friend
 import com.syncit.core.model.UserProfile
@@ -53,6 +54,60 @@ class DmViewModel(val friendUid: String, private val container: AppContainer) : 
     val friendTyping: StateFlow<Boolean> = social.dms.observeTyping(friendUid)
         .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** This chat's room while anyone is in it (shows "Join" instead of "Start room"). */
+    val room: StateFlow<ChatRoomLink?> = social.dms.observeRoom(friendUid)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _startingRoom = MutableStateFlow(false)
+    val startingRoom: StateFlow<Boolean> = _startingRoom.asStateFlow()
+
+    /**
+     * "Start room" in the chat header (user's request, 2026-11-05): uses the room we're already
+     * syncing in, or creates one; links it to this chat and invites the friend (pop-up on their phone).
+     */
+    fun startRoom(onStarted: (code: String) -> Unit) {
+        if (_startingRoom.value) return
+        _startingRoom.value = true
+        viewModelScope.launch {
+            try {
+                val name = container.prefs.displayName.trim().ifBlank { "Host" }
+                val code = container.sessionController.state.value.roomCode ?: container.transport.createRoom(name)
+                container.prefs.lastRoomCode = code
+                social.dms.setRoom(friendUid, code)
+                container.chatRooms.joined(code, friendUid = friendUid)
+                runCatching { social.watchInvites.inviteToRoom(friendUid, code, null, null) }
+                onStarted(code)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _error.value = "Couldn't start the room: ${e.message ?: "try again"}"
+            } finally {
+                _startingRoom.value = false
+            }
+        }
+    }
+
+    /** Joins the room that's already live in this chat. */
+    fun joinRoom(code: String, onJoin: (code: String) -> Unit) {
+        container.chatRooms.joined(code, friendUid = friendUid)
+        onJoin(code)
+    }
+
+    /** "Delete chat" for us only (from the chat's menu). */
+    fun clearChat(onDone: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                social.dms.clearChat(friendUid)
+                onDone()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _error.value = "Couldn't delete the chat"
+            }
+        }
+    }
 
     private val typing = TypingSignal()
 

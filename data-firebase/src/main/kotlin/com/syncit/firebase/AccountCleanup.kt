@@ -24,6 +24,7 @@ internal object AccountCleanup {
     val OWN_ROOTS = listOf(
         "users", "users_private", "presence", "pushTokens",
         "friends", "friendRequests", "sentFriendRequests", "blocked", "dmReads", "dmHidden", "joinRequests", "invites",
+        "dmCleared", "userGroups", "groupReads", "groupInvites",
     )
 
     /** Owner-readable lists whose keys are uids we're connected to (friends, requests, blocks, …). */
@@ -38,7 +39,10 @@ internal object AccountCleanup {
     val MIRROR_ROOTS = listOf("friends", "friendRequests", "sentFriendRequests", "joinRequests", "invites")
 
     /** Per-DM-thread nodes keyed by dmId, deleted whole: the messages and both typing entries. */
-    val THREAD_ROOTS = listOf("dms", "typing")
+    val THREAD_ROOTS = listOf("dms", "typing", "dmRooms")
+
+    /** Group ids: push ids (letters, digits, '-' and '_'). Anything else is skipped. */
+    private val GROUP_ID = Regex("^[A-Za-z0-9_-]{1,40}$")
 
     /** Firebase uids (same check as the push relay). Anything else isn't a user and is skipped. */
     private val UID = Regex("^[A-Za-z0-9]{1,128}$")
@@ -49,10 +53,21 @@ internal object AccountCleanup {
      * @param usernameKey usernames/ key to release, already checked to point at [uid]; null if none.
      * @param related uids from [RELATED_SOURCES]; [uid] itself and non-uids are ignored.
      */
-    fun deletionPaths(uid: String, usernameKey: String?, related: Collection<String>): Map<String, Any?> {
+    fun deletionPaths(
+        uid: String,
+        usernameKey: String?,
+        related: Collection<String>,
+        groups: Collection<String> = emptyList(),
+    ): Map<String, Any?> {
         val paths = LinkedHashMap<String, Any?>()
         for (root in OWN_ROOTS) paths["$root/$uid"] = null
         if (usernameKey != null) paths["usernames/$usernameKey"] = null
+        // Leave every group (the group and its messages stay for the others) and its room list.
+        for (gid in groups.toSortedSet()) {
+            if (!GROUP_ID.matches(gid)) continue
+            paths["groups/$gid/members/$uid"] = null
+            paths["groupRooms/$gid/in/$uid"] = null
+        }
         for (other in related.toSortedSet()) {
             if (other == uid || !isUid(other)) continue
             for (root in MIRROR_ROOTS) paths["$root/$other/$uid"] = null

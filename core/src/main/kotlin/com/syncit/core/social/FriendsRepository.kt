@@ -1,5 +1,6 @@
 package com.syncit.core.social
 
+import com.syncit.core.model.ChatRoomLink
 import com.syncit.core.model.DirectMessage
 import com.syncit.core.model.Friend
 import com.syncit.core.model.FriendRequest
@@ -87,4 +88,20 @@ interface DirectMessages {
 
     /** True while [friendUid] is typing in our chat (their entry is only a few seconds old, in server time). */
     fun observeTyping(friendUid: String): Flow<Boolean>
+
+    /**
+     * "Delete chat" (user's request, 2026-11-05): hides everything in this chat up to now, for us
+     * only and on all our devices; it leaves the Chats list until a new message arrives. The friend
+     * keeps their copy.
+     */
+    suspend fun clearChat(friendUid: String) = Unit
+
+    /** The room that belongs to our chat with [friendUid] while anyone is in it, else null. */
+    fun observeRoom(friendUid: String): Flow<ChatRoomLink?> = flowOf(null)
+
+    /** Records [code] as this chat's room, so the friend sees "Room live · Join" in the chat. */
+    suspend fun setRoom(friendUid: String, code: String) = Unit
+
+    /** We joined (true) or left (false) this chat's room; keeps its "who's in" list right. */
+    suspend fun setInRoom(friendUid: String, inRoom: Boolean) = Unit
 }

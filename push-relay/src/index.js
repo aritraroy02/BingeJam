@@ -116,6 +116,14 @@ async function notify(request, env) {
     } catch (e) {
       return new Response('Bad request', { status: 400 });
     }
+    if (body.type === 'group_message' || body.type === 'group_invite' || body.type === 'room_ping') {
+      try {
+        return await groupNotify(new Database(env), env, sender, body);
+      } catch (e) {
+        console.error('relay failed', e && e.message);
+        return new Response('Relay error', { status: 502 });
+      }
+    }
     const to = String(body.to ?? '');
     if (!UID.test(to) || to === sender) return new Response('Bad request', { status: 400 });
 
@@ -372,6 +380,75 @@ async function roomInvite(db, from, to) {
     channel: 'requests',
     data: { type: 'invite', uid: from },
   };
+}
+
+// ---- Groups (2026-11-05) ----
+//
+// group_message {group, messageId}: notify every other member (one notification per group, tag group-<id>).
+// group_invite  {group, to}: someone who chose "Ask me first" was invited (groupInvites/{to}/{group}).
+// room_ping     {group, to}: "join the room"; both must be members and the room live; once per 2 min per pair.
+
+/** Seconds a ping from one member to another blocks the next one (KV minimum TTL is 60). */
+const PING_COOLDOWN_S = 120;
+
+async function groupNotify(db, env, sender, body) {
+  const gid = String(body.group ?? '');
+  if (!PUSH_ID.test(gid)) return new Response('Bad request', { status: 400 });
+  const group = await db.get(`groups/${gid}`);
+  const members = (group && group.members) || {};
+
+  if (body.type === 'group_invite') {
+    const to = String(body.to ?? '');
+    if (!UID.test(to) || to === sender) return new Response('Bad request', { status: 400 });
+    const inv = await db.get(`groupInvites/${to}/${gid}`);
+    if (!inv || inv.from !== sender || !isRecent(inv.sentAt)) return new Response(null, { status: 204 });
+    if (await db.get(`blocked/${to}/${sender}`)) return new Response(null, { status: 204 });
+    await sendToAll(db, env, to, {
+      title: 'Group invite',
+      body: clip(`${inv.fromName || 'A friend'} invited you to ${inv.groupName || 'a group'}. Tap to answer.`, 240),
+      channel: 'requests',
+      data: { type: 'group_invite', uid: gid },
+    });
+    return new Response(null, { status: 204 });
+  }
+
+  if (!members[sender]) return new Response(null, { status: 204 });
+  const profile = (await db.get(`users/${sender}`)) || {};
+  const name = profile.displayName || 'Someone';
+
+  if (body.type === 'group_message') {
+    const messageId = String(body.messageId ?? '');
+    if (!PUSH_ID.test(messageId)) return new Response('Bad request', { status: 400 });
+    const msg = await db.get(`groupMessages/${gid}/${messageId}`);
+    if (!msg || msg.from !== sender || typeof msg.text !== 'string' || !isRecent(msg.sentAt)) return new Response(null, { status: 204 });
+    const note = {
+      title: clip(group.name || 'Group', 60),
+      body: clip(`${name}: ${msg.text}`, 240),
+      channel: 'messages',
+      data: { type: 'group', uid: gid },
+    };
+    await Promise.all(Object.keys(members).filter((uid) => uid !== sender && UID.test(uid)).map(async (uid) => {
+      if (!(await db.get(`blocked/${uid}/${sender}`))) await sendToAll(db, env, uid, note);
+    }));
+    return new Response(null, { status: 204 });
+  }
+
+  // room_ping
+  const to = String(body.to ?? '');
+  if (!UID.test(to) || to === sender || !members[to]) return new Response(null, { status: 204 });
+  const room = await db.get(`groupRooms/${gid}`);
+  if (!room || !room.in || !Object.keys(room.in).length) return new Response(null, { status: 204 });
+  const key = `ping:${gid}:${sender}:${to}`;
+  if (await env.AVATARS.get(key)) return new Response(null, { status: 204 });
+  await env.AVATARS.put(key, '1', { expirationTtl: PING_COOLDOWN_S });
+  if (await db.get(`blocked/${to}/${sender}`)) return new Response(null, { status: 204 });
+  await sendToAll(db, env, to, {
+    title: clip(group.name || 'Group', 60),
+    body: clip(`${name} wants you in the room. Tap to join.`, 240),
+    channel: 'requests',
+    data: { type: 'room_ping', uid: gid },
+  });
+  return new Response(null, { status: 204 });
 }
 
 async function sendToAll(db, env, to, note) {

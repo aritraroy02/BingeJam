@@ -45,6 +45,10 @@ import com.syncit.app.ui.account.UsernameViewModel
 import com.syncit.app.ui.activity.ActivitySetupScreen
 import com.syncit.app.ui.chat.DmScreen
 import com.syncit.app.ui.chat.DmViewModel
+import com.syncit.app.ui.chat.GroupChatScreen
+import com.syncit.app.ui.chat.GroupChatViewModel
+import com.syncit.app.ui.chat.NewGroupScreen
+import com.syncit.app.ui.chat.NewGroupViewModel
 import com.syncit.app.ui.common.BrandWordmark
 import com.syncit.app.ui.diagnostics.DiagnosticsScreen
 import com.syncit.app.ui.diagnostics.DiagnosticsViewModel
@@ -103,6 +107,10 @@ sealed interface Screen {
     data object Chats : Screen
     data object Friends : Screen
     data class Chat(val friendUid: String) : Screen
+
+    /** A group chat with its room (2026-11-05). */
+    data class GroupChat(val groupId: String) : Screen
+    data object NewGroup : Screen
     data object Settings : Screen
 
     /** Your own profile (opened from your picture on Home). */
@@ -179,6 +187,9 @@ fun SyncItApp(
         pendingNotification.value = null
         when (target.type) {
             PushNotifications.TYPE_DM -> nav.reset(Screen.Chats, Screen.Chat(target.uid))
+            PushNotifications.TYPE_GROUP, PushNotifications.TYPE_ROOM_PING -> nav.reset(Screen.Chats, Screen.GroupChat(target.uid))
+            // Group invites are answered at the top of Chats.
+            PushNotifications.TYPE_GROUP_INVITE -> nav.reset(Screen.Chats)
             // Join requests and invites are answered from the banner shown over Home.
             PushNotifications.TYPE_JOIN_REQUEST, PushNotifications.TYPE_INVITE -> nav.reset(Screen.Home)
             else -> nav.reset(Screen.Friends)
@@ -408,7 +419,31 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
 
             Screen.Chats -> {
                 val vm: ChatsViewModel = viewModel(factory = viewModelFactory { initializer { ChatsViewModel(container) } })
-                ChatsScreen(vm, onOpenChat = { uid -> nav.push(Screen.Chat(uid)) })
+                ChatsScreen(
+                    vm,
+                    onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
+                    onOpenGroup = { id -> nav.push(Screen.GroupChat(id)) },
+                    onNewGroup = { nav.push(Screen.NewGroup) },
+                )
+            }
+
+            is Screen.GroupChat -> {
+                val vm: GroupChatViewModel = viewModel(
+                    key = "group-${screen.groupId}",
+                    factory = viewModelFactory { initializer { GroupChatViewModel(screen.groupId, container) } },
+                )
+                GroupChatScreen(vm, onBack = nav::pop, onOpenRoom = { code -> nav.push(Screen.Room(code)) })
+            }
+
+            Screen.NewGroup -> {
+                val vm: NewGroupViewModel = viewModel(
+                    key = "new-group-${entry.depth}",
+                    factory = viewModelFactory { initializer { NewGroupViewModel(container) } },
+                )
+                NewGroupScreen(vm, onBack = nav::pop, onCreated = { id ->
+                    nav.pop()
+                    nav.push(Screen.GroupChat(id))
+                })
             }
 
             Screen.Friends -> {
@@ -421,7 +456,11 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     key = "dm-${screen.friendUid}",
                     factory = viewModelFactory { initializer { DmViewModel(screen.friendUid, container) } },
                 )
-                DmScreen(vm, onBack = nav::pop)
+                DmScreen(
+                    vm,
+                    onBack = nav::pop,
+                    onOpenRoom = { code, waitingFor -> nav.push(Screen.Room(code, waitingFor = waitingFor)) },
+                )
             }
 
             Screen.Settings -> {

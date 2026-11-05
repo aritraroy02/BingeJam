@@ -69,6 +69,7 @@ import com.syncit.app.ui.theme.Glass
 import com.syncit.app.ui.theme.ThemeMode
 import com.syncit.core.config.Brand
 import com.syncit.core.model.ActivityApp
+import com.syncit.core.model.GroupInvitePolicy
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.SignInProvider
 import com.syncit.core.voice.VoiceDevice
@@ -81,6 +82,7 @@ private enum class SettingsPage(val title: String) {
     SHARING("Activity sharing"),
     AUDIO("Audio"),
     THEME("Theme"),
+    PRIVACY("Privacy"),
     ACCOUNT("Account"),
     ABOUT("About & legal"),
 }
@@ -110,6 +112,7 @@ fun SettingsScreen(
     val invisible by prefs.invisible.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
     val voiceDevices by viewModel.voiceDevices.collectAsStateWithLifecycle()
+    val invitePolicy by viewModel.invitePolicy.collectAsStateWithLifecycle()
     var page by rememberSaveable { mutableStateOf(SettingsPage.MAIN) }
     var devicePicker by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
@@ -163,6 +166,7 @@ fun SettingsScreen(
                         )
                         SettingsPage.AUDIO -> AudioPage(voiceDevices, onPick = { devicePicker = it })
                         SettingsPage.THEME -> ThemePage(mode, onSelect = { prefs.setThemeMode(it) })
+                        SettingsPage.PRIVACY -> PrivacyPage(invitePolicy, onSelect = viewModel::setInvitePolicy)
                         SettingsPage.ACCOUNT -> AccountPage(
                             auth = auth,
                             signingOut = signingOut,
@@ -296,6 +300,7 @@ private fun MainPage(
         CategoryRow("Media diagnostics", "See what your streaming and music apps report", Icons.Filled.Build, onOpenDiagnostics)
     }
     GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
+        CategoryRow("Privacy", "Group invites, private username", Icons.Filled.Lock) { onOpen(SettingsPage.PRIVACY) }
         CategoryRow("Account", accountSummary ?: "Sign out, delete account", Icons.Filled.AccountCircle) { onOpen(SettingsPage.ACCOUNT) }
         CategoryRow("About & legal", "${Brand.NAME} ${BuildConfig.VERSION_NAME} · updates, terms, privacy", Icons.Filled.Info) {
             onOpen(SettingsPage.ABOUT)
@@ -350,6 +355,37 @@ private fun AudioPage(voiceDevices: VoiceDevices, onPick: (String) -> Unit) {
         color = Glass.palette.textSecondary,
         modifier = Modifier.padding(horizontal = 6.dp),
     )
+}
+
+/** Group invites: ask first or join directly (user's request, 2026-11-05); usernames are private. */
+@Composable
+private fun PrivacyPage(policy: GroupInvitePolicy, onSelect: (GroupInvitePolicy) -> Unit) {
+    val p = Glass.palette
+    GlassPanel {
+        Text("Group invites", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
+        GlassSegmented(
+            options = listOf("Ask me first", "Join directly"),
+            selected = if (policy == GroupInvitePolicy.DIRECT) 1 else 0,
+            onSelect = { onSelect(if (it == 1) GroupInvitePolicy.DIRECT else GroupInvitePolicy.ASK) },
+        )
+        Text(
+            if (policy == GroupInvitePolicy.DIRECT) {
+                "Friends can add you to a group straight away. You can leave any group whenever you like."
+            } else {
+                "When a friend adds you to a group, you get an invite at the top of Chats to join or decline."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textSecondary,
+        )
+    }
+    GlassPanel {
+        Text("Your username is private", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
+        Text(
+            "Nobody can browse usernames. People find you only by typing your full username exactly, so share it with friends yourself.",
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textSecondary,
+        )
+    }
 }
 
 @Composable

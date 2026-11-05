@@ -9,13 +9,16 @@ import com.syncit.core.lookup.TrendingCatalog
 import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendsRepository
+import com.syncit.core.social.GroupChats
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
 import com.syncit.core.social.WatchInvites
 import com.syncit.core.transport.SyncTransport
 import com.syncit.core.voice.VoiceAuth
+import com.syncit.firebase.social.ChatRoomLinks
 import com.syncit.firebase.social.FirebaseAvatarStore
+import com.syncit.firebase.social.FirebaseGroupChats
 import com.syncit.firebase.social.FirebaseDirectMessages
 import com.syncit.firebase.social.FirebaseFriendsRepository
 import com.syncit.firebase.social.FirebasePresenceRepository
@@ -55,7 +58,11 @@ class FirebaseServices private constructor(context: Context) {
     )
     val profiles: ProfileRepository = FirebaseProfileRepository(session, db)
     val friends: FriendsRepository = FirebaseFriendsRepository(session, db, pushRelay)
-    val dms: DirectMessages = FirebaseDirectMessages(session, db, clock, pushRelay)
+    private val roomLinks = ChatRoomLinks(db)
+    val dms: DirectMessages = FirebaseDirectMessages(session, db, clock, pushRelay, roomLinks = roomLinks)
+
+    /** Group chats, each with its own room. */
+    val groups: GroupChats = FirebaseGroupChats(session, db, pushRelay, roomLinks)
     val push: PushRegistry = FirebasePushRegistry(session, db)
     val avatars: AvatarStore = avatarsImpl
     val presence: PresenceRepository = presenceImpl

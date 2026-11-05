@@ -101,11 +101,11 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                         if (searching) CircularProgressIndicator(Modifier.padding(end = 14.dp).size(18.dp), color = p.accent, strokeWidth = 2.dp)
                     },
                 )
-                if (query.trim().removePrefix("@").length >= 2) {
+                if (query.trim().removePrefix("@").length >= 3) {
                     GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
                         if (results.isEmpty()) {
                             Text(
-                                if (searching) "Searching…" else "No one with a username starting with that",
+                                if (searching) "Searching…" else "No one has exactly that username",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = p.textSecondary,
                                 modifier = Modifier.padding(8.dp),
@@ -125,7 +125,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                     }
                 } else {
                     Text(
-                        "Type at least 2 letters of their username.",
+                        "Type their full username. Usernames are private, so only an exact match finds someone.",
                         style = MaterialTheme.typography.bodySmall,
                         color = p.textTertiary,
                         modifier = Modifier.padding(horizontal = 8.dp),

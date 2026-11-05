@@ -13,6 +13,7 @@ import com.syncit.app.social.UsernameAvailability
 import com.syncit.app.social.UsernameRules
 import com.syncit.core.model.Activity
 import com.syncit.core.model.AuthState
+import com.syncit.core.model.GroupInvitePolicy
 import com.syncit.core.model.UserProfile
 import com.syncit.core.social.AvatarException
 import com.syncit.core.social.UsernameTakenException
@@ -44,6 +45,15 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setVoiceInput(id: String?) = container.voice.setInputDevice(id)
 
     fun setVoiceOutput(id: String?) = container.voice.setOutputDevice(id)
+
+    /** Settings → Privacy: ask before joining groups, or join directly. */
+    val invitePolicy: StateFlow<GroupInvitePolicy> = social.groups.observeInvitePolicy()
+        .catch { emit(GroupInvitePolicy.ASK) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupInvitePolicy.ASK)
+
+    fun setInvitePolicy(policy: GroupInvitePolicy) {
+        viewModelScope.launch { runCatching { social.groups.setInvitePolicy(policy) } }
+    }
 
     /** What the tracker would share right now (preview under the toggles). */
     val sharingNow: StateFlow<Activity?> = social.activityTracker.current

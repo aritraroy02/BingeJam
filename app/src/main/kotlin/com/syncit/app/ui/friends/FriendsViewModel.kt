@@ -76,16 +76,18 @@ class FriendsViewModel(container: AppContainer) : ViewModel() {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Search-as-you-type: waits for a pause, needs 2+ characters, newer queries cancel older ones. */
+    /**
+     * Usernames are private (user's decision, 2026-11-05): only the exact, full username finds
+     * someone, no partial matches. Waits for a pause; newer queries cancel older ones.
+     */
     private val rawResults = _query
         .map { UsernameRules.normalize(it) }
         .debounce(SEARCH_DEBOUNCE_MS)
         .mapLatest { q ->
-            if (q.length < 2) return@mapLatest emptyList()
+            if (UsernameRules.problem(q) != null) return@mapLatest emptyList()
             _searching.value = true
             try {
-                // The backend may include our own profile.
-                profiles.searchByPrefix(q).filter { it.uid != auth.currentUid }
+                listOfNotNull(profiles.findByUsername(q)).filter { it.uid != auth.currentUid }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {

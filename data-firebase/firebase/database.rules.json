@@ -20,6 +20,9 @@
         "bio": {
           ".validate": "newData.isString() && newData.val().length <= 160"
         },
+        "groupInvites": {
+          ".validate": "newData.val() === 'ask' || newData.val() === 'direct'"
+        },
         "createdAt": {
           ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
         },
@@ -48,7 +51,7 @@
       }
     },
     "usernames": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && query.orderByKey == true && query.limitToFirst <= 20 && query.startAt != null && query.startAt.length >= 2 && query.endAt == query.startAt + '\uf8ff'",
+      ".read": false,
       "$name": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)) || (!newData.exists() && data.val() === auth.uid && (!newData.parent().parent().child('users').child(auth.uid).child('username').exists() || newData.parent().parent().child('users').child(auth.uid).child('username').val().replace('.', ',') !== $name)))",
@@ -448,6 +451,178 @@
           "emoji": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 16" },
           "sentAt": { ".validate": "newData.val() === now" },
           "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "dmCleared": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
+        "$friend": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+
+    "dmRooms": {
+      "$dmId": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists()",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $dmId.replace(auth.uid, '').replace('_', '') !== '' && ($dmId === auth.uid + '_' + $dmId.replace(auth.uid, '').replace('_', '') || $dmId === $dmId.replace(auth.uid, '').replace('_', '') + '_' + auth.uid) && (root.child('friends').child(auth.uid).child($dmId.replace(auth.uid, '').replace('_', '')).exists() || !newData.exists())",
+        ".validate": "newData.hasChildren(['code', 'startedBy', 'startedAt'])",
+        "code": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/)"
+        },
+        "startedBy": {
+          ".validate": "newData.val() === auth.uid"
+        },
+        "startedAt": {
+          ".validate": "newData.val() === now"
+        },
+        "in": {
+          "$uid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $uid === auth.uid && !newData.exists()",
+            ".validate": "newData.val() === true && $uid === auth.uid"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "groups": {
+      "$gid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $gid.matches(/^[A-Za-z0-9_-]{1,40}$/) && !data.exists() && newData.child('createdBy').val() === auth.uid && newData.child('members').child(auth.uid).child('role').val() === 'admin'",
+        ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt'])",
+        "name": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+        },
+        "createdBy": {
+          ".validate": "!data.exists() && newData.val() === auth.uid"
+        },
+        "createdAt": {
+          ".validate": "!data.exists() && newData.val() === now"
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin' || ($uid === auth.uid && !newData.exists()) || ($uid === auth.uid && !data.exists() && root.child('groupInvites').child(auth.uid).child($gid).exists()))",
+            ".validate": "newData.hasChildren(['role', 'joinedAt']) && ($uid === auth.uid || data.exists() || (root.child('friends').child(auth.uid).child($uid).exists() && root.child('users').child($uid).child('groupInvites').val() === 'direct'))",
+            "role": {
+              ".validate": "newData.val() === 'member' || (newData.val() === 'admin' && (!root.child('groups').child($gid).exists() || root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin'))"
+            },
+            "joinedAt": {
+              ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    "userGroups": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
+        "$gid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.exists() && newData.parent().parent().parent().child('groups').child($gid).child('members').child($uid).exists() && (auth.uid === $uid || newData.parent().parent().parent().child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin')) || (!newData.exists() && (auth.uid === $uid || root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin')))",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+
+    "groupInvites": {
+      "$to": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to && !newData.exists()",
+        "$gid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.exists() && newData.parent().parent().parent().child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin' && root.child('friends').child(auth.uid).child($to).exists() && !root.child('groups').child($gid).child('members').child($to).exists()) || (!newData.exists() && (auth.uid === $to || root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin')))",
+          ".validate": "newData.hasChildren(['from', 'groupName', 'sentAt'])",
+          "from": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "fromName": {
+            ".validate": "newData.isString() && newData.val().length <= 60"
+          },
+          "groupName": {
+            ".validate": "newData.isString() && newData.val().length <= 50"
+          },
+          "sentAt": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+
+    "groupMessages": {
+      "$gid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+        ".indexOn": [
+          "sentAt"
+        ],
+        "$msgId": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists() && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['from', 'text', 'sentAt'])",
+          "from": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "text": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
+          },
+          "sentAt": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+
+    "groupReads": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
+        "$gid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+
+    "groupRooms": {
+      "$gid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+        ".validate": "newData.hasChildren(['code', 'startedBy', 'startedAt'])",
+        "code": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-HJ-NP-Z2-9]{6}$/)"
+        },
+        "startedBy": {
+          ".validate": "newData.val() === auth.uid"
+        },
+        "startedAt": {
+          ".validate": "newData.val() === now"
+        },
+        "in": {
+          "$uid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && $uid === auth.uid && !newData.exists()",
+            ".validate": "newData.val() === true && $uid === auth.uid"
+          }
+        },
+        "$other": {
+          ".validate": false
         }
       }
     }

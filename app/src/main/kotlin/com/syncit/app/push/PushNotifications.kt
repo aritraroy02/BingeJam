@@ -46,9 +46,14 @@ object PushNotifications {
     const val TYPE_JOIN_REQUEST = "join_request"
     const val TYPE_INVITE = "invite"
 
+    /** Group chats (2026-11-05): uid carries the group id. */
+    const val TYPE_GROUP = "group"
+    const val TYPE_GROUP_INVITE = "group_invite"
+    const val TYPE_ROOM_PING = "room_ping"
+
     /** Data-only: the friend deleted their latest message for everyone (see [retractChat]). */
     const val TYPE_DM_DELETED = "dm_deleted"
-    private val TYPES = setOf(TYPE_DM, TYPE_FRIEND_REQUEST, TYPE_JOIN_REQUEST, TYPE_INVITE)
+    private val TYPES = setOf(TYPE_DM, TYPE_FRIEND_REQUEST, TYPE_JOIN_REQUEST, TYPE_INVITE, TYPE_GROUP, TYPE_GROUP_INVITE, TYPE_ROOM_PING)
 
     /** Same id as FCM uses, so the tag alone decides what replaces what. */
     private const val NOTIFICATION_ID = 0
@@ -56,6 +61,15 @@ object PushNotifications {
     /** The chat on screen right now; its messages don't need a notification. */
     @Volatile
     var openChatUid: String? = null
+
+    /** The group chat on screen right now. */
+    @Volatile
+    var openGroupId: String? = null
+
+    /** Clears one notification, e.g. a group's once it's opened. */
+    fun cancel(context: Context, type: String, uid: String) {
+        NotificationManagerCompat.from(context).cancel(tag(type, uid), NOTIFICATION_ID)
+    }
 
     data class Target(val type: String, val uid: String)
 
@@ -78,6 +92,7 @@ object PushNotifications {
     @SuppressLint("MissingPermission")
     fun show(context: Context, type: String, uid: String, title: String, body: String) {
         if (type == TYPE_DM && uid == openChatUid) return
+        if (type == TYPE_GROUP && uid == openGroupId) return
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
         val open = Intent(context, MainActivity::class.java)
@@ -88,8 +103,8 @@ object PushNotifications {
             context, tag(type, uid).hashCode(), open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val channel = when (type) {
-            TYPE_DM -> CHANNEL_MESSAGES
-            TYPE_JOIN_REQUEST, TYPE_INVITE -> CHANNEL_REQUESTS
+            TYPE_DM, TYPE_GROUP -> CHANNEL_MESSAGES
+            TYPE_JOIN_REQUEST, TYPE_INVITE, TYPE_GROUP_INVITE, TYPE_ROOM_PING -> CHANNEL_REQUESTS
             else -> CHANNEL_FRIENDS
         }
         val notification = NotificationCompat.Builder(context, channel)

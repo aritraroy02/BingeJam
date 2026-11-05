@@ -2,6 +2,7 @@ package com.syncit.app
 
 import android.app.ActivityManager
 import android.app.Application
+import android.content.ComponentCallbacks2
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -11,6 +12,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.gif.AnimatedImageDecoder
 import coil3.gif.GifDecoder
+import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import com.syncit.app.di.AppContainer
 import com.syncit.app.overlay.ChatBubbleService
@@ -59,10 +61,24 @@ class SyncItApplication : Application(), SyncDependenciesProvider, AppQuitHandle
             .components {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) add(AnimatedImageDecoder.Factory()) else add(GifDecoder.Factory())
             }
+            // Pictures kept in RAM: 10% of the app's memory allowance (Coil's default is about 25%).
+            .memoryCache { MemoryCache.Builder().maxSizePercent(context, MEMORY_CACHE_PERCENT).build() }
             .crossfade(true)
             .build()
 
+    /**
+     * Battery and memory (user's request, 2026-11-05): once BingeJam leaves the screen, drop the
+     * pictures held in RAM (posters, avatars). The process stays alive in the background for activity
+     * sharing, so this keeps its idle footprint small; pictures reload from the disk cache next time.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        @Suppress("DEPRECATION")
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) SingletonImageLoader.get(this).memoryCache?.clear()
+    }
+
     private companion object {
         const val QUIT_DELAY_MS = 1_000L
+        const val MEMORY_CACHE_PERCENT = 0.10
     }
 }

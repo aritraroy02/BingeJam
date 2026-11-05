@@ -5,6 +5,7 @@ import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.ActivityTracker
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendsRepository
+import com.syncit.core.social.GroupChats
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
@@ -26,4 +27,6 @@ class SocialServices(
     val avatars: AvatarStore,
     /** True for [FakeSocial]: "Continue with Google" skips Credential Manager and signs in directly. */
     val isFake: Boolean = false,
+    /** Group chats, each with its own room (off in the fakes). */
+    val groups: GroupChats = GroupChats.None,
 )

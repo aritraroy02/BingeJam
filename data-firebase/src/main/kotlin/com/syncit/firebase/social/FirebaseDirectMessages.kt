@@ -8,6 +8,7 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
+import com.syncit.core.model.ChatRoomLink
 import com.syncit.core.model.DirectMessage
 import com.syncit.core.model.WatchSessionReport
 import com.syncit.core.social.DirectMessages
@@ -53,7 +54,17 @@ class FirebaseDirectMessages internal constructor(
     private val clock: ServerClock,
     private val push: PushRelay? = null,
     elapsedRealtime: () -> Long = SystemClock::elapsedRealtime,
+    private val roomLinks: ChatRoomLinks = ChatRoomLinks(db),
 ) : DirectMessages {
+
+    /** "Delete chat": dmCleared/{me}/{friend} = server time; older messages are hidden for us. */
+    private fun clearedAt(me: String): Flow<Map<String, Long>> = flow {
+        emit(emptyMap())
+        emitAll(
+            db.getReference("dmCleared").child(me).snapshots()
+                .map { s -> s?.children?.mapNotNull { c -> c.key?.let { k -> c.long()?.let { k to it } } }?.toMap().orEmpty() },
+        )
+    }.distinctUntilChanged()
 
     private val typingThrottle = TypingThrottle(elapsedRealtime)
 
@@ -93,8 +104,9 @@ class FirebaseDirectMessages internal constructor(
                             .map { s -> s?.children?.mapNotNull { it.key }?.toSet().orEmpty() },
                     )
                 }
-                combine(messages, hidden.distinctUntilChanged()) { list, gone ->
-                    if (gone.isEmpty()) list else list.filterNot { it.id in gone }
+                combine(messages, hidden.distinctUntilChanged(), clearedAt(me)) { list, gone, cleared ->
+                    val since = cleared[friendUid] ?: 0L
+                    list.filter { it.id !in gone && it.sentAt > since }
                 }
             }
         }
@@ -216,10 +228,11 @@ class FirebaseDirectMessages internal constructor(
                         .map { s -> friend to s?.children?.mapNotNull(SocialParser::message).orEmpty() }
                 },
             )
-            combine(latest, hidden) { lists, gone ->
+            combine(latest, hidden, clearedAt(me)) { lists, gone, cleared ->
                 lists.mapNotNull { (friend, messages) ->
                     val skip = gone[DmIds.dmId(me, friend)].orEmpty()
-                    messages.lastOrNull { it.id !in skip }?.let { friend to it }
+                    val since = cleared[friend] ?: 0L
+                    messages.lastOrNull { it.id !in skip && it.sentAt > since }?.let { friend to it }
                 }.toMap()
             }
         }
@@ -232,7 +245,9 @@ class FirebaseDirectMessages internal constructor(
             .distinctUntilChanged()
         val reads = db.getReference("dmReads").child(me).snapshots()
             .map { s -> s?.children?.mapNotNull { c -> c.key?.let { it to (c.long() ?: 0L) } }?.toMap().orEmpty() }
-        combine(friendIds, reads) { friends, lastRead -> friends.map { it to (lastRead[it] ?: 0L) } }
+        combine(friendIds, reads, clearedAt(me)) { friends, lastRead, cleared ->
+            friends.map { it to maxOf(lastRead[it] ?: 0L, cleared[it] ?: 0L) }
+        }
             .distinctUntilChanged()
             .flatMapLatest { pairs ->
                 // One small query per friend: their messages newer than our last read.
@@ -250,6 +265,29 @@ class FirebaseDirectMessages internal constructor(
     override suspend fun markRead(friendUid: String) {
         val me = session.requireUid()
         db.getReference("dmReads").child(me).child(friendUid).setValue(ServerValue.TIMESTAMP).await()
+    }
+
+    override suspend fun clearChat(friendUid: String) {
+        val me = session.requireUid()
+        require(me != friendUid && friendUid.isNotEmpty())
+        db.getReference("dmCleared").child(me).child(friendUid).setValue(ServerValue.TIMESTAMP).await()
+    }
+
+    override fun observeRoom(friendUid: String): Flow<ChatRoomLink?> = session.uid.flatMapLatest { me ->
+        if (me == null || me == friendUid || friendUid.isEmpty()) flowOf(null)
+        else roomLinks.observe(db.getReference("dmRooms").child(DmIds.dmId(me, friendUid)))
+    }
+
+    override suspend fun setRoom(friendUid: String, code: String) {
+        val me = session.requireUid()
+        require(me != friendUid)
+        roomLinks.start(db.getReference("dmRooms").child(DmIds.dmId(me, friendUid)), me, code)
+    }
+
+    override suspend fun setInRoom(friendUid: String, inRoom: Boolean) {
+        val me = session.requireUid()
+        if (me == friendUid) return
+        roomLinks.setIn(db.getReference("dmRooms").child(DmIds.dmId(me, friendUid)), me, inRoom)
     }
 
     /**
