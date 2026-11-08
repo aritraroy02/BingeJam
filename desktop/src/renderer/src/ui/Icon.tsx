@@ -84,6 +84,57 @@ const STROKE: Record<string, JSX.Element> = {
       <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
       <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
     </>
+  ),
+  // Not in the mock-ups; same 24×24 grid and 2px round strokes.
+  chevronLeft: <path d="M15 18l-6-6 6-6" />,
+  chevronRight: <path d="M9 18l6-6-6-6" />,
+  check: <path d="M20 6L9 17l-5-5" />,
+  micOff: (
+    <>
+      <path d="M2 2l20 20" />
+      <path d="M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 4.9 2.3" />
+      <path d="M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 11.3 5.5M12 18v4" />
+    </>
+  ),
+  volumeOff: (
+    <>
+      <path d="M11 5L6 9H2v6h4l5 4z" />
+      <path d="M22 9l-6 6M16 9l6 6" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="4" />
+      <path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7" />
+      <path d="M16 3.1a4 4 0 0 1 0 7.8M22 21c0-3.2-2-5.9-5-6.7" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5M21 12H9" />
+    </>
+  ),
+  external: (
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6M10 14L21 3" />
+    </>
+  ),
+  puzzle: (
+    <path d="M19.4 13a2.5 2.5 0 0 0 0-5H18V5a1 1 0 0 0-1-1h-3v-.5a2.5 2.5 0 0 0-5 0V4H6a1 1 0 0 0-1 1v3h.5a2.5 2.5 0 0 1 0 5H5v6a1 1 0 0 0 1 1h3v-1.5a2.5 2.5 0 0 1 5 0V20h3a1 1 0 0 0 1-1v-6z" />
+  ),
+  window: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18" />
+    </>
   )
 }
 

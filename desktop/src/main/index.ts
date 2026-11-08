@@ -85,6 +85,8 @@ function createMainWindow(): void {
 
   // BJ_DEMO=1: the design's sample content, no Firebase (store screenshots, design reviews).
   const query: Record<string, string> = process.env['BJ_DEMO'] === '1' ? { demo: '1' } : {}
+  // BJ_SCREEN=chats|group|room|streams|browser|settings|friends: open that screen (snapshots).
+  if (process.env['BJ_SCREEN']) query.screen = process.env['BJ_SCREEN']
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (!app.isPackaged && devUrl) {
     const url = new URL(devUrl)

@@ -13,10 +13,19 @@ const AVATAR_GRADIENTS = [
   ['#A78BFA', '#7C3AED']
 ] as const
 
+// Light tint of each gradient, for a sender's name above their chat bubble (design: Riya #A7F3D0,
+// Kabir #FED7AA, Meera #FBCFE8). Same order as AVATAR_GRADIENTS.
+const AVATAR_TINTS = ['#A7F3D0', '#FED7AA', '#FBCFE8', '#C7D2FE', '#FBCFE8', '#BAE6FD', '#FDE68A', '#DDD6FE'] as const
+
 function hash(text: string): number {
   let h = 0
   for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0
   return Math.abs(h)
+}
+
+/** The text colour that goes with a person's avatar (sender names in group chats). */
+export function avatarTint(id: string): string {
+  return AVATAR_TINTS[hash(id) % AVATAR_TINTS.length]
 }
 
 /** One letter for a person (like the design: "R"), two for a group ("College Gang" → "CG"). */
@@ -34,7 +43,8 @@ export function Avatar({
   size = 44,
   online = false,
   ring = false,
-  group = false
+  group = false,
+  muted = false
 }: {
   name: string
   id?: string
@@ -45,15 +55,18 @@ export function Avatar({
   ring?: boolean
   /** Group chats show two initials. */
   group?: boolean
+  /** Offline people in member lists: plain grey with two initials (design: Ananya "AI"). */
+  muted?: boolean
 }): JSX.Element {
   const [from, to] = AVATAR_GRADIENTS[hash(id ?? name) % AVATAR_GRADIENTS.length]
   const style = {
     '--size': `${size}px`,
-    backgroundImage: photoUrl ? `url("${photoUrl}")` : `linear-gradient(140deg, ${from}, ${to})`
+    backgroundImage: photoUrl ? `url("${photoUrl}")` : muted ? 'none' : `linear-gradient(140deg, ${from}, ${to})`,
+    backgroundColor: muted && !photoUrl ? 'rgba(255,255,255,0.14)' : undefined
   } as CSSProperties
   const avatar = (
     <span className="avatar" style={style} aria-hidden="true">
-      {photoUrl ? null : initials(name, group ? 2 : 1)}
+      {photoUrl ? null : initials(name, group || muted ? 2 : 1)}
       {online ? <span className="avatar__status" /> : null}
     </span>
   )
@@ -71,7 +84,8 @@ export function Button({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant
-  size?: 'sm' | 'lg'
+  /** xs = the design's 34px Ping buttons, sm = 36px, lg = 48px (default 46px). */
+  size?: 'xs' | 'sm' | 'lg'
   icon?: boolean
   children?: ReactNode
 }): JSX.Element {
@@ -95,23 +109,27 @@ export function Badge({ count }: { count: number }): JSX.Element | null {
   return <span className="badge">{count > 99 ? '99+' : count}</span>
 }
 
-export function LiveDot({ red = false }: { red?: boolean }): JSX.Element {
-  return <span className={red ? 'live-dot live-dot--red' : 'live-dot'} aria-hidden="true" />
+export function LiveDot({ red = false, small = false }: { red?: boolean; small?: boolean }): JSX.Element {
+  const classes = ['live-dot', red ? 'live-dot--red' : '', small ? 'live-dot--sm' : '']
+  return <span className={classes.filter(Boolean).join(' ')} aria-hidden="true" />
 }
 
 export function Segmented<T extends string>({
   label,
   options,
   value,
-  onChange
+  onChange,
+  className = ''
 }: {
   label: string
   options: { value: T; label: string }[]
   value: T
   onChange: (value: T) => void
+  /** segmented--lg: the Go Live pickers (40px); segmented--accent: the chosen one in the brand gradient. */
+  className?: string
 }): JSX.Element {
   return (
-    <div role="group" aria-label={label} className="segmented">
+    <div role="group" aria-label={label} className={`segmented ${className}`.trim()}>
       {options.map((o) => (
         <button key={o.value} type="button" aria-pressed={o.value === value} onClick={() => onChange(o.value)}>
           {o.label}
@@ -121,6 +139,18 @@ export function Segmented<T extends string>({
   )
 }
 
-export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }): JSX.Element {
-  return <button type="button" role="switch" aria-checked={checked} aria-label={label} className="switch" onClick={() => onChange(!checked)} />
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled = false
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+  disabled?: boolean
+}): JSX.Element {
+  return (
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} className="switch" disabled={disabled} onClick={() => onChange(!checked)} />
+  )
 }

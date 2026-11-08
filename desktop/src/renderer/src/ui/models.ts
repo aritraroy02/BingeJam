@@ -88,7 +88,15 @@ export interface ChatHeaderVM {
   /** 1:1: "Watching Midnight Signal · Netflix" / "Online" / "Last seen 2 h ago"; group: "5 members · 3 in the room" */
   subtitle: string
   /** The chat's room: null when nobody is in it (button says "Start room"); else live info. */
-  room: { code: string; inCount: number; startedAtLabel: string; summary: string; names: PersonVM[] } | null
+  room: {
+    code: string
+    inCount: number
+    startedAtLabel: string
+    summary: string
+    names: PersonVM[]
+    /** You're already in this room: the button says "Open room" instead of "Join room". */
+    meInRoom?: boolean
+  } | null
   /** Group only. */
   canRename?: boolean
 }
@@ -132,6 +140,8 @@ export interface RoomVM {
   service: string | null // "Netflix", "Prime Video", "JioHotstar", "Spotify"…
   /** Where the movie plays on this PC: the browser tab the extension controls. */
   playerLabel: string // "Playing in your Netflix tab" / "Open Netflix in your browser"
+  /** Button under playerLabel; default "Show the <service> tab". E.g. "Open Netflix" when no tab is open. */
+  playerAction?: string
   playing: boolean
   positionMs: number
   durationMs: number | null
@@ -159,6 +169,10 @@ export interface StreamVM {
   /** "4K · 60 needs about 25 Mbps upload per viewer" + measured capacity line. */
   capacityTitle: string
   capacityDetail: string
+  /** This PC is streaming right now (Start streaming becomes Stop streaming). */
+  streaming?: boolean
+  /** People watching, shown as chips over the stream chat ("You", "Meera"). */
+  watchers?: PersonVM[]
 }
 
 // ---------- Add to browser ----------
@@ -169,4 +183,49 @@ export interface BrowserSetupVM {
   found: { id: BrowserId; name: string }[]
   connected: { browser: string; detail: string } | null
   popup: { roomCode: string; people: string; title: string; position: string; inSync: boolean } | null
+}
+
+// ---------- Friends tab ----------
+
+export interface FriendRequestVM extends PersonVM {
+  /** "2 h ago" */
+  sentLabel: string
+}
+
+export interface FriendsVM {
+  friends: FriendVM[] | null // null = loading
+  /** Requests other people sent you. */
+  requests: FriendRequestVM[] | null
+  /** Requests you sent that are still waiting. */
+  sent: FriendRequestVM[] | null
+}
+
+/** What "Add friend" says back: "Request sent to @riya", "No one has that username". */
+export interface AddFriendResult {
+  ok: boolean
+  message: string
+}
+
+// ---------- Settings ----------
+
+export interface DeviceOptionVM {
+  id: string
+  label: string
+}
+
+export interface SettingsVM {
+  account: { uid: string; name: string; username: string; email: string | null; photoUrl: string | null }
+  extension: { connected: boolean; detail: string }
+  voice: {
+    /** navigator.mediaDevices.enumerateDevices(); empty = only the system default. */
+    inputs: DeviceOptionVM[]
+    outputs: DeviceOptionVM[]
+    inputId: string | null // null = system default
+    outputId: string | null
+    /** KeyboardEvent.code-style label shown to people ("V"); null = open mic. */
+    pushToTalkKey: string | null
+  }
+  /** null when the OS setting can't be changed (e.g. a dev build). */
+  startWithWindows: boolean | null
+  version: string
 }
