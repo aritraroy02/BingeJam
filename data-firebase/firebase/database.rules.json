@@ -166,6 +166,27 @@
             ".validate": false
           }
         },
+        "devices": {
+          ".validate": "newData.hasChildren()",
+          "$deviceId": {
+            ".validate": "$deviceId.matches(/^[A-Za-z0-9_-]{8,40}$/) && newData.hasChildren(['kind', 'online', 'lastSeen'])",
+            "kind": {
+              ".validate": "newData.val() === 'phone' || newData.val() === 'desktop'"
+            },
+            "online": {
+              ".validate": "newData.isBoolean()"
+            },
+            "lastSeen": {
+              ".validate": "newData.val() === now"
+            },
+            "label": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
         "$other": {
           ".validate": false
         }

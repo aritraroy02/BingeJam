@@ -46,6 +46,7 @@ import com.syncit.app.ui.activity.ActivitySetupScreen
 import com.syncit.app.ui.chat.DmScreen
 import com.syncit.app.ui.chat.DmViewModel
 import com.syncit.app.ui.chat.GroupChatScreen
+import com.syncit.app.ui.chat.GroupInfoSheet
 import com.syncit.app.ui.chat.GroupChatViewModel
 import com.syncit.app.ui.chat.NewGroupScreen
 import com.syncit.app.ui.chat.NewGroupViewModel
@@ -419,11 +420,23 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
 
             Screen.Chats -> {
                 val vm: ChatsViewModel = viewModel(factory = viewModelFactory { initializer { ChatsViewModel(container) } })
+                // Same (activity-scoped) instances as Home and the group chat: long-press "View profile"
+                // opens Home's friend sheet, "Group info" the group chat's info sheet.
+                val home: HomeViewModel = viewModel(factory = viewModelFactory { initializer { HomeViewModel(container) } })
                 ChatsScreen(
                     vm,
+                    home = home,
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
                     onOpenGroup = { id -> nav.push(Screen.GroupChat(id)) },
                     onNewGroup = { nav.push(Screen.NewGroup) },
+                    onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
+                    groupInfoSheet = { groupId, visible, onDismiss ->
+                        val group: GroupChatViewModel = viewModel(
+                            key = "group-$groupId",
+                            factory = viewModelFactory { initializer { GroupChatViewModel(groupId, container) } },
+                        )
+                        GroupInfoSheet(visible, onDismiss = onDismiss, viewModel = group, onLeft = {})
+                    },
                 )
             }
 

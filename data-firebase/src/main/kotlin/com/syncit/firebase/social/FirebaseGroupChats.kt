@@ -66,7 +66,6 @@ class FirebaseGroupChats internal constructor(
         val me = session.requireUid()
         val clean = GroupChats.cleanName(name) ?: throw IllegalArgumentException("Give the group a name")
         val others = memberUids.filter { it != me && it.isNotBlank() }.distinct()
-        require(others.isNotEmpty()) { "Pick at least one friend" }
         require(others.size + 1 <= GroupChats.MAX_MEMBERS) { "A group can have up to ${GroupChats.MAX_MEMBERS} people" }
         val id = db.getReference("groups").push().key ?: error("No group id")
         val (direct, ask) = splitByPolicy(others)

@@ -246,7 +246,7 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
                     Text(group?.name.orEmpty(), style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val live = room
                     Text(
-                        if (live != null) "${group?.members?.size ?: 0} members · ${live.inRoom.size} in the room" else "${group?.members?.size ?: 0} members",
+                        group?.let { GroupWording.subtitle(it.members.size, live?.inRoom?.size) }.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (live != null) p.success else p.textSecondary,
                         maxLines = 1,
@@ -261,6 +261,23 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
                 }
                 Spacer(Modifier.width(6.dp))
                 GlassIconButton(Icons.Filled.Info, "Group info", { showInfo = true }, plain = true)
+            }
+
+            // A group of one (created without anyone, or everyone else left): offer Add people.
+            if (group != null && group.members.size <= 1) {
+                GlassPanel(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    contentPadding = PaddingValues(14.dp),
+                    spacing = 10.dp,
+                ) {
+                    Text("It's just you here", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
+                    Text(
+                        "Add friends to chat and watch together. You can still start a room on your own.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textSecondary,
+                    )
+                    GlassSmallButton("Add people", onClick = { showInfo = true })
+                }
             }
 
             room?.let { live ->
@@ -337,9 +354,12 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
     }
 }
 
-/** Rename, members (ping the ones not in the room), add friends, remove (admins), leave. */
+/**
+ * Rename, members (ping the ones not in the room), add friends, remove (admins), leave. Also opened
+ * from the Chats list's long-press "Group info"; [onLeft] runs after leaving.
+ */
 @Composable
-private fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: GroupChatViewModel, onLeft: () -> Unit) {
+internal fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: GroupChatViewModel, onLeft: () -> Unit) {
     val p = Glass.palette
     val state by viewModel.group.collectAsStateWithLifecycle()
     val people by viewModel.people.collectAsStateWithLifecycle()
@@ -401,6 +421,11 @@ private fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: G
                 val addable = friends.filter { it.profile.uid !in group.memberUids }
                 if (addable.isNotEmpty()) {
                     SectionLabel("Add friends")
+                    Text(
+                        "Friends who chose \"Ask me first\" get an invite; the rest are added straight away.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textSecondary,
+                    )
                     for (f in addable) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Avatar(f.profile.displayName, size = 40.dp, photoUrl = f.profile.photoUrl)
@@ -409,6 +434,13 @@ private fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: G
                             GlassSmallButton("Add", onClick = { viewModel.add(listOf(f.profile.uid)) })
                         }
                     }
+                } else if (group.members.size <= 1) {
+                    SectionLabel("Add friends")
+                    Text(
+                        "Add friends first (Add friends tab), then add them here.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textSecondary,
+                    )
                 }
             }
 
@@ -417,20 +449,38 @@ private fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: G
         }
     }
     if (confirmLeave) {
-        AlertDialog(
-            onDismissRequest = { confirmLeave = false },
-            title = { Text("Leave ${group?.name.orEmpty()}?") },
-            text = { Text("You'll stop getting its messages. Someone in the group can add you again.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmLeave = false
-                    onDismiss()
-                    viewModel.leave(onLeft)
-                }) { Text("Leave", color = p.danger) }
+        LeaveGroupDialog(
+            name = group?.name.orEmpty(),
+            alone = (group?.members?.size ?: 0) <= 1,
+            onConfirm = {
+                confirmLeave = false
+                onDismiss()
+                viewModel.leave(onLeft)
             },
-            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
+            onDismiss = { confirmLeave = false },
         )
     }
+}
+
+/** "Leave <group>?" confirmation (group info sheet and the Chats list's long-press menu). */
+@Composable
+internal fun LeaveGroupDialog(name: String, alone: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val p = Glass.palette
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Leave $name?") },
+        text = {
+            Text(
+                if (alone) {
+                    "You're the only one in it, so it disappears from your Chats and nobody is left to add you back."
+                } else {
+                    "You'll stop getting its messages. Someone in the group can add you again."
+                },
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Leave", color = p.danger) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** New group: a name and the friends to add (user's request, 2026-11-05). */
@@ -487,7 +537,7 @@ fun NewGroupScreen(viewModel: NewGroupViewModel, onBack: () -> Unit, onCreated: 
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             )
             Text(
-                "Pick friends. People who chose \"Ask me first\" get an invite; the rest are added straight away.",
+                "Pick friends now or add them later. People who chose \"Ask me first\" get an invite; the rest are added straight away.",
                 style = MaterialTheme.typography.bodySmall,
                 color = p.textSecondary,
                 modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
@@ -522,9 +572,9 @@ fun NewGroupScreen(viewModel: NewGroupViewModel, onBack: () -> Unit, onCreated: 
                 }
             }
             GlassButton(
-                text = if (picked.isEmpty()) "Pick at least one friend" else "Create group · ${picked.size + 1} people",
+                text = GroupWording.createLabel(picked.size),
                 onClick = { viewModel.create(name, picked, onCreated) },
-                enabled = picked.isNotEmpty() && GroupChats.cleanName(name) != null && !creating,
+                enabled = GroupWording.canCreate(name, creating),
                 loading = creating,
                 modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
             )

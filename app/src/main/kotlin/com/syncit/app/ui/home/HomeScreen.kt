@@ -108,13 +108,6 @@ fun HomeScreen(
     var pick by remember { mutableStateOf<Pair<TrendingTitle, StreamingService>?>(null) }
     LaunchedEffect(Unit) { viewModel.refreshLastRoom() }
 
-    val openActivity: (FriendRow) -> Unit = { row ->
-        val activity = row.activity
-        if (activity != null && !ActivityLinks.open(context, activity)) {
-            viewModel.showMessage("${activity.app.displayName} isn't installed")
-        }
-    }
-
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(
@@ -200,35 +193,13 @@ fun HomeScreen(
             }
         }
 
-        val selected = friends?.firstOrNull { it.uid == sheetUid }
-        GlassBottomSheet(visible = selected != null, onDismiss = { sheetUid = null }) {
-            if (selected != null) {
-                FriendSheetContent(
-                    row = selected,
-                    onMessage = {
-                        sheetUid = null
-                        onOpenChat(selected.uid)
-                    },
-                    starting = ui.busy,
-                    onStartRoom = {
-                        viewModel.startRoomWith(selected) { code, uid ->
-                            sheetUid = null
-                            onStartRoomWith(code, uid)
-                        }
-                    },
-                    onAskToJoin = { viewModel.askToJoin(selected) },
-                    onOpenApp = { openActivity(selected) },
-                    onUnfriend = {
-                        sheetUid = null
-                        viewModel.unfriend(selected.uid)
-                    },
-                    onBlock = {
-                        sheetUid = null
-                        viewModel.block(selected.uid)
-                    },
-                )
-            }
-        }
+        FriendSheet(
+            viewModel = viewModel,
+            uid = sheetUid,
+            onDismiss = { sheetUid = null },
+            onOpenChat = onOpenChat,
+            onStartRoomWith = onStartRoomWith,
+        )
 
         NoticeBanner(
             ui.message,
@@ -337,6 +308,59 @@ private fun LivePulse() {
                 .background(red),
         )
         Box(Modifier.size(8.dp).clip(CircleShape).background(red))
+    }
+}
+
+/**
+ * The friend sheet (picture, activity, Ask to join, Start a room, Message, Unfriend/Block) for [uid];
+ * hidden while [uid] is null. Used by Home's "Live now" and Chats' long-press "View profile".
+ * [viewModel] is the activity-scoped Home view model, so both places share its rows and actions;
+ * its notices show in `ui.message`.
+ */
+@Composable
+internal fun FriendSheet(
+    viewModel: HomeViewModel,
+    uid: String?,
+    onDismiss: () -> Unit,
+    onOpenChat: (String) -> Unit,
+    onStartRoomWith: (code: String, friendUid: String) -> Unit,
+) {
+    val context = LocalContext.current
+    val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val friends by viewModel.friends.collectAsStateWithLifecycle()
+    val selected = friends?.firstOrNull { it.uid == uid }
+    GlassBottomSheet(visible = selected != null, onDismiss = onDismiss) {
+        if (selected != null) {
+            FriendSheetContent(
+                row = selected,
+                onMessage = {
+                    onDismiss()
+                    onOpenChat(selected.uid)
+                },
+                starting = ui.busy,
+                onStartRoom = {
+                    viewModel.startRoomWith(selected) { code, friendUid ->
+                        onDismiss()
+                        onStartRoomWith(code, friendUid)
+                    }
+                },
+                onAskToJoin = { viewModel.askToJoin(selected) },
+                onOpenApp = {
+                    val activity = selected.activity
+                    if (activity != null && !ActivityLinks.open(context, activity)) {
+                        viewModel.showMessage("${activity.app.displayName} isn't installed")
+                    }
+                },
+                onUnfriend = {
+                    onDismiss()
+                    viewModel.unfriend(selected.uid)
+                },
+                onBlock = {
+                    onDismiss()
+                    viewModel.block(selected.uid)
+                },
+            )
+        }
     }
 }
 

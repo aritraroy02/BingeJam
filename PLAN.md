@@ -496,6 +496,17 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
 - **Relay:** types `group_message`, `group_invite`, `room_ping` (2-minute cooldown per pair, KV `ping:*`).
 - **Memory:** Coil memory cache 10%, cleared on TRIM_MEMORY_UI_HIDDEN.
 - Rules and relay deployed 2026-11-05 (user's go-ahead).
+- **2026-11-09 (user's requests, not yet released):** Chats list long-press menu (`ui/chat/ChatRowMenu.kt`):
+  1:1 = View profile (Home's FriendSheet) / Delete chat; group = Group info / Leave group (groups have no
+  "delete for me"). Groups can be created **with only the creator** (`FirebaseGroupChats.create` no longer
+  requires friends; rules already allowed it); a solo group shows "Just you · add people" + Add people.
+  Open question: a solo creator who invites ("ask") and then leaves leaves an admin-less group if the invite
+  is accepted later.
+- **Per-device presence (2026-11-09, rules written, NOT deployed):** `presence/{uid}/devices/{deviceId}` =
+  {kind: phone|desktop, online, lastSeen (server now), label?}. Friends count someone online if
+  `presence.online` OR any device is online; last seen = the latest of all (`social/PresenceStatus.kt`).
+  The phone still writes only the old fields (updateChildren, so `devices` is never overwritten); the desktop
+  writes its own device entry. Old phones (≤ 0.6.7) only see phone presence. Emulator 479/479.
 - **Setup carousel** (`ui/onboarding/OnboardingScreen.kt`): swipeable pages (HorizontalPager), one permission
   each, with Android's own prompts: Notification Access opens our own switch (ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS),
   POST_NOTIFICATIONS and RECORD_AUDIO system dialogs (turned down for good → app notification settings / app info),

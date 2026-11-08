@@ -24,7 +24,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -55,13 +60,17 @@ import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
 import com.syncit.app.social.WatchTogether
 import com.syncit.app.ui.glass.Avatar
+import com.syncit.app.ui.glass.GlassBottomSheet
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
+import com.syncit.app.ui.glass.GlassRow
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSmallButton
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.NoticeBanner
+import com.syncit.app.ui.home.FriendSheet
+import com.syncit.app.ui.home.HomeViewModel
 import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.model.DirectMessage
@@ -181,6 +190,9 @@ class ChatsViewModel(container: AppContainer) : ViewModel() {
     /** "Delete chat" for us only; it comes back if they write again. */
     fun deleteChat(friendUid: String) = act("Couldn't delete the chat") { social.dms.clearChat(friendUid) }
 
+    /** Leave a group from the list's long-press menu (same as the group info sheet's Leave group). */
+    fun leaveGroup(groupId: String) = act("Couldn't leave the group") { groups.leave(groupId) }
+
     fun accept(invite: GroupInvite, onJoined: (String) -> Unit) = act("Couldn't join ${invite.groupName}") {
         groups.acceptInvite(invite.groupId)
         onJoined(invite.groupId)
@@ -219,12 +231,19 @@ internal fun matchFriends(friends: List<Friend>, query: String): List<Friend> {
         )
 }
 
+/**
+ * [home] is the activity-scoped Home view model: long-press -> View profile opens its friend sheet.
+ * [groupInfoSheet] draws the group info sheet for a group id (long-press -> Group info).
+ */
 @Composable
 fun ChatsScreen(
     viewModel: ChatsViewModel,
+    home: HomeViewModel,
     onOpenChat: (String) -> Unit,
     onOpenGroup: (String) -> Unit = {},
     onNewGroup: () -> Unit = {},
+    onStartRoomWith: (code: String, friendUid: String) -> Unit = { _, _ -> },
+    groupInfoSheet: @Composable (groupId: String, visible: Boolean, onDismiss: () -> Unit) -> Unit = { _, _, _ -> },
 ) {
     val p = Glass.palette
     val rows by viewModel.rows.collectAsStateWithLifecycle()
@@ -233,7 +252,19 @@ fun ChatsScreen(
     val matches by viewModel.matches.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val bottom = LocalBottomBarInset.current
+    val homeUi by home.ui.collectAsStateWithLifecycle()
     var deleteFor by remember { mutableStateOf<ChatRow?>(null) }
+    var leaveFor by remember { mutableStateOf<GroupRow?>(null) }
+    var profileUid by remember { mutableStateOf<String?>(null) }
+    // Long-press menu and the group info sheet; each keeps its last entry while it slides away.
+    var menuFor by remember { mutableStateOf<ChatEntry?>(null) }
+    var lastMenu by remember { mutableStateOf<ChatEntry?>(null) }
+    var infoFor by remember { mutableStateOf<String?>(null) }
+    var lastInfo by remember { mutableStateOf<String?>(null) }
+    val openMenu = { entry: ChatEntry ->
+        menuFor = entry
+        lastMenu = entry
+    }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -284,15 +315,68 @@ fun ChatsScreen(
                                 entry.row,
                                 viewModel.myUid,
                                 onClick = { onOpenChat(entry.row.uid) },
-                                onLongClick = { deleteFor = entry.row },
+                                onLongClick = { openMenu(entry) },
                             )
-                            is ChatEntry.Grp -> GroupRowView(entry.row, viewModel.myUid, onClick = { onOpenGroup(entry.row.group.id) })
+                            is ChatEntry.Grp -> GroupRowView(
+                                entry.row,
+                                viewModel.myUid,
+                                onClick = { onOpenGroup(entry.row.group.id) },
+                                onLongClick = { openMenu(entry) },
+                            )
                         }
                     }
                 }
             }
         }
-        NoticeBanner(notice, onDismiss = viewModel::dismissNotice, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        // Our own notices first, then the friend sheet's (Ask to join, Start a room...).
+        val shown = notice ?: homeUi.message
+        NoticeBanner(
+            shown,
+            onDismiss = { if (notice != null) viewModel.dismissNotice() else home.dismissMessage() },
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+        )
+
+        lastMenu?.let { entry ->
+            ChatRowMenuSheet(
+                entry = entry,
+                visible = menuFor != null,
+                onDismiss = { menuFor = null },
+                onAction = { action ->
+                    menuFor = null
+                    when (action) {
+                        ChatRowAction.VIEW_PROFILE -> (entry as? ChatEntry.Dm)?.let { profileUid = it.row.uid }
+                        ChatRowAction.DELETE_CHAT -> (entry as? ChatEntry.Dm)?.let { deleteFor = it.row }
+                        ChatRowAction.GROUP_INFO -> (entry as? ChatEntry.Grp)?.let {
+                            infoFor = it.row.group.id
+                            lastInfo = it.row.group.id
+                        }
+                        ChatRowAction.LEAVE_GROUP -> (entry as? ChatEntry.Grp)?.let { leaveFor = it.row }
+                    }
+                },
+            )
+        }
+
+        FriendSheet(
+            viewModel = home,
+            uid = profileUid,
+            onDismiss = { profileUid = null },
+            onOpenChat = onOpenChat,
+            onStartRoomWith = onStartRoomWith,
+        )
+
+        lastInfo?.let { id -> groupInfoSheet(id, infoFor != null) { infoFor = null } }
+    }
+
+    leaveFor?.let { row ->
+        LeaveGroupDialog(
+            name = row.group.name,
+            alone = row.group.members.size <= 1,
+            onConfirm = {
+                leaveFor = null
+                viewModel.leaveGroup(row.group.id)
+            },
+            onDismiss = { leaveFor = null },
+        )
     }
 
     deleteFor?.let { row ->
@@ -308,6 +392,45 @@ fun ChatsScreen(
             },
             dismissButton = { TextButton(onClick = { deleteFor = null }) { Text("Cancel") } },
         )
+    }
+}
+
+/** Long-press menu for a Chats row, styled like the message long-press menu (MessageActionsSheet). */
+@Composable
+private fun ChatRowMenuSheet(entry: ChatEntry, visible: Boolean, onDismiss: () -> Unit, onAction: (ChatRowAction) -> Unit) {
+    val p = Glass.palette
+    GlassBottomSheet(visible = visible, onDismiss = onDismiss) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            when (entry) {
+                is ChatEntry.Dm -> Avatar(entry.row.friend.profile.displayName, size = 40.dp, photoUrl = entry.row.friend.profile.photoUrl)
+                is ChatEntry.Grp -> Avatar(entry.row.group.name, size = 40.dp)
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                when (entry) {
+                    is ChatEntry.Dm -> entry.row.friend.profile.displayName
+                    is ChatEntry.Grp -> entry.row.group.name
+                },
+                style = MaterialTheme.typography.titleMedium,
+                color = p.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            for (action in chatRowActions(entry)) {
+                GlassRow(
+                    action.label,
+                    icon = when (action) {
+                        ChatRowAction.VIEW_PROFILE -> Icons.Filled.Person
+                        ChatRowAction.DELETE_CHAT -> Icons.Filled.Delete
+                        ChatRowAction.GROUP_INFO -> Icons.Filled.Info
+                        ChatRowAction.LEAVE_GROUP -> Icons.AutoMirrored.Filled.ExitToApp
+                    },
+                    onClick = { onAction(action) },
+                )
+            }
+        }
     }
 }
 
@@ -391,11 +514,7 @@ private fun ChatRowView(row: ChatRow, myUid: String?, onClick: () -> Unit, onLon
     GlassPanel(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .combinedClickable(onClick = onClick, onLongClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onLongClick()
-            }),
+            .rowClicks(onClick, onLongClick, haptics),
         contentPadding = PaddingValues(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -446,11 +565,25 @@ private fun ChatRowView(row: ChatRow, myUid: String?, onClick: () -> Unit, onLon
     }
 }
 
+/** Tap opens the chat; long-press (haptic tick) opens the row menu. TalkBack offers it as "More options". */
+@OptIn(ExperimentalFoundationApi::class)
+private fun Modifier.rowClicks(onClick: () -> Unit, onLongClick: () -> Unit, haptics: HapticFeedback): Modifier =
+    clip(RoundedCornerShape(24.dp)).combinedClickable(
+        onClickLabel = "Open chat",
+        onLongClickLabel = "More options",
+        onClick = onClick,
+        onLongClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            onLongClick()
+        },
+    )
+
 @Composable
-private fun GroupRowView(row: GroupRow, myUid: String?, onClick: () -> Unit) {
+private fun GroupRowView(row: GroupRow, myUid: String?, onClick: () -> Unit, onLongClick: () -> Unit) {
     val p = Glass.palette
+    val haptics = LocalHapticFeedback.current
     val unread = row.unread > 0
-    GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(12.dp), onClick = onClick) {
+    GlassPanel(Modifier.fillMaxWidth().rowClicks(onClick, onLongClick, haptics), contentPadding = PaddingValues(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(row.group.name, size = 48.dp)
             Spacer(Modifier.width(12.dp))

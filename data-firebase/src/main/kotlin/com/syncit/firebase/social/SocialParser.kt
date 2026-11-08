@@ -32,11 +32,18 @@ internal object SocialParser {
         )
     }
 
+    /**
+     * Online if the phone's legacy flag or any devices/{deviceId} entry is online; last seen is
+     * the latest of them ([PresenceStatus]). Activity stays presence/{uid}/activity only.
+     */
     fun presence(s: DataSnapshot?): Presence? {
         if (s == null || !s.exists()) return null
+        // children (not .value) so device ids that look like numbers never turn into a List.
+        val devices = s.child("devices").children.map { it.value }
+        val status = PresenceStatus.of(s.child("online").value, s.child("lastSeen").value, devices)
         return Presence(
-            online = s.child("online").bool() ?: false,
-            lastSeen = s.child("lastSeen").long(),
+            online = status.online,
+            lastSeen = status.lastSeen,
             activity = activity(s.child("activity")),
         )
     }
