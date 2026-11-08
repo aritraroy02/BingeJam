@@ -6,6 +6,7 @@ const bridge: BingeJamBridge = {
   platform: process.platform,
   version: () => ipcRenderer.invoke('app:version'),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+  relayFetch: (request) => ipcRenderer.invoke('relay:fetch', request),
   onDeepLink: (listener) => {
     const handler = (_event: unknown, link: string): void => listener(link)
     ipcRenderer.on('app:deep-link', handler)

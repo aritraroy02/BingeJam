@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, nativeTheme, screen, shell } from 'electro
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BRAND } from '@shared/brand'
+import { registerRelayProxy } from './relayProxy'
 
 // BingeJam desktop: one window, one instance. Firebase (auth + Realtime Database) runs in the
 // renderer like the web SDK expects; the main process owns the window, OS integration and IPC.
@@ -32,6 +33,7 @@ function onReady(): void {
     app.setAsDefaultProtocolClient(PROTOCOL)
   }
   registerIpc()
+  registerRelayProxy()
   createMainWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
