@@ -502,7 +502,7 @@ Our own stack, no paid service: phone ↔ our relay ↔ phones.
   requires friends; rules already allowed it); a solo group shows "Just you · add people" + Add people.
   Open question: a solo creator who invites ("ask") and then leaves leaves an admin-less group if the invite
   is accepted later.
-- **Per-device presence (2026-11-09, rules written, NOT deployed):** `presence/{uid}/devices/{deviceId}` =
+- **Per-device presence (2026-11-09, rules deployed with the user's go-ahead):** `presence/{uid}/devices/{deviceId}` =
   {kind: phone|desktop, online, lastSeen (server now), label?}. Friends count someone online if
   `presence.online` OR any device is online; last seen = the latest of all (`social/PresenceStatus.kt`).
   The phone still writes only the old fields (updateChildren, so `devices` is never overwritten); the desktop
