@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BRAND } from '@shared/brand'
 import { registerRelayProxy } from './relayProxy'
+import { setupExtensionLink } from './extension'
 
 // BingeJam desktop: one window, one instance. Firebase (auth + Realtime Database) runs in the
 // renderer like the web SDK expects; the main process owns the window, OS integration and IPC.
@@ -34,6 +35,7 @@ function onReady(): void {
   }
   registerIpc()
   registerRelayProxy()
+  setupExtensionLink({ window: () => mainWindow, focus: focusMainWindow })
   createMainWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()

@@ -6,7 +6,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
-    resolve: { alias: { '@shared': resolve('src/shared') } }
+    resolve: { alias: { '@shared': resolve('src/shared') } },
+    build: {
+      rolldownOptions: {
+        // native-host.js: the browser extension's native messaging host (src/main/extension/host.ts),
+        // run by the app's Electron binary as plain Node. Must not import 'electron'.
+        input: { index: resolve('src/main/index.ts'), 'native-host': resolve('src/main/extension/host.ts') }
+      }
+    }
   },
   preload: {
     plugins: [externalizeDepsPlugin()]

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BingeJam</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="glows" aria-hidden="true"><div class="glow glow-red"></div><div class="glow glow-violet"></div></div>
+    <main class="card">
+      <header class="head">
+        <div class="logo" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 48 48">
+            <path fill="#fff" d="M24,8V2L16,10l8,8V12c6.62,0 12,5.38 12,12 0,2.02 -0.5,3.94 -1.4,5.6l2.92,2.92C39.08,30.06 40,27.14 40,24c0,-8.84 -7.16,-16 -16,-16zM24,36c-6.62,0 -12,-5.38 -12,-12 0,-2.02 0.5,-3.94 1.4,-5.6L10.48,15.48C8.92,17.94 8,20.86 8,24c0,8.84 7.16,16 16,16v6l8,-8 -8,-8v6z" />
+            <path fill="#fff" d="M20,17L30,24 20,31z" />
+          </svg>
+        </div>
+        <span class="name">
+          <strong>BingeJam</strong>
+          <span id="link" class="link">Connecting…</span>
+        </span>
+      </header>
+
+      <section class="room" aria-live="polite">
+        <span id="room-line" class="room-line"></span>
+        <span id="room-title" class="room-title"></span>
+        <span id="room-sync" class="room-sync"><span class="dot" aria-hidden="true"></span><span id="room-sync-text"></span></span>
+      </section>
+
+      <div class="actions">
+        <button type="button" id="play" class="btn btn-primary">Pause for all</button>
+        <button type="button" id="open" class="btn">Open app</button>
+      </div>
+
+      <div class="toggles">
+        <div class="toggle"><span id="l-wait">Wait if someone buffers</span><button type="button" role="switch" aria-checked="false" aria-labelledby="l-wait" data-key="waitForBuffering"><span></span></button></div>
+        <div class="toggle"><span id="l-subs">Same subtitles for all</span><button type="button" role="switch" aria-checked="false" aria-labelledby="l-subs" data-key="sameSubtitles"><span></span></button></div>
+        <div class="toggle"><span id="l-next">Follow host to next episode</span><button type="button" role="switch" aria-checked="false" aria-labelledby="l-next" data-key="followHostEpisodes"><span></span></button></div>
+      </div>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

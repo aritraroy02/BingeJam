@@ -6,11 +6,14 @@
   "description": "BingeJam for Windows: watch and listen together, in sync.",
   "main": "out/main/index.js",
   "scripts": {
+    "predev": "node ../extension/build.mjs",
     "dev": "node scripts/run.mjs dev",
+    "prebuild": "node ../extension/build.mjs",
     "build": "node scripts/run.mjs build",
     "preview": "node scripts/run.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node --test --experimental-strip-types \"src/shared/**/*.test.ts\" \"src/renderer/src/data/**/*.test.ts\"",
+    "test": "node --test --experimental-strip-types \"src/shared/**/*.test.ts\" \"src/renderer/src/data/**/*.test.ts\" \"src/renderer/src/sync/**/*.test.ts\"",
+    "build:extension": "node ../extension/build.mjs",
     "firebase-config": "node scripts/firebase-config.mjs"
   },
   "dependencies": {

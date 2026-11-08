@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "BingeJam",
+  "short_name": "BingeJam",
+  "version": "0.1.0",
+  "description": "Watch Netflix, Prime Video and JioHotstar in sync with friends. Works with the BingeJam app for Windows.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzGsxGOFE+oYNlWjuLHy13dmIndEi/GeHmjaFGkknyvn1aD/a/7peobrXN4Mdl/4hFWqfwko505VmOu9FMv/f1X4fVMIsc84i4uX0BZpSy6lOY5/p8tMlF63muiTqGk2UZdOrtZOgMitzINoSTjWAyEdtEKGxppxpAWcUe1WjsyNsSZwvIFU3ednlZCOIge7x0OFyGhUNRLNmZDWnJEVwYb6xg9h8PffUq12tpwi0cFzfuyu9BKKEFSimfGJvdmeP2RSdjdzvf2+PvLU5Jso5LdCKLY9yP2uunLbppKZSYg/RE97tiYPUZiFEW0FZ7Ho6CDAw8eCE5uVdIU+E9TrKfwIDAQAB",
+  "minimum_chrome_version": "110",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "BingeJam",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "permissions": ["nativeMessaging", "storage"],
+  "host_permissions": [
+    "https://www.netflix.com/*",
+    "https://www.primevideo.com/*",
+    "https://www.amazon.com/gp/video/*",
+    "https://www.amazon.in/gp/video/*",
+    "https://www.hotstar.com/*",
+    "https://www.jiohotstar.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.netflix.com/*",
+        "https://www.primevideo.com/*",
+        "https://www.amazon.com/gp/video/*",
+        "https://www.amazon.in/gp/video/*",
+        "https://www.hotstar.com/*",
+        "https://www.jiohotstar.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bingejam@syncit-watchparty.web.app",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  }
+}

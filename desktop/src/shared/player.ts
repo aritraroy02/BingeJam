@@ -30,6 +30,18 @@ export interface PlayerSnapshot {
   sampledAt: number
   /** Milliseconds the snapshot has already spent in transit, as measured by the hops. */
   ageMs: number
+  /**
+   * Optional, from the page URL (best effort): the title's id on its service, e.g. Netflix
+   * /watch/<id>, the JioHotstar content id, the Prime Video detail id. Changes when the episode does.
+   */
+  itemId?: string | null
+  /**
+   * Optional capabilities learned in this tab. Absent = not known yet. canSeek is false on Netflix
+   * (a direct currentTime seek crashes its player, error M7375) and wherever a seek didn't land;
+   * canSetRate is false if the page put playbackRate back after the extension changed it.
+   */
+  canSeek?: boolean
+  canSetRate?: boolean
 }
 
 export type PlayerCommand =
