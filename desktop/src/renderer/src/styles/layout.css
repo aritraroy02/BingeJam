@@ -1,0 +1,45 @@
+/* App frame: 20px gutters and 20px gaps like the design (1440×900 artboards), plus a 32px strip on
+   top where Windows draws its own minimise / maximise / close (titleBarOverlay) and the window drags. */
+.app {
+  position: relative;
+  height: 100%;
+  padding: 36px 20px 20px;
+  display: flex;
+  gap: 20px;
+}
+.app > .screen {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 20px;
+}
+
+/* The top strip moves the window (Windows handles its own buttons on the right). */
+.drag-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  z-index: 5;
+  -webkit-app-region: drag;
+}
+
+.scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+/* Cards inside a scrolling column keep their natural height; the column scrolls instead. */
+.scroll > * {
+  flex-shrink: 0;
+}
+
+.loading-screen {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

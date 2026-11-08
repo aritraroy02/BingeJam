@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>BingeJam</title>
+    <!-- Only our own code runs; network goes to Firebase (Auth + Realtime Database), the push relay,
+         Google APIs and our website. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               script-src 'self';
+               style-src 'self' 'unsafe-inline';
+               font-src 'self';
+               img-src 'self' data: blob: https:;
+               media-src 'self' blob: mediastream:;
+               connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com
+                 https://*.firebasedatabase.app wss://*.firebasedatabase.app
+                 https://vyro-push-relay.aritraroy02.workers.dev wss://vyro-push-relay.aritraroy02.workers.dev
+                 https://syncit-watchparty.web.app https://syncit-watchparty.firebaseapp.com ws://localhost:*;
+               frame-src https://syncit-watchparty.firebaseapp.com;"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>

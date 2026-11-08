@@ -29,3 +29,9 @@ service-account*.json
 
 # Kotlin compiler session/error logs
 .kotlin/
+
+# Desktop app (desktop/): dependencies, builds, and the Firebase Web config (same rule as google-services.json)
+desktop/node_modules/
+desktop/out/
+desktop/dist/
+desktop/src/renderer/src/firebase-config.json

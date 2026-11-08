@@ -1,0 +1,220 @@
+/* BingeJam desktop: design tokens, base and motion.
+   Source of truth: desktop/design/*.html (the 2026-11-08 mock-ups). Values below are copied from them. */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/inter-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  /* Base and glows */
+  --bg: #08060b;
+  --glow-red: #ff2e4d;
+  --glow-violet: #7c3aed;
+  --glow-orange: #f97316;
+  --glow-magenta: #be185d;
+  --glow-green: #10b981;
+
+  /* Brand */
+  --accent: #e11d48;
+  --accent-2: #c2410c;
+  --accent-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
+  --logo-grad: linear-gradient(140deg, #ff2e4d, #c2410c);
+  --progress-grad: linear-gradient(90deg, #ff2e4d, #fb923c);
+
+  /* Text on glass */
+  --text: #ffffff;
+  --text-2: rgba(255, 255, 255, 0.74);
+  --text-3: rgba(255, 255, 255, 0.62);
+  --link: #fdba74;
+
+  /* Live / online */
+  --live: #34d399;
+  --live-text: #d1fae5;
+  --live-soft: #a7f3d0;
+  --live-bg: rgba(52, 211, 153, 0.14);
+  --live-border: rgba(110, 231, 183, 0.35);
+  --warn: #fbbf24;
+
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-bg-strong: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-strong: rgba(255, 255, 255, 0.22);
+  --glass-blur: blur(28px) saturate(160%);
+  --glass-hi: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --field-bg: rgba(0, 0, 0, 0.22);
+  --field-border: rgba(255, 255, 255, 0.1);
+  --ring: #fdba74;
+  --avatar-ring: #1b1320;
+
+  /* Shape */
+  --r-panel-xl: 32px;
+  --r-panel: 28px;
+  --r-bar: 24px;
+  --r-card: 20px;
+  --r-btn: 16px;
+  --r-btn-sm: 12px;
+  --r-pill: 999px;
+
+  /* Motion: the design's easing. Only transform and opacity animate (GPU-composited). */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --rise: 0.75s;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Text people may want to copy stays selectable. */
+input,
+textarea,
+.selectable {
+  user-select: text;
+}
+
+a {
+  color: var(--link);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Motion (from the design) ---------- */
+@keyframes bj-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bj-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(46px, -34px, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-34px, 24px, 0) scale(0.95);
+  }
+}
+@keyframes bj-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.35);
+  }
+}
+@keyframes bj-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Panels rise in with a short stagger: set --i on each panel (0, 1, 2…). */
+.rise {
+  animation: bj-rise var(--rise) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+  will-change: transform, opacity;
+}
+
+.pressable {
+  transition:
+    transform 0.24s var(--ease-out),
+    background-color 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    filter 0.24s ease;
+}
+.pressable:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+.pressable:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 0.08s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Scrollbars that sit quietly on glass. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

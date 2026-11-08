@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>BingeJam desktop: group chat with a live room</title>
+<!-- Design reference for the BingeJam desktop app (from "BingeJam Desktop App.html", 2026-11-08).
+     1440x900. Inter from web/fonts. {{accent}} = #E11D48 (design default). -->
+<style>@font-face{font-family:Inter;font-weight:100 900;src:url(../../web/fonts/inter-latin.woff2) format('woff2')}</style>
+<style>
+body{margin:0;background:#08060B}
+a{color:#FDBA74}a:hover{color:#FED7AA}
+@keyframes bj-rise{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes bj-drift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(46px,-34px,0) scale(1.08)}100%{transform:translate3d(-34px,24px,0) scale(.95)}}
+@keyframes bj-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.35)}}
+@keyframes bj-glow{0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 0 rgba(52,211,153,0)}50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 36px rgba(52,211,153,.28)}}
+nav,section,aside{animation:bj-rise .75s cubic-bezier(.16,1,.3,1) both;will-change:transform,opacity}
+section{animation-delay:.08s}main{animation:bj-rise .75s cubic-bezier(.16,1,.3,1) .14s both}aside{animation-delay:.2s}
+div[aria-hidden="true"]>div{animation:bj-drift 22s ease-in-out infinite alternate;will-change:transform}
+div[aria-hidden="true"]>div:nth-child(2){animation-duration:28s;animation-delay:-6s}
+div[aria-hidden="true"]>div:nth-child(3){animation-duration:25s;animation-delay:-12s}
+[style*="0 0 10px #34D399"]{animation:bj-pulse 1.8s ease-in-out infinite}
+[aria-label="Live room"]{animation:bj-glow 3s ease-in-out infinite}
+button,a{transition:transform .24s cubic-bezier(.16,1,.3,1),background-color .24s ease,border-color .24s ease,box-shadow .24s ease,filter .24s ease}
+button:hover:not(:disabled),a:hover{transform:translateY(-2px);filter:brightness(1.1)}
+button:active:not(:disabled),a:active{transform:scale(.97);transition-duration:.08s}
+input{transition:border-color .2s ease,background-color .2s ease}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #FDBA74;outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+input::placeholder{color:rgba(255,255,255,0.55)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head><body>
+<div style="position: relative; min-height: 900px; width: 100%; box-sizing: border-box; overflow: hidden; background: #08060B; color: #FFFFFF; font-family: Inter, system-ui, sans-serif; font-size: 14px; padding: 20px; display: flex; flex-wrap: wrap; gap: 20px">
+
+  <div aria-hidden="true" style="position: absolute; inset: 0; z-index: 0; pointer-events: none">
+    <div style="position: absolute; left: 30%; top: -240px; width: 680px; height: 560px; border-radius: 50%; background: #10B981; opacity: 0.26; filter: blur(140px)"></div>
+    <div style="position: absolute; left: -160px; bottom: -180px; width: 560px; height: 560px; border-radius: 50%; background: #FF2E4D; opacity: 0.46; filter: blur(130px)"></div>
+    <div style="position: absolute; right: -200px; top: 35%; width: 600px; height: 600px; border-radius: 50%; background: #7C3AED; opacity: 0.4; filter: blur(140px)"></div>
+  </div>
+
+  <nav aria-label="Main" style="position: relative; z-index: 1; flex: 0 0 76px; box-sizing: border-box; padding: 14px 0; border-radius: 26px; background: rgba(255,255,255,0.07); backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%); border: 1px solid rgba(255,255,255,0.14); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14); display: flex; flex-direction: column; align-items: center; gap: 10px">
+    <a href="#" aria-label="BingeJam home" style="width: 46px; height: 46px; border-radius: 15px; background: linear-gradient(140deg, #FF2E4D, #C2410C); box-shadow: 0 8px 22px rgba(255,46,77,0.45), inset 0 1px 0 rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 8px">
+      <svg width="28" height="28" viewBox="0 0 48 48" aria-hidden="true"><path fill="#fff" d="M24,8V2L16,10l8,8V12c6.62,0 12,5.38 12,12 0,2.02 -0.5,3.94 -1.4,5.6l2.92,2.92C39.08,30.06 40,27.14 40,24c0,-8.84 -7.16,-16 -16,-16zM24,36c-6.62,0 -12,-5.38 -12,-12 0,-2.02 0.5,-3.94 1.4,-5.6L10.48,15.48C8.92,17.94 8,20.86 8,24c0,8.84 7.16,16 16,16v6l8,-8 -8,-8v6z"></path><path fill="#fff" d="M20,17L30,24 20,31z"></path></svg>
+    </a>
+    <a href="#" aria-label="Home" style="width: 46px; height: 46px; border-radius: 15px; color: rgba(255,255,255,0.74); display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg></a>
+    <a href="#" aria-label="Chats" aria-current="page" style="width: 46px; height: 46px; border-radius: 15px; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
+    <a href="#" aria-label="Friends" style="width: 46px; height: 46px; border-radius: 15px; color: rgba(255,255,255,0.74); display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"></path><path d="M19 8v6M16 11h6"></path></svg></a>
+    <a href="#" aria-label="Streams" style="width: 46px; height: 46px; border-radius: 15px; color: rgba(255,255,255,0.74); display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="12" rx="4"></rect><path d="M7 11v4M5 13h4"></path><circle cx="16" cy="12" r="1"></circle><circle cx="18" cy="14" r="1"></circle></svg></a>
+  </nav>
+
+  <main aria-labelledby="h-group" style="position: relative; z-index: 1; flex: 999 1 560px; min-width: 0; box-sizing: border-box; border-radius: 28px; background: rgba(255,255,255,0.05); backdrop-filter: blur(30px) saturate(160%); -webkit-backdrop-filter: blur(30px) saturate(160%); border: 1px solid rgba(255,255,255,0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 30px 80px rgba(0,0,0,0.35); display: flex; flex-direction: column; overflow: hidden">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05)">
+      <span style="position: relative; width: 50px; height: 46px; flex: 0 0 50px"><span style="position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(140deg, #34D399, #059669); border: 2px solid #1B1320; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">R</span><span style="position: absolute; right: 0; bottom: 0; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(140deg, #FB923C, #EA580C); border: 2px solid #1B1320; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">K</span></span>
+      <span style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px">
+        <span style="display: flex; align-items: center; gap: 8px"><span id="h-group" style="font-weight: 800; font-size: 17px">Movie Night</span>
+          <button type="button" aria-label="Rename group" style="width: 30px; height: 30px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg></button>
+        </span>
+        <span style="font-size: 12px; color: rgba(255,255,255,0.72)">5 members · 3 in the room</span>
+      </span>
+      <span style="display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 14px; box-sizing: border-box; border-radius: 16px; background: rgba(52,211,153,0.14); border: 1px solid rgba(110,231,183,0.38); color: #D1FAE5; font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #34D399; box-shadow: 0 0 10px #34D399"></span>Room live · 18 min</span>
+      <a href="#" style="height: 46px; padding: 0 20px; box-sizing: border-box; border-radius: 16px; background: linear-gradient(135deg, #E11D48, #C2410C); box-shadow: 0 10px 28px rgba(225,29,72,0.45), inset 0 1px 0 rgba(255,255,255,0.28); color: #fff; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 8px">Join room</a>
+    </header>
+
+    <div style="flex: 1; padding: 22px; display: flex; flex-direction: column; gap: 12px; min-height: 520px">
+      <div aria-label="Live room" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 22px; background: rgba(52,211,153,0.10); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(110,231,183,0.32)">
+        <span style="display: flex">
+          <span style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(140deg, #34D399, #059669); border: 2px solid #12201B; font-weight: 700; display: flex; align-items: center; justify-content: center">R</span>
+          <span style="width: 40px; height: 40px; margin-left: -12px; border-radius: 50%; background: linear-gradient(140deg, #FB923C, #EA580C); border: 2px solid #12201B; font-weight: 700; display: flex; align-items: center; justify-content: center">K</span>
+          <span style="width: 40px; height: 40px; margin-left: -12px; border-radius: 50%; background: linear-gradient(140deg, #EC4899, #BE185D); border: 2px solid #12201B; font-weight: 700; display: flex; align-items: center; justify-content: center">M</span>
+        </span>
+        <span style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 700">Riya, Kabir and Meera are in the room</span><span style="font-size: 13px; color: rgba(255,255,255,0.76)">Watching Midnight Signal · S2:E4 · Netflix · talking in voice</span></span>
+        <a href="#" style="height: 42px; padding: 0 18px; box-sizing: border-box; border-radius: 14px; border: 1px solid rgba(255,255,255,0.24); background: rgba(255,255,255,0.12); color: #fff; text-decoration: none; font-weight: 700; display: flex; align-items: center">Join</a>
+      </div>
+
+      <span style="align-self: center; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,0.08); font-size: 12px; color: rgba(255,255,255,0.74)">Riya started a room · 9:02</span>
+      <div style="align-self: flex-start; max-width: 70%; padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.12)"><div style="font-size: 12px; font-weight: 700; color: #A7F3D0">Riya</div>Starting episode 4, hop in whenever</div>
+      <span style="align-self: center; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,0.08); font-size: 12px; color: rgba(255,255,255,0.74)">Kabir joined from his phone</span>
+      <div style="align-self: flex-start; max-width: 70%; padding: 10px 14px; border-radius: 18px 18px 18px 6px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.12)"><div style="font-size: 12px; font-weight: 700; color: #FBCFE8">Meera</div>Save me a seat</div>
+      <span style="align-self: center; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,0.08); font-size: 12px; color: rgba(255,255,255,0.74)">Riya pinged Zoe and Ananya</span>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center; margin: 0 20px 20px; padding: 6px; border-radius: 20px; background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.10)">
+      <label for="groupmsg" class="sr">Message Movie Night</label>
+      <input id="groupmsg" type="text" placeholder="Message Movie Night" style="flex: 1; min-width: 0; height: 42px; box-sizing: border-box; padding: 0 12px; border: none; background: transparent; color: #fff; font: inherit">
+      <button type="button" aria-label="Send" style="width: 42px; height: 42px; border-radius: 13px; border: none; background: linear-gradient(135deg, #E11D48, #C2410C); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"></path></svg></button>
+    </div>
+  </main>
+
+  <aside aria-labelledby="h-members" style="position: relative; z-index: 1; flex: 1 1 300px; max-width: 100%; box-sizing: border-box; padding: 20px; border-radius: 28px; background: rgba(255,255,255,0.06); backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%); border: 1px solid rgba(255,255,255,0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 12px">
+    <h2 id="h-members" style="margin: 0; font-size: 19px; font-weight: 800">Members · 5</h2>
+    <span style="font-size: 12px; font-weight: 600; color: #A7F3D0">In the room</span>
+    <div style="display: flex; align-items: center; gap: 12px"><span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(140deg, #34D399, #059669); display: flex; align-items: center; justify-content: center; font-weight: 700">R</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Riya Sen</span><span style="font-size: 12px; color: rgba(255,255,255,0.68)">Started the room</span></span></div>
+    <div style="display: flex; align-items: center; gap: 12px"><span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(140deg, #FB923C, #EA580C); display: flex; align-items: center; justify-content: center; font-weight: 700">K</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Kabir Mehta</span><span style="font-size: 12px; color: rgba(255,255,255,0.68)">On his phone</span></span></div>
+    <div style="display: flex; align-items: center; gap: 12px"><span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(140deg, #EC4899, #BE185D); display: flex; align-items: center; justify-content: center; font-weight: 700">M</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Meera Kapoor</span><span style="font-size: 12px; color: rgba(255,255,255,0.68)">Talking</span></span></div>
+
+    <div style="height: 1px; background: rgba(255,255,255,0.10); margin: 4px 0"></div>
+    <span style="font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.72)">Not in the room</span>
+    <div style="display: flex; align-items: center; gap: 12px"><span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(140deg, #34D399, #047857); display: flex; align-items: center; justify-content: center; font-weight: 700">A</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">You</span><span style="font-size: 12px; color: rgba(255,255,255,0.68)">Join any time</span></span></div>
+    <div style="display: flex; align-items: center; gap: 12px"><span style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(140deg, #818CF8, #4F46E5); display: flex; align-items: center; justify-content: center; font-weight: 700">Z</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Zoe Williams</span><span style="font-size: 12px; color: rgba(255,255,255,0.68)">Online</span></span><button type="button" style="height: 34px; padding: 0 12px; border-radius: 11px; border: none; background: linear-gradient(135deg, #E11D48, #C2410C); color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer">Ping</button></div>
+    <div style="display: flex; align-items: center; gap: 12px"><span style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; font-weight: 700">AI</span><span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Ananya Iyer</span><span style="font-size: 12px; color: rgba(255,255,255,0.68)">Offline · 2 h</span></span><button type="button" disabled="" style="height: 34px; padding: 0 12px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); font: inherit; font-size: 13px; font-weight: 600">Pinged · 1 min</button></div>
+
+    <div style="flex: 1"></div>
+    <div style="display: flex; gap: 8px">
+      <button type="button" style="flex: 1; height: 42px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; font: inherit; font-weight: 600; cursor: pointer">Add people</button>
+      <button type="button" style="flex: 1; height: 42px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; font: inherit; font-weight: 600; cursor: pointer">Rename group</button>
+    </div>
+  </aside>
+</div>
+</body></html>
