@@ -68,6 +68,7 @@ import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.home.HomeScreen
 import com.syncit.app.ui.home.HomeViewModel
 import com.syncit.app.ui.home.LiveRoomsViewModel
+import com.syncit.app.ui.home.WatchlistScreen
 import com.syncit.app.ui.invite.FriendInviteScreen
 import com.syncit.app.ui.invite.FriendInviteViewModel
 import com.syncit.app.ui.invite.InviteScreen
@@ -122,6 +123,9 @@ sealed interface Screen {
 
     /** Conversations, newest first (bottom bar). */
     data object Chats : Screen
+
+    /** Saved titles (bottom bar, between Chats and You; 2026-11-10). */
+    data object Watchlist : Screen
     data object Friends : Screen
     data class Chat(val friendUid: String) : Screen
 
@@ -441,6 +445,7 @@ private fun BottomTabs(
 private fun tabFor(screen: Screen): MainTab? = when (screen) {
     Screen.Home -> MainTab.WATCH
     Screen.Chats -> MainTab.CHATS
+    Screen.Watchlist -> MainTab.WATCHLIST
     Screen.Profile -> MainTab.YOU
     else -> null
 }
@@ -448,6 +453,7 @@ private fun tabFor(screen: Screen): MainTab? = when (screen) {
 private fun screenFor(tab: MainTab): Screen = when (tab) {
     MainTab.WATCH -> Screen.Home
     MainTab.CHATS -> Screen.Chats
+    MainTab.WATCHLIST -> Screen.Watchlist
     MainTab.YOU -> Screen.Profile
 }
 
@@ -635,6 +641,11 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
             is Screen.Invite -> {
                 val vm: InviteViewModel = viewModel(key = "invite", factory = viewModelFactory { initializer { InviteViewModel(container) } })
                 InviteScreen(vm, welcome = screen.welcome, onDone = { if (screen.welcome) nav.reset(Screen.Home) else nav.pop() })
+            }
+
+            Screen.Watchlist -> {
+                val vm: HomeViewModel = viewModel(factory = viewModelFactory { initializer { HomeViewModel(container) } })
+                WatchlistScreen(vm, onWatchWithFriends = { code -> nav.push(Screen.Room(code, invite = true)) })
             }
 
             is Screen.UserProfile -> {

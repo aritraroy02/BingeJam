@@ -23,6 +23,7 @@ import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -137,21 +138,6 @@ internal fun TrendingSection(
     }
 }
 
-/** "Your watchlist": saved posters, newest first; tap one for the same sheet as a trending poster. */
-@Composable
-internal fun WatchlistRow(items: List<WatchlistItem>, onOpen: (TrendingTitle, StreamingService) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionLabel("Your watchlist")
-        LazyRow(
-            modifier = Modifier.bleed(),
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            items(items, key = { it.key }) { item -> PosterCard(item.title) { onOpen(item.title, item.service) } }
-        }
-    }
-}
-
 /** The apps among [rows] that [title] is trending on ("where can I watch this?"). */
 internal fun servicesFor(title: TrendingTitle, rows: List<TrendingRow>?): List<StreamingService> =
     rows.orEmpty().filter { row -> row.titles.any { it.tmdbId == title.tmdbId && it.type == title.type } }.map { it.service }
@@ -226,20 +212,21 @@ private fun SkeletonRow() {
     }
 }
 
+/** [fill]: as wide as its grid cell (the Watchlist tab) instead of a fixed 120 dp (rows). */
 @Composable
-private fun PosterCard(title: TrendingTitle, onClick: () -> Unit) {
+internal fun PosterCard(title: TrendingTitle, fill: Boolean = false, onClick: () -> Unit) {
     val p = Glass.palette
     val shape = RoundedCornerShape(12.dp)
     Column(
         Modifier
-            .width(120.dp)
+            .then(if (fill) Modifier.fillMaxWidth() else Modifier.width(120.dp))
             .clip(RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = listOfNotNull(title.title, title.year?.toString()).joinToString(", ") }
             .padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Poster(title, Modifier.width(120.dp).height(180.dp).clip(shape))
+        Poster(title, (if (fill) Modifier.fillMaxWidth().aspectRatio(2f / 3f) else Modifier.width(120.dp).height(180.dp)).clip(shape))
         Spacer(Modifier.height(4.dp))
         Text(
             title.title,

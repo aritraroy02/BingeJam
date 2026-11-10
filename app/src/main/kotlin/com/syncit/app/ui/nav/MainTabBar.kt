@@ -46,7 +46,7 @@ import com.syncit.app.ui.glass.glass
 import com.syncit.app.ui.theme.Glass
 
 /** The three main screens, switched from the bottom bar (2026-11-10: Add friends moved into Chats' "+"). */
-enum class MainTab { WATCH, CHATS, YOU }
+enum class MainTab { WATCH, CHATS, WATCHLIST, YOU }
 
 /**
  * How much the floating tab bar covers at the bottom of a tab screen, so its scrolling content can
@@ -86,6 +86,7 @@ fun MainTabBar(
         TabIcon(ImageVector.vectorResource(R.drawable.ic_tab_chat), "Chats", current == MainTab.CHATS, unreadChats + friendRequests) {
             onSelect(MainTab.CHATS)
         }
+        TabIcon(ImageVector.vectorResource(R.drawable.ic_tab_watchlist), "Watchlist", current == MainTab.WATCHLIST, 0) { onSelect(MainTab.WATCHLIST) }
         TabIcon(Icons.Filled.Person, "You", current == MainTab.YOU, 0) { onSelect(MainTab.YOU) }
     }
 }

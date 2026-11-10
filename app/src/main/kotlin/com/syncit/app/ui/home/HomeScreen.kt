@@ -133,10 +133,6 @@ fun HomeScreen(
                     LiveRoomsRow(liveRooms, onOpen = onOpenLiveRoom, modifier = Modifier.staggerIn(0))
                 }
 
-                if (watchlist.isNotEmpty()) {
-                    WatchlistRow(watchlist, onOpen = { title, service -> pick = title to service }, modifier = Modifier.staggerIn(1))
-                }
-
                 TrendingSection(
                     rows = trending,
                     filter = trendingFilter,
