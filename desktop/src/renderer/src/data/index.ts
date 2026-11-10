@@ -1,7 +1,19 @@
 // The desktop's Firebase data layer: same project, paths and formats as the Android app.
 // Screens import from here; everything maps into the view models in ui/models.ts.
 
-export { useMyProfile, checkUsername, createProfile, writePrivateProfile, UsernameTakenError, type MyProfileState, type UsernameCheck } from './profile.ts'
+export {
+  useMyProfile,
+  useMyBirthDate,
+  setBirthDate,
+  checkUsername,
+  createProfile,
+  writePrivateProfile,
+  UsernameTakenError,
+  type MyProfileState,
+  type BirthDateState,
+  type UsernameCheck
+} from './profile.ts'
+export { parseBirthDate, wireBirthDate, birthDateProblem, todayLocal, EARLIEST_YEAR, MIN_AGE } from './birthDate.ts'
 export {
   useFriends,
   useFriendRecords,

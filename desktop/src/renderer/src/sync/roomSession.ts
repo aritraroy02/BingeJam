@@ -293,7 +293,7 @@ export class RoomSession {
       const raw = event.snapshot
       const now = this.localNow()
       const previous = this.tabs.get(raw.tabId)
-      const local = toLocalSnapshot(raw, now, this.capabilitiesFor(raw.service))
+      const local = toLocalSnapshot(raw, now, this.capabilitiesOf(raw))
       const nowPlaying = raw.playing && !raw.buffering
       const wasPlaying = previous !== undefined && previous.raw.playing && !previous.raw.buffering
       this.tabs.set(raw.tabId, {
@@ -440,6 +440,16 @@ export class RoomSession {
     }
     if (output.positionReport !== null) {
       this.transport.reportPosition(code, output.positionReport).catch((e: unknown) => this.fail('reportPosition', e))
+    }
+  }
+
+  /** The service's defaults, overridden by what the tab itself learned (Netflix: canSeek false). */
+  private capabilitiesOf(raw: PlayerSnapshot): PlayerCapabilities {
+    const base = this.capabilitiesFor(raw.service)
+    return {
+      playPause: base.playPause,
+      seek: raw.canSeek ?? base.seek,
+      rate: raw.canSetRate ?? base.rate
     }
   }
 

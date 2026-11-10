@@ -1,12 +1,15 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import type { User } from 'firebase/auth'
 import { BRAND } from '@shared/brand'
 import { signOut, useAuth } from '@/lib/auth'
+import { startDevicePresence, useMyBirthDate, useMyProfile, writePrivateProfile, type Profile } from '@/data'
+import { useLiveShell } from '@/live/useLiveShell'
 import { MOVIE_NIGHT, RIYA_DM, ROAD_TRIP } from '@/demo/sample'
 import { useDemo } from '@/demo/useDemo'
 import type { ShellData } from '@/shell'
 import { Backdrop, type BackdropPreset } from '@/ui/Backdrop'
 import { LogoMark } from '@/ui/Icon'
+import { Button } from '@/ui/primitives'
 import { RailNav, SideNav, type Tab } from '@/ui/Nav'
 import { Home, type TrendingKind } from '@/screens/Home'
 import { SignIn } from '@/screens/SignIn'
@@ -16,6 +19,7 @@ import { Streams } from '@/screens/Streams'
 import { AddToBrowser } from '@/screens/AddToBrowser'
 import { Settings } from '@/screens/Settings'
 import { Friends } from '@/screens/Friends'
+import { ProfileSetup } from '@/screens/ProfileSetup'
 
 const params = new URLSearchParams(window.location.search)
 const DEMO = params.get('demo') === '1'
@@ -68,99 +72,95 @@ function tipDismissed(): boolean {
 
 export function App(): JSX.Element {
   const auth = useAuth()
+  if (DEMO && params.get('screen') === 'setup') return <ProfileSetup needProfile needBirthDate suggestedName="Aritra" onSignOut={() => undefined} />
   if (DEMO) return <DemoShell />
   if (auth.state === 'loading') return <Splash />
   if (auth.state === 'signedOut') return <SignIn />
-  return <SignedInShell user={auth.user} />
+  return <ProfileGate user={auth.user} />
 }
 
 function DemoShell(): JSX.Element {
-  return <Shell data={useDemo()} />
+  const [chatId, setChatId] = useState<string | null>(START.chatId)
+  const [trendingKind, setTrendingKind] = useState<TrendingKind>('movies')
+  return <Shell data={useDemo()} chatId={chatId} onChatId={setChatId} trendingKind={trendingKind} onTrendingKind={setTrendingKind} />
 }
 
-// Real data arrives in the next step (src/renderer/src/data). Until then a signed-in account sees
-// each screen's loading / empty state.
-function SignedInShell({ user }: { user: User }): JSX.Element {
+/**
+ * Signed in: this PC shows online to friends (presence/{uid}/devices, PLAN.md), and the account
+ * needs a username and a date of birth (18+, like the phone since 0.7.0) before the main screens.
+ */
+function ProfileGate({ user }: { user: User }): JSX.Element {
+  const profile = useMyProfile()
+  const birthDate = useMyBirthDate()
+  const stopPresence = useRef<() => Promise<void>>(async () => undefined)
+
+  useEffect(() => {
+    const stop = startDevicePresence(user.uid)
+    stopPresence.current = stop
+    // Android writes users_private on every sign-in (email, provider); best effort.
+    void writePrivateProfile()
+    return () => void stop()
+  }, [user.uid])
+
+  const signOutNow = (): void =>
+    void (async () => {
+      await stopPresence.current()
+      await signOut()
+    })()
+
+  if (profile.state === 'loading' || (profile.state === 'ready' && birthDate.state === 'loading')) return <Splash />
+  if (profile.state === 'error') return <ProfileError onSignOut={signOutNow} />
+  if (profile.state === 'missing' || birthDate.state === 'missing')
+    return (
+      <ProfileSetup
+        needProfile={profile.state === 'missing'}
+        needBirthDate={birthDate.state !== 'set'}
+        suggestedName={user.displayName ?? ''}
+        onSignOut={signOutNow}
+      />
+    )
+  return <LiveShell profile={profile.profile} stopPresence={() => stopPresence.current()} />
+}
+
+function LiveShell({ profile, stopPresence }: { profile: Profile; stopPresence: () => Promise<void> }): JSX.Element {
   const [version, setVersion] = useState('')
+  const [chatId, setChatId] = useState<string | null>(START.chatId)
+  const [trendingKind, setTrendingKind] = useState<TrendingKind>('movies')
   useEffect(() => {
     void window.bingejam.version().then(setVersion)
   }, [])
-  const me = { uid: user.uid, name: user.displayName ?? user.email ?? 'You', username: '', photoUrl: user.photoURL }
-  const noop = (): void => undefined
-  const data: ShellData = {
-    me,
-    home: { continueWatching: null, liveRoom: null, trending: null, friends: null, onlineCount: 0 },
-    chats: null,
-    header: () => null,
-    messages: () => null,
-    members: () => null,
-    friendPeople: null,
-    room: null,
-    roomChat: null,
-    stream: {
-      liveHost: null,
-      liveDetail: '',
-      stats: '',
-      viewers: 0,
-      source: 'game',
-      quality: '1080p60',
-      capacityTitle: '1080p · 60 needs about 8 Mbps upload per viewer',
-      capacityDetail: 'Streaming arrives in a later update.'
-    },
-    streamChat: [],
-    media: null,
-    browser: { found: [], connected: null, popup: null },
-    settings: {
-      account: { uid: user.uid, name: me.name, username: '', email: user.email, photoUrl: user.photoURL },
-      extension: { connected: false, detail: 'Add it from Settings' },
-      voice: { inputs: [], outputs: [], inputId: null, outputId: null, pushToTalkKey: null },
-      startWithWindows: null,
-      version
-    },
-    friends: { friends: null, requests: null, sent: null },
-    badges: {},
-    act: {
-      send: noop,
-      typing: noop,
-      ping: noop,
-      rename: noop,
-      newGroup: () => null,
-      addPeople: noop,
-      deleteChat: noop,
-      startRoom: noop,
-      joinRoom: noop,
-      leaveRoom: noop,
-      room: {
-        send: noop,
-        togglePlay: noop,
-        seekBy: noop,
-        seekTo: noop,
-        subtitles: noop,
-        waitForBuffering: noop,
-        syncAllToMe: noop,
-        invite: noop,
-        showPlayer: noop,
-        toggleMute: noop,
-        joinVoice: noop
-      },
-      stream: { source: noop, quality: noop, start: noop, stop: noop, send: noop },
-      addToBrowser: noop,
-      settings: { signOut: () => void signOut(), inputDevice: noop, outputDevice: noop, pushToTalkKey: noop, startWithWindows: noop },
-      friends: {
-        add: async () => ({ ok: false, message: 'Friends arrive with the next update.' }),
-        accept: noop,
-        decline: noop,
-        cancel: noop
-      }
-    }
-  }
-  return <Shell data={data} />
+  const data = useLiveShell({ profile, chatId, trendingKind, version, stopPresence })
+  return <Shell data={data} chatId={chatId} onChatId={setChatId} trendingKind={trendingKind} onTrendingKind={setTrendingKind} />
 }
 
-function Shell({ data }: { data: ShellData }): JSX.Element {
+function ProfileError({ onSignOut }: { onSignOut: () => void }): JSX.Element {
+  return (
+    <div className="loading-screen" style={{ flexDirection: 'column', gap: 14 }}>
+      <Backdrop preset="calm" />
+      <div className="drag-strip" />
+      <p style={{ position: 'relative', zIndex: 1, margin: 0, fontSize: 15 }}>Couldn&apos;t load your profile. Check your connection.</p>
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 10 }}>
+        <Button variant="primary" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
+        <Button variant="ghost" onClick={onSignOut}>
+          Sign out
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+interface ShellProps {
+  data: ShellData
+  chatId: string | null
+  onChatId: (id: string | null) => void
+  trendingKind: TrendingKind
+  onTrendingKind: (kind: TrendingKind) => void
+}
+
+function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind: setTrendingKind }: ShellProps): JSX.Element {
   const [view, setView] = useState<View>(START.view)
-  const [chatId, setChatId] = useState<string | null>(START.chatId)
-  const [trendingKind, setTrendingKind] = useState<TrendingKind>('movies')
   const [tipOff, setTipOff] = useState(tipDismissed)
   const act = data.act
 
@@ -171,6 +171,24 @@ function Shell({ data }: { data: ShellData }): JSX.Element {
 
   const tab: Tab = view.tab
   const header = chatId ? data.header(chatId) : null
+  const inRoom = view.tab === 'chats' && view.room
+
+  // Read receipts: which chat is on screen.
+  useEffect(() => {
+    act.viewing?.(view.tab === 'chats' && !view.room ? chatId : null)
+  }, [view, chatId])
+
+  // A room that failed to open, or ended, closes back to its chat (real accounts only).
+  useEffect(() => {
+    if (inRoom && data.roomStarting === false && !data.room) setView({ tab: 'chats', room: false })
+  }, [inRoom, data.roomStarting, data.room])
+
+  // Toasts go away by themselves.
+  useEffect(() => {
+    if (!data.notice) return
+    const t = setTimeout(() => act.dismissNotice?.(), 4_000)
+    return () => clearTimeout(t)
+  }, [data.notice])
 
   function navigate(next: Tab): void {
     // The rail's current tab takes you back up one level (room → its chat, Add to browser → Settings).
@@ -189,7 +207,6 @@ function Shell({ data }: { data: ShellData }): JSX.Element {
     setView({ tab: 'chats', room: true })
   }
 
-  const inRoom = view.tab === 'chats' && view.room
   const backdrop: BackdropPreset =
     view.tab === 'home'
       ? 'home'
@@ -225,8 +242,8 @@ function Shell({ data }: { data: ShellData }): JSX.Element {
           onJoinLiveRoom={() => data.home.liveRoom && openRoom(data.home.liveRoom.chatId, false)}
           onResume={() => navigate('chats')}
           onInvite={() => navigate('friends')}
-          onOpenTitle={() => navigate('chats')}
-          onFriendAction={() => navigate('chats')}
+          onOpenTitle={(item) => (act.openTitle ? act.openTitle(item) : navigate('chats'))}
+          onFriendAction={(f) => (act.friendAction ? act.friendAction(f) : navigate('chats'))}
         />
       )
       break
@@ -244,7 +261,11 @@ function Shell({ data }: { data: ShellData }): JSX.Element {
           onWaitForBuffering={act.room.waitForBuffering}
           onSyncAllToMe={act.room.syncAllToMe}
           onInvite={act.room.invite}
-          onShowPlayer={act.room.showPlayer}
+          onShowPlayer={() => {
+            // Not linked to a browser yet: the button says "Add to browser".
+            if (!data.settings.extension.connected && data.roomStarting !== undefined) setView({ tab: 'settings', browser: true })
+            else act.room.showPlayer()
+          }}
           onPing={(uid) => data.room?.chatId && act.ping(data.room.chatId, uid)}
           onToggleMute={act.room.toggleMute}
           onJoinVoice={act.room.joinVoice}
@@ -272,8 +293,7 @@ function Shell({ data }: { data: ShellData }): JSX.Element {
           onPing={(uid) => chatId && act.ping(chatId, uid)}
           onRename={(name) => chatId && act.rename(chatId, name)}
           onNewGroup={(name, ids) => {
-            const id = act.newGroup(name, ids)
-            if (id) setChatId(id)
+            void Promise.resolve(act.newGroup(name, ids)).then((id) => id && setChatId(id))
           }}
           onAddPeople={(ids) => chatId && act.addPeople(chatId, ids)}
           onDeleteChat={() => {
@@ -296,10 +316,11 @@ function Shell({ data }: { data: ShellData }): JSX.Element {
       screen = (
         <Friends
           data={data.friends}
-          onFriendAction={() => navigate('chats')}
+          onFriendAction={(f) => (act.friendAction ? act.friendAction(f) : navigate('chats'))}
           onMessage={(f) => {
             const chat = data.chats?.find((c) => c.kind === 'dm' && c.people[0]?.id === f.id)
             if (chat) openChat(chat.chatId)
+            else if (act.dmWith) openChat(act.dmWith(f.id))
             else navigate('chats')
           }}
           onAddFriend={act.friends.add}
@@ -347,6 +368,11 @@ function Shell({ data }: { data: ShellData }): JSX.Element {
       <div className="drag-strip" />
       {tab === 'home' ? <SideNav {...nav} /> : <RailNav {...nav} />}
       {screen}
+      {data.notice ? (
+        <div role="status" className="glass glass--strong toast" onClick={() => act.dismissNotice?.()}>
+          {data.notice}
+        </div>
+      ) : null}
     </div>
   )
 }

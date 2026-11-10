@@ -5,6 +5,7 @@ import type {
   ChatHeaderVM,
   ChatSummaryVM,
   FriendsVM,
+  FriendVM,
   GroupMemberVM,
   HomeVM,
   MessageVM,
@@ -13,7 +14,8 @@ import type {
   SettingsVM,
   StreamQuality,
   StreamSource,
-  StreamVM
+  StreamVM,
+  TrendingVM
 } from '@/ui/models'
 
 // Everything the app shell (App.tsx) needs: the view models for every screen plus what each button
@@ -31,6 +33,8 @@ export interface ShellData {
   friendPeople: PersonVM[] | null
   /** The room this PC is in (null = not in one). */
   room: RoomVM | null
+  /** Real accounts: true while Start/Join room is on its way. When false and room is null, the room view closes. */
+  roomStarting?: boolean
   roomChat: MessageVM[] | null
   stream: StreamVM
   streamChat: MessageVM[] | null
@@ -39,6 +43,8 @@ export interface ShellData {
   settings: SettingsVM
   friends: FriendsVM
   badges: { chats?: number; friends?: number }
+  /** A short message for the person ("Invite link copied", an error); shown as a toast. */
+  notice?: string | null
   act: ShellActions
 }
 
@@ -48,7 +54,7 @@ export interface ShellActions {
   ping: (chatId: string, uid: string) => void
   rename: (chatId: string, name: string) => void
   /** Returns the new group's chat id (so the app can open it), or null. */
-  newGroup: (name: string, memberIds: string[]) => string | null
+  newGroup: (name: string, memberIds: string[]) => string | null | Promise<string | null>
   addPeople: (chatId: string, memberIds: string[]) => void
   deleteChat: (chatId: string) => void
   /** Start (or rejoin) the room that belongs to this chat. */
@@ -76,6 +82,15 @@ export interface ShellActions {
     send: (text: string) => void
   }
   addToBrowser: (browser: BrowserId) => void
+  /** The chat on screen (null = none), for read receipts. */
+  viewing?: (chatId: string | null) => void
+  dismissNotice?: () => void
+  /** The 1:1 chat id with a friend (opens it even before the first message). */
+  dmWith?: (friendUid: string) => string
+  /** Home poster: open the title in its app / site. */
+  openTitle?: (item: TrendingVM) => void
+  /** Friend row's Join / Watch / Jam. */
+  friendAction?: (friend: FriendVM) => void
   settings: {
     signOut: () => void
     inputDevice: (id: string | null) => void

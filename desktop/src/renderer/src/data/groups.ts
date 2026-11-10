@@ -18,12 +18,12 @@ import { cleanGroupName } from './usernames.ts'
 export const GROUP_MAX_MEMBERS = 32
 
 /** Members' info sheet: in the room first, ping state for the rest. Null while loading. */
-export function useGroupMembers(gid: string): GroupMemberVM[] | null {
+export function useGroupMembers(gid: string | null): GroupMemberVM[] | null {
   const me = useUid()
-  const groupSnap = useLive(me ? `groups/${gid}` : null)
-  const roomSnap = useLive(me ? `groupRooms/${gid}` : null)
+  const groupSnap = useLive(me && gid ? `groups/${gid}` : null)
+  const roomSnap = useLive(me && gid ? `groupRooms/${gid}` : null)
   const friendsSnap = useLive(me ? `friends/${me}` : null)
-  const group = useMemo(() => parseGroup(gid, groupSnap?.val), [gid, groupSnap])
+  const group = useMemo(() => (gid ? parseGroup(gid, groupSnap?.val) : null), [gid, groupSnap])
   const room = useMemo(() => parseRoomLink(roomSnap?.val), [roomSnap])
   const uids = useMemo(() => group?.members.map((m) => m.uid) ?? [], [group])
   const profiles = useProfiles(uids)
@@ -35,7 +35,7 @@ export function useGroupMembers(gid: string): GroupMemberVM[] | null {
   const pings = useSyncExternalStore(subscribePings, pingVersion)
   const now = useServerNow()
   return useMemo(() => {
-    if (!me || !groupSnap || !group) return null
+    if (!me || !gid || !groupSnap || !group) return null
     const talking = parseVoiceMembers(voice?.val)
     void pings // re-render when we ping someone
     return buildGroupMembers(

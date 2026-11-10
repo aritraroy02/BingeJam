@@ -1,8 +1,9 @@
-import { get, ref, serverTimestamp, update } from 'firebase/database'
+import { get, ref, serverTimestamp, set, update } from 'firebase/database'
 import { auth, db } from '@/lib/firebase'
 import { isPermissionDenied, requireUid, useLive, useUid } from './live.ts'
 import { parseProfile, type Profile } from './parse.ts'
 import { cleanDisplayName, normalizeUsername, usernameKey, usernameProblem } from './usernames.ts'
+import { parseBirthDate } from './birthDate.ts'
 
 // Profiles (users/{uid}) and unique usernames (usernames/{key} → uid), exactly as Android's
 // FirebaseProfileRepository: the rules only let a name be claimed in the same atomic update that
@@ -109,4 +110,24 @@ export async function writePrivateProfile(): Promise<void> {
   } catch (e) {
     console.warn("Couldn't write users_private", e)
   }
+}
+
+// ---------- Date of birth (users_private/{uid}/dob, like the phone since 0.7.0) ----------
+
+export type BirthDateState = { state: 'loading' } | { state: 'missing' } | { state: 'set'; value: string }
+
+/** Ours only; a refused or failed read stays 'loading' (never send an existing user back to setup by mistake). */
+export function useMyBirthDate(): BirthDateState {
+  const uid = useUid()
+  const snap = useLive(uid ? `users_private/${uid}/dob` : null)
+  if (!uid || !snap || snap.denied) return { state: 'loading' }
+  return typeof snap.val === 'string' ? { state: 'set', value: snap.val } : { state: 'missing' }
+}
+
+/** Writes "YYYY-MM-DD" (checked by the caller with birthDateProblem). users_private must exist first. */
+export async function setBirthDate(value: string): Promise<void> {
+  const uid = requireUid()
+  if (!parseBirthDate(value)) throw new Error('Pick your date of birth')
+  await writePrivateProfile()
+  await set(ref(db, `users_private/${uid}/dob`), value)
 }

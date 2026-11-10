@@ -170,12 +170,12 @@ export function useChats(): ChatSummaryVM[] | null {
 // ---------- One chat's messages ----------
 
 /** Oldest first with day pills, watch cards and "X started a room"; null while loading. */
-export function useChatMessages(chatId: string): MessageVM[] | null {
+export function useChatMessages(chatId: string | null): MessageVM[] | null {
   const me = useUid()
-  const friend = me ? dmFriend(chatId, me) : null
-  const isGroup = !!me && !friend
+  const friend = me && chatId ? dmFriend(chatId, me) : null
+  const isGroup = !!me && !!chatId && !friend
   const specs = useMemo((): LiveSpec[] => {
-    if (!me) return []
+    if (!me || !chatId) return []
     const recent = [orderByChild('sentAt'), limitToLast(MESSAGE_LIMIT)]
     if (friend)
       return [
@@ -191,7 +191,7 @@ export function useChatMessages(chatId: string): MessageVM[] | null {
     ]
   }, [me, friend, chatId])
   const snaps = useLiveMany(specs)
-  const group = isGroup ? parseGroup(chatId, snaps.get('group')?.val) : null
+  const group = isGroup && chatId ? parseGroup(chatId, snaps.get('group')?.val) : null
   const room = parseRoomLink(snaps.get('room')?.val)
   const nameUids = useMemo(() => {
     const out = group ? group.members.map((m) => m.uid) : friend ? [friend] : []
@@ -333,9 +333,9 @@ export function useTypingReporter(chatId: string): { onDraftChange: (text: strin
 }
 
 /** The friend is typing in this 1:1 chat (their entry younger than 6 s in server time). */
-export function useFriendTyping(chatId: string): boolean {
+export function useFriendTyping(chatId: string | null): boolean {
   const me = useUid()
-  const friend = me ? dmFriend(chatId, me) : null
+  const friend = me && chatId ? dmFriend(chatId, me) : null
   const snap = useLive(friend ? `typing/${chatId}/${friend}` : null)
   const stamp = typeof snap?.val === 'number' ? snap.val : null
   const [, tick] = useState(0)
@@ -366,11 +366,11 @@ function useRoomExtras(link: RoomLink | null, me: string | null | undefined): { 
 }
 
 /** The chat header: who, status / member count, and the room (null when nobody's in it). Null while loading. */
-export function useChatHeader(chatId: string): ChatHeaderVM | null {
+export function useChatHeader(chatId: string | null): ChatHeaderVM | null {
   const me = useUid()
-  const friend = me ? dmFriend(chatId, me) : null
+  const friend = me && chatId ? dmFriend(chatId, me) : null
   const specs = useMemo((): LiveSpec[] => {
-    if (!me) return []
+    if (!me || !chatId) return []
     if (friend)
       return [
         { key: 'presence', path: `presence/${friend}` },
@@ -382,7 +382,7 @@ export function useChatHeader(chatId: string): ChatHeaderVM | null {
     ]
   }, [me, friend, chatId])
   const snaps = useLiveMany(specs)
-  const group = !friend ? parseGroup(chatId, snaps.get('group')?.val) : null
+  const group = !friend && chatId ? parseGroup(chatId, snaps.get('group')?.val) : null
   const room = parseRoomLink(snaps.get('room')?.val)
   const uids = useMemo(() => {
     const out = friend ? [friend] : group ? group.members.map((m) => m.uid) : []
@@ -395,7 +395,7 @@ export function useChatHeader(chatId: string): ChatHeaderVM | null {
   const now = useServerNow()
 
   return useMemo(() => {
-    if (!me) return null
+    if (!me || !chatId) return null
     const people = new Map<string, PersonVM>()
     for (const uid of uids) people.set(uid, personOf(profiles.get(uid), uid))
     const talking = parseVoiceMembers(extras.voice?.val).size
