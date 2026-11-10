@@ -4,6 +4,7 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.syncit.core.model.UserProfile
+import com.syncit.core.social.BirthDateState
 import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.UsernameCheck
 import com.syncit.core.social.UsernameTakenException
@@ -18,6 +19,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -162,7 +164,25 @@ class FirebaseProfileRepository internal constructor(
     private suspend fun loadProfile(uid: String): UserProfile? =
         SocialParser.profile(uid, users.child(uid).get().await())
 
+    /** users_private/{uid}/dob: readable by us and the owner only; write-once (rules). */
+    override fun observeMyBirthDate(): Flow<BirthDateState> = session.uid.flatMapLatest { uid ->
+        if (uid == null) {
+            flowOf(BirthDateState.Loading)
+        } else {
+            db.getReference("users_private").child(uid).child("dob").snapshotsOrError().map { s ->
+                s.string()?.let { BirthDateState.Set(it) } ?: BirthDateState.Missing
+            }.catch { emit(BirthDateState.Loading) }
+        }
+    }
+
+    override suspend fun setBirthDate(date: String) {
+        require(BIRTH_DATE.matches(date)) { "Pick your date of birth" }
+        val uid = session.requireUid()
+        db.getReference("users_private").child(uid).child("dob").setValue(date).await()
+    }
+
     companion object {
+        private val BIRTH_DATE = Regex("^(19|20)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$")
         const val MAX_DISPLAY_NAME_LENGTH = 40
         const val MAX_BIO_LENGTH = 160
         const val MAX_SEARCH_RESULTS = 20

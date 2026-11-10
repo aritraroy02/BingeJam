@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.text.style.TextAlign
 import com.syncit.app.ui.glass.GlassRow
@@ -431,6 +432,7 @@ fun GroupInfoScreen(
     onAddPeople: () -> Unit,
     onOpenChat: (uid: String) -> Unit,
     onLeft: () -> Unit,
+    onOpenProfile: (uid: String) -> Unit = {},
 ) {
     val p = Glass.palette
     val state by viewModel.group.collectAsStateWithLifecycle()
@@ -611,6 +613,10 @@ fun GroupInfoScreen(
                         memberFor = null
                         onOpenChat(uid)
                     },
+                    onProfile = {
+                        memberFor = null
+                        onOpenProfile(uid)
+                    },
                     onPing = {
                         memberFor = null
                         viewModel.ping(uid)
@@ -677,6 +683,7 @@ private fun MemberSheet(
     isFriend: Boolean,
     canPing: Boolean,
     onMessage: () -> Unit,
+    onProfile: () -> Unit,
     onPing: () -> Unit,
     onSetAdmin: (Boolean) -> Unit,
     onRemove: () -> Unit,
@@ -691,6 +698,7 @@ private fun MemberSheet(
             Text(name, style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            GlassRow("View profile", icon = Icons.Filled.Person, onClick = onProfile)
             if (isFriend) GlassRow("Message $name", icon = Icons.AutoMirrored.Filled.Send, onClick = onMessage)
             if (canPing) GlassRow("Ask to join the room", icon = Icons.Filled.Notifications, onClick = onPing)
             if (manage) {

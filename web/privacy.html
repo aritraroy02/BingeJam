@@ -67,7 +67,8 @@
     appears on your profile; removing your picture deletes it. Everything else is stored in Google Firebase
     (Realtime Database, Singapore region), so your data is processed outside India by these providers:</p>
   <ul>
-    <li>your profile (username, display name, photo address, bio) and private account record (email, sign-in method);</li>
+    <li>your profile (username, display name, photo address, bio) and private account record (email, sign-in method,
+      <b>date of birth</b>). Your date of birth is never shown to other users; we use it to mark your birthday;</li>
     <li>your <b>friends</b>, friend requests you send or receive, and the people and groups you've <b>blocked</b>;</li>
     <li>a secret code for your personal <b>invite link</b>, readable only by you. A friend request sent from your
       link carries it, so our relay can make you friends straight away; resetting the link replaces the code;</li>
@@ -91,12 +92,6 @@
       link (jams), room chat and reactions. A room's contents are readable only by its members; a room's preview can
       be read by any signed-in user who has the room code, so invitees can see what's playing before joining.</li>
   </ul>
-
-  <h2>Who on our side can see it</h2>
-  <p>The app's owner (the Grievance Officer below) can see the list of accounts (name, username, email, join
-    date, last online, app version and phone model) and send notifications to everyone or to particular people.
-    Developers the owner adds can read crash reports and send notifications to everyone. They can't see your
-    messages, and access needs their own verified account plus their phone's fingerprint, face or screen lock.</p>
 
   <h2>Why we use it (purpose and consent)</h2>
   <p>We process this data only to provide what you ask for: your account and profile, friends and messages,

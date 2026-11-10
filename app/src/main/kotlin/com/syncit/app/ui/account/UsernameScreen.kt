@@ -26,6 +26,7 @@ import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.SectionLabel
+import com.syncit.app.ui.profile.BirthDateField
 import com.syncit.app.ui.theme.Glass
 
 @Composable
@@ -72,11 +73,16 @@ fun UsernameScreen(viewModel: UsernameViewModel) {
                 )
                 Text("Shown to friends and in watch parties.", style = MaterialTheme.typography.bodySmall, color = p.textTertiary)
             }
+            GlassPanel(Modifier.fillMaxWidth()) {
+                SectionLabel("Date of birth")
+                BirthDateField(ui.birthDate, onPick = viewModel::onBirthDateChange)
+                Text("Private. Friends and other people never see it.", style = MaterialTheme.typography.bodySmall, color = p.textTertiary)
+            }
             GlassButton(
                 "Continue",
                 onClick = viewModel::submit,
                 icon = Icons.AutoMirrored.Filled.ArrowForward,
-                enabled = status is UsernameAvailability.Status.Available && ui.displayName.isNotBlank(),
+                enabled = status is UsernameAvailability.Status.Available && ui.displayName.isNotBlank() && ui.birthDate != null,
                 loading = ui.busy,
                 modifier = Modifier.fillMaxWidth(),
             )

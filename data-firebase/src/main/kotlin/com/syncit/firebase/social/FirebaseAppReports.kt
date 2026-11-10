@@ -132,6 +132,8 @@ internal class FirebaseAppReports(
                 displayName = u.child("displayName").string().orEmpty(),
                 photoUrl = u.child("photoUrl").string(),
                 email = p?.child("email")?.string(),
+                birthDate = p?.child("dob")?.string(),
+                bio = u.child("bio").string(),
                 provider = p?.child("provider")?.string(),
                 joinedAt = u.child("createdAt").long() ?: 0L,
                 online = pr?.child("online")?.value == true,

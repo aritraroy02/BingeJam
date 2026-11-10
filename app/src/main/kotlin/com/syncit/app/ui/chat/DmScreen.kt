@@ -7,6 +7,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -80,6 +84,8 @@ fun DmScreen(
     /** Opens the room; waitingFor = the friend we just invited (null when joining a live room). */
     onOpenRoom: (code: String, waitingFor: String?) -> Unit = { _, _ -> },
     onChatDeleted: () -> Unit = onBack,
+    /** Tapping the picture or name opens their profile (2026-11-10). */
+    onOpenProfile: () -> Unit = {},
 ) {
     val p = Glass.palette
     val room by viewModel.room.collectAsStateWithLifecycle()
@@ -141,6 +147,13 @@ fun DmScreen(
             ) {
                 GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack)
                 Spacer(Modifier.width(12.dp))
+                Row(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(role = Role.Button, onClickLabel = "View profile", onClick = onOpenProfile),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                 Avatar(
                     name.ifEmpty { "?" },
                     size = 40.dp,
@@ -164,6 +177,7 @@ fun DmScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
                 }
                 // The chat's room, like WhatsApp's call button (user's request, 2026-11-05).
                 if (!notFriends && friend != null) {

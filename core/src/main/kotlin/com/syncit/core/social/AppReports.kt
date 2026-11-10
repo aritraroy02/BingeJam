@@ -43,6 +43,9 @@ data class AppUser(
     val displayName: String,
     val photoUrl: String?,
     val email: String?,
+    /** "YYYY-MM-DD", private to them and the owner. */
+    val birthDate: String?,
+    val bio: String?,
     val provider: String?,
     val joinedAt: Long,
     val online: Boolean,

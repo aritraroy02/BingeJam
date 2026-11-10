@@ -1,5 +1,7 @@
 package com.syncit.app.ui.friends
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
@@ -53,7 +56,12 @@ import com.syncit.app.ui.theme.Glass
 
 /** [onBack] is null when Friends is a tab (no back arrow). */
 @Composable
-fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?, onInvite: () -> Unit = {}) {
+fun FriendsScreen(
+    viewModel: FriendsViewModel,
+    onBack: (() -> Unit)?,
+    onInvite: () -> Unit = {},
+    onOpenProfile: (uid: String) -> Unit = {},
+) {
     val p = Glass.palette
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
@@ -109,7 +117,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?, onInvite: 
                             )
                         }
                         for (r in results) {
-                            PersonRow(r.profile.displayName, "@${r.profile.username}", r.profile.photoUrl) {
+                            PersonRow(r.profile.displayName, "@${r.profile.username}", r.profile.photoUrl, onClick = { onOpenProfile(r.profile.uid) }) {
                                 when (r.relation) {
                                     Relation.NONE -> GlassSmallButton("Add", onClick = { viewModel.add(r.profile) }, enabled = r.profile.uid !in busy)
                                     Relation.INCOMING -> GlassSmallButton("Accept", onClick = { viewModel.acceptFrom(r.profile) }, enabled = r.profile.uid !in busy)
@@ -154,7 +162,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?, onInvite: 
                     }
                     GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(12.dp)) {
                         for (req in incoming) {
-                            PersonRow("@${req.fromUsername}", "${req.fromDisplayName} · wants to be friends") {
+                            PersonRow("@${req.fromUsername}", "${req.fromDisplayName} · wants to be friends", onClick = { onOpenProfile(req.fromUid) }) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     GlassSmallButton("Decline", onClick = { viewModel.decline(req) }, primary = false, enabled = req.fromUid !in busy)
                                     GlassSmallButton(
@@ -210,10 +218,17 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?, onInvite: 
 }
 
 @Composable
-private fun PersonRow(name: String, subtitle: String, photoUrl: String? = null, trailing: @Composable () -> Unit) {
+private fun PersonRow(name: String, subtitle: String, photoUrl: String? = null, onClick: (() -> Unit)? = null, trailing: @Composable () -> Unit) {
     // Request rows lead with "@username"; the avatar letter skips the @.
     val p = Glass.palette
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Avatar(name.removePrefix("@"), size = 42.dp, photoUrl = photoUrl)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

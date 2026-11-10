@@ -75,7 +75,11 @@ import com.syncit.app.ui.invite.InviteViewModel
 import com.syncit.app.ui.join.JoinPreviewScreen
 import com.syncit.app.ui.join.JoinPreviewViewModel
 import com.syncit.app.ui.onboarding.OnboardingScreen
+import com.syncit.app.ui.profile.BirthdayGate
+import com.syncit.app.ui.profile.BirthdayGateViewModel
 import com.syncit.app.ui.profile.ProfileScreen
+import com.syncit.app.ui.profile.UserProfileScreen
+import com.syncit.app.ui.profile.UserProfileViewModel
 import com.syncit.app.ui.profile.ProfileViewModel
 import com.syncit.app.ui.room.OngoingRoomBar
 import com.syncit.app.ui.room.OngoingRoomViewModel
@@ -141,6 +145,9 @@ sealed interface Screen {
 
     /** Our invite link and QR (2026-11-10); [welcome] = the one-time "Bring a friend" step after setup. */
     data class Invite(val welcome: Boolean = false) : Screen
+
+    /** Someone's profile page (2026-11-10). */
+    data class UserProfile(val uid: String) : Screen
 
     /** Crash reports, users and notifications: owner and developers only (2026-11-10). */
     data object AppReports : Screen
@@ -388,6 +395,12 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
 
             SocialBanners(events)
 
+            // Everyone who joined before dates of birth were required is asked once, and can't skip it.
+            if (!container.social.isFake) {
+                val birthday: BirthdayGateViewModel = viewModel(factory = viewModelFactory { initializer { BirthdayGateViewModel(container) } })
+                BirthdayGate(birthday)
+            }
+
             BottomTabs(
                 tab = currentTab?.takeIf { openSheets.intValue == 0 },
                 unreadChats = unreadChats,
@@ -489,6 +502,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
                     onGroupInfo = { id -> nav.push(Screen.GroupInfo(id)) },
                     onInvite = { nav.push(Screen.Invite()) },
+                    onViewProfile = { uid -> nav.push(Screen.UserProfile(uid)) },
                 )
             }
 
@@ -516,6 +530,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     onBack = nav::pop,
                     onAddPeople = { nav.push(Screen.AddGroupMembers(screen.groupId)) },
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
+                    onOpenProfile = { uid -> nav.push(Screen.UserProfile(uid)) },
                     onLeft = { nav.reset(Screen.Chats) },
                 )
             }
@@ -541,7 +556,12 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
 
             Screen.Friends -> {
                 val vm: FriendsViewModel = viewModel(factory = viewModelFactory { initializer { FriendsViewModel(container) } })
-                FriendsScreen(vm, onBack = if (entry.depth > 1) nav::pop else null, onInvite = { nav.push(Screen.Invite()) })
+                FriendsScreen(
+                    vm,
+                    onBack = if (entry.depth > 1) nav::pop else null,
+                    onInvite = { nav.push(Screen.Invite()) },
+                    onOpenProfile = { uid -> nav.push(Screen.UserProfile(uid)) },
+                )
             }
 
             is Screen.Chat -> {
@@ -553,6 +573,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     vm,
                     onBack = nav::pop,
                     onOpenRoom = { code, waitingFor -> nav.push(Screen.Room(code, waitingFor = waitingFor)) },
+                    onOpenProfile = { nav.push(Screen.UserProfile(screen.friendUid)) },
                 )
             }
 
@@ -614,6 +635,14 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
             is Screen.Invite -> {
                 val vm: InviteViewModel = viewModel(key = "invite", factory = viewModelFactory { initializer { InviteViewModel(container) } })
                 InviteScreen(vm, welcome = screen.welcome, onDone = { if (screen.welcome) nav.reset(Screen.Home) else nav.pop() })
+            }
+
+            is Screen.UserProfile -> {
+                val vm: UserProfileViewModel = viewModel(
+                    key = "user-${screen.uid}",
+                    factory = viewModelFactory { initializer { UserProfileViewModel(screen.uid, container) } },
+                )
+                UserProfileScreen(vm, onBack = nav::pop, onMessage = { uid -> nav.push(Screen.Chat(uid)) })
             }
 
             Screen.AppReports -> {

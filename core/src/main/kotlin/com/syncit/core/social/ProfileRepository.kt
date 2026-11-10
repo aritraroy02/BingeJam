@@ -2,6 +2,7 @@ package com.syncit.core.social
 
 import com.syncit.core.model.UserProfile
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Profiles and unique usernames. usernames/{username} → uid is claimed atomically (rules allow
@@ -39,6 +40,24 @@ interface ProfileRepository {
 
     /** Usernames starting with [prefix] (at least 2 chars), for search-as-you-type. */
     suspend fun searchByPrefix(prefix: String, limit: Int = 10): List<UserProfile>
+
+    /**
+     * Our date of birth, "YYYY-MM-DD" (2026-11-10, required for everyone). Private: only we and the
+     * app's owner can read it. Emits [BirthDateState.Missing] once loaded and unset.
+     */
+    fun observeMyBirthDate(): Flow<BirthDateState> = flowOf(BirthDateState.NotNeeded)
+
+    /** Sets it once; the database refuses changes after that. */
+    suspend fun setBirthDate(date: String) = Unit
+}
+
+sealed interface BirthDateState {
+    data object Loading : BirthDateState
+    data object Missing : BirthDateState
+    data class Set(val date: String) : BirthDateState
+
+    /** The debug fakes: never asked. */
+    data object NotNeeded : BirthDateState
 }
 
 sealed interface UsernameCheck {

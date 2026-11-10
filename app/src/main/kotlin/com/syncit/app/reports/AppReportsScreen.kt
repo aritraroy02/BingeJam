@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -64,10 +65,13 @@ import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.glass.raised
+import com.syncit.app.ui.profile.BirthDates
+import com.syncit.app.ui.profile.PhotoViewer
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.social.AppUser
 import com.syncit.core.social.Staff
 import com.syncit.core.social.StaffRole
+import java.time.LocalDate
 
 private enum class Tab(val label: String) { CRASHES("Crashes"), USERS("Users"), NOTIFY("Notify"), TEAM("Team") }
 
@@ -84,16 +88,28 @@ fun AppReportsScreen(viewModel: AppReportsViewModel, onBack: () -> Unit) {
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val unlock = rememberStaffUnlock { ok -> if (ok) viewModel.onUnlocked(context) else viewModel.onUnlockFailed(context) }
     var openGroup by rememberSaveable { mutableStateOf<String?>(null) }
+    var openUser by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Straight to the prompt; the button below is for a second try.
     LaunchedEffect(role, lock) { if (role != null && lock == AppReportsViewModel.Lock.LOCKED) unlock() }
-    BackHandler(enabled = openGroup != null) { openGroup = null }
+    BackHandler(enabled = openGroup != null || openUser != null) {
+        openGroup = null
+        openUser = null
+    }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(
                 title = "App reports",
-                navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", { if (openGroup != null) openGroup = null else onBack() }) },
+                navigation = {
+                    GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", {
+                        when {
+                            openGroup != null -> openGroup = null
+                            openUser != null -> openUser = null
+                            else -> onBack()
+                        }
+                    })
+                },
             )
             val r = role
             when {
@@ -113,7 +129,7 @@ fun AppReportsScreen(viewModel: AppReportsViewModel, onBack: () -> Unit) {
                     )
                     GlassButton("Unlock", onClick = unlock, icon = Icons.Filled.Lock)
                 }
-                else -> Unlocked(viewModel, r, openGroup, onOpenGroup = { openGroup = it })
+                else -> Unlocked(viewModel, r, openGroup, onOpenGroup = { openGroup = it }, openUser, onOpenUser = { openUser = it })
             }
         }
         NoticeBanner(notice, viewModel::dismissNotice, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
@@ -128,13 +144,26 @@ private fun Centered(text: String) {
 }
 
 @Composable
-private fun Unlocked(viewModel: AppReportsViewModel, role: StaffRole, openGroup: String?, onOpenGroup: (String?) -> Unit) {
+private fun Unlocked(
+    viewModel: AppReportsViewModel,
+    role: StaffRole,
+    openGroup: String?,
+    onOpenGroup: (String?) -> Unit,
+    openUser: String?,
+    onOpenUser: (String?) -> Unit,
+) {
     val tabs = if (role == StaffRole.OWNER) Tab.entries else listOf(Tab.CRASHES, Tab.NOTIFY)
     var tab by rememberSaveable { mutableStateOf(Tab.CRASHES) }
     val crashes by viewModel.crashes.collectAsStateWithLifecycle()
     val group = openGroup?.let { sig -> crashes?.firstOrNull { it.sig == sig } }
     if (group != null) {
         CrashGroupView(group, viewModel)
+        return
+    }
+    val users by viewModel.users.collectAsStateWithLifecycle()
+    val user = openUser?.let { uid -> users?.firstOrNull { it.uid == uid } }
+    if (role == StaffRole.OWNER && user != null) {
+        UserDetail(user, viewModel)
         return
     }
     Column(Modifier.fillMaxSize()) {
@@ -150,7 +179,7 @@ private fun Unlocked(viewModel: AppReportsViewModel, role: StaffRole, openGroup:
         ) {
             when (tab) {
                 Tab.CRASHES -> CrashesTab(viewModel, crashes, onOpenGroup)
-                Tab.USERS -> UsersTab(viewModel)
+                Tab.USERS -> UsersTab(viewModel, onOpenUser)
                 Tab.NOTIFY -> NotifyTab(viewModel, role)
                 Tab.TEAM -> TeamTab(viewModel)
             }
@@ -284,7 +313,7 @@ private fun ago(at: Long): String =
 // ---- Users (owner) ----
 
 @Composable
-private fun UsersTab(viewModel: AppReportsViewModel) {
+private fun UsersTab(viewModel: AppReportsViewModel, onOpenUser: (String?) -> Unit) {
     val p = Glass.palette
     val users by viewModel.users.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
@@ -295,10 +324,43 @@ private fun UsersTab(viewModel: AppReportsViewModel) {
     }
     val online = list.count { it.online }
     SectionLabel("${list.size} ${if (list.size == 1) "person" else "people"} joined · $online online now")
+    // Birthdays in the next 30 days, soonest first: for planning surprises.
+    val today = LocalDate.now()
+    val soon = list.mapNotNull { u -> BirthDates.parse(u.birthDate)?.let { d -> Triple(u, d, BirthDates.daysUntil(d, today)) } }
+        .filter { it.third <= BIRTHDAY_WINDOW_DAYS }
+        .sortedBy { it.third }
+    if (soon.isNotEmpty()) {
+        SectionLabel("Birthdays soon")
+        GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 8.dp), spacing = 0.dp) {
+            for ((u, d, days) in soon) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { onOpenUser(u.uid) }.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(u.displayName.ifEmpty { "?" }, size = 32.dp, photoUrl = u.photoUrl)
+                    Spacer(Modifier.width(12.dp))
+                    Text(u.displayName, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        "turns ${BirthDates.age(d, BirthDates.nextBirthday(d, today))} ${BirthDates.whenText(days)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (days == 0L) p.accentText else p.textSecondary,
+                    )
+                }
+            }
+        }
+    }
+    val missing = list.count { it.birthDate == null }
+    if (missing > 0) {
+        Text(
+            "$missing ${if (missing == 1) "person hasn't" else "people haven't"} answered the birthday question yet (they're asked next time they open the app).",
+            style = MaterialTheme.typography.bodySmall,
+            color = p.textTertiary,
+        )
+    }
     GlassTextField(query, { query = it }, "Search name, username or email", leadingIcon = Icons.Filled.Search, modifier = Modifier.fillMaxWidth())
     val shown = list.filter { it.matches(query) }
     GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 8.dp), spacing = 0.dp) {
-        for (u in shown) UserRow(u)
+        for (u in shown) UserRow(u, onClick = { onOpenUser(u.uid) })
         if (shown.isEmpty()) Text("Nobody matches.", style = MaterialTheme.typography.bodySmall, color = p.textSecondary, modifier = Modifier.padding(16.dp))
     }
 }
@@ -309,9 +371,15 @@ private fun AppUser.matches(q: String): Boolean {
 }
 
 @Composable
-private fun UserRow(u: AppUser, trailing: (@Composable () -> Unit)? = null) {
+private fun UserRow(u: AppUser, onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null) {
     val p = Glass.palette
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Avatar(u.displayName.ifEmpty { "?" }, size = 40.dp, online = u.online, photoUrl = u.photoUrl)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -337,6 +405,73 @@ private fun UserRow(u: AppUser, trailing: (@Composable () -> Unit)? = null) {
             )
         }
         trailing?.invoke()
+    }
+}
+
+/** Everything the owner can see about one person (2026-11-10). */
+@Composable
+private fun UserDetail(u: AppUser, viewModel: AppReportsViewModel) {
+    val p = Glass.palette
+    val context = LocalContext.current
+    var viewing by remember { mutableStateOf(false) }
+    val birth = BirthDates.parse(u.birthDate)
+    val today = LocalDate.now()
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Avatar(
+            u.displayName.ifEmpty { "?" },
+            size = 112.dp,
+            photoUrl = u.photoUrl,
+            online = u.online,
+            modifier = Modifier.clip(CircleShape).clickable(enabled = u.photoUrl != null) { viewing = true },
+        )
+        Text(u.displayName, style = MaterialTheme.typography.headlineSmall, color = p.textPrimary, textAlign = TextAlign.Center)
+        Text("@${u.username}", style = MaterialTheme.typography.bodyMedium, color = p.textSecondary)
+        u.bio?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary, textAlign = TextAlign.Center) }
+        GlassPanel(Modifier.fillMaxWidth(), spacing = 8.dp) {
+            Field("Email", u.email ?: "Not recorded")
+            Field(
+                "Birthday",
+                birth?.let { d ->
+                    val days = BirthDates.daysUntil(d, today)
+                    "${BirthDates.display(d)} · ${BirthDates.age(d, today)} years old · next one ${BirthDates.whenText(days)}"
+                } ?: "Not given yet (asked next time they open the app)",
+            )
+            Field("Signed in with", u.provider ?: "Unknown")
+            Field("Joined", if (u.joinedAt > 0) DateUtils.formatDateTime(context, u.joinedAt, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR) else "Unknown")
+            Field("Last online", if (u.online) "Online now" else u.lastSeen?.let { ago(it) } ?: "Unknown")
+            Field("Phone", listOfNotNull(u.device, u.android?.let { "Android $it" }).joinToString(" · ").ifEmpty { "Not recorded yet" })
+            Field("App", u.appVersion?.let { "v$it" } ?: "Not recorded yet")
+            Field("User ID", u.uid)
+        }
+        GlassButton(
+            "Copy details",
+            onClick = {
+                val text = buildString {
+                    appendLine("${u.displayName} (@${u.username})")
+                    u.email?.let { appendLine("Email: $it") }
+                    birth?.let { appendLine("Birthday: ${BirthDates.display(it)}") }
+                    appendLine("User ID: ${u.uid}")
+                }.trimEnd()
+                if (copyToClipboard(context, text) && !systemShowsCopies()) viewModel.showNotice("Copied")
+            },
+            style = GlassButtonStyle.Secondary,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    val photo = u.photoUrl
+    if (viewing && photo != null) PhotoViewer(photo, u.displayName) { viewing = false }
+}
+
+@Composable
+private fun Field(label: String, value: String) {
+    val p = Glass.palette
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
     }
 }
 
@@ -466,3 +601,4 @@ private fun TeamTab(viewModel: AppReportsViewModel) {
 private const val MAX_TITLE = 65
 private const val MAX_BODY = 240
 private const val MAX_PICK = 20
+private const val BIRTHDAY_WINDOW_DAYS = 30L

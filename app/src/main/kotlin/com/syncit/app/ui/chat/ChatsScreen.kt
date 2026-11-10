@@ -253,6 +253,8 @@ fun ChatsScreen(
     onStartRoomWith: (code: String, friendUid: String) -> Unit = { _, _ -> },
     onGroupInfo: (groupId: String) -> Unit = {},
     onInvite: () -> Unit = {},
+    /** The profile page; without it, long-press "View profile" opens the friend sheet. */
+    onViewProfile: ((uid: String) -> Unit)? = null,
 ) {
     val p = Glass.palette
     val rows by viewModel.rows.collectAsStateWithLifecycle()
@@ -395,7 +397,9 @@ fun ChatsScreen(
                 onAction = { action ->
                     menuFor = null
                     when (action) {
-                        ChatRowAction.VIEW_PROFILE -> (entry as? ChatEntry.Dm)?.let { profileUid = it.row.uid }
+                        ChatRowAction.VIEW_PROFILE -> (entry as? ChatEntry.Dm)?.let { e ->
+                            if (onViewProfile != null) onViewProfile(e.row.uid) else profileUid = e.row.uid
+                        }
                         ChatRowAction.DELETE_CHAT -> (entry as? ChatEntry.Dm)?.let { deleteFor = it.row }
                         ChatRowAction.GROUP_INFO -> (entry as? ChatEntry.Grp)?.let { onGroupInfo(it.row.group.id) }
                         ChatRowAction.LEAVE_GROUP -> (entry as? ChatEntry.Grp)?.let { leaveFor = it.row }

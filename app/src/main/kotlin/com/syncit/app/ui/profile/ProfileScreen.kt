@@ -1,5 +1,6 @@
 package com.syncit.app.ui.profile
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,8 +21,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -87,6 +93,7 @@ fun ProfileScreen(
     val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
     val invisible by viewModel.invisible.collectAsStateWithLifecycle()
     val shared by viewModel.sharedApps.collectAsStateWithLifecycle()
+    var viewingPhoto by remember { mutableStateOf(false) }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -105,7 +112,13 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                    Avatar(profile?.displayName ?: "?", size = 84.dp, photoUrl = profile?.photoUrl)
+                    val photo = profile?.photoUrl
+                    Avatar(
+                        profile?.displayName ?: "?",
+                        size = 84.dp,
+                        photoUrl = photo,
+                        modifier = Modifier.clip(CircleShape).clickable(enabled = photo != null, onClickLabel = "View profile picture") { viewingPhoto = true },
+                    )
                     Spacer(Modifier.width(20.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -171,4 +184,6 @@ fun ProfileScreen(
             }
         }
     }
+    val photo = profile?.photoUrl
+    if (viewingPhoto && photo != null) PhotoViewer(photo, profile?.displayName.orEmpty()) { viewingPhoto = false }
 }
