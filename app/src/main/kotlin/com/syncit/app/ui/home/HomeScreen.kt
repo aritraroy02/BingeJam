@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.syncit.app.data.UpdateChecker
+import com.syncit.app.data.WatchlistItem
 import com.syncit.app.social.ActivityLinks
 import com.syncit.app.social.ActivityText
 import com.syncit.app.ui.common.rememberArtwork
@@ -105,6 +106,7 @@ fun HomeScreen(
     var sheetUid by rememberSaveable { mutableStateOf<String?>(null) }
     val trending by viewModel.trending.collectAsStateWithLifecycle()
     val trendingFilter by viewModel.trendingFilter.collectAsStateWithLifecycle()
+    val watchlist by viewModel.watchlist.collectAsStateWithLifecycle()
     var pick by remember { mutableStateOf<Pair<TrendingTitle, StreamingService>?>(null) }
     LaunchedEffect(Unit) { viewModel.refreshLastRoom() }
 
@@ -128,6 +130,10 @@ fun HomeScreen(
                 }
                 if (liveRooms.isNotEmpty()) {
                     LiveRoomsRow(liveRooms, onOpen = onOpenLiveRoom, modifier = Modifier.staggerIn(0))
+                }
+
+                if (watchlist.isNotEmpty()) {
+                    WatchlistRow(watchlist, onOpen = { title, service -> pick = title to service }, modifier = Modifier.staggerIn(1))
                 }
 
                 TrendingSection(
@@ -163,6 +169,10 @@ fun HomeScreen(
                     title = title,
                     service = service,
                     busy = ui.busy,
+                    saved = watchlist.any { it.key == WatchlistItem.keyOf(title) },
+                    onToggleSaved = { viewModel.toggleWatchlist(title, service) },
+                    available = servicesFor(title, trending),
+                    onPickService = { other -> pick = title to other },
                     onWithFriends = {
                         viewModel.watchWithFriends(title, service) { code ->
                             pick = null

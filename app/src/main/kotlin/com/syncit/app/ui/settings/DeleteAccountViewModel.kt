@@ -301,6 +301,7 @@ private class ContainerDeletionHooks(
         // The eraser already left the room server-side; only local room state remains.
         stoppedRoom = null
         container.prefs.clearAccount(uid) // also lastRoomCode / pendingJoinCode
+        container.watchlist.clear()
         container.socialSession.endAccountDeletion()
         PushNotifications.deleteLocalToken()
     }

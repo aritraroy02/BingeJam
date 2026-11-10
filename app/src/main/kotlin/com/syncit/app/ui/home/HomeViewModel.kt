@@ -9,6 +9,7 @@ import com.syncit.core.lookup.TrendingRow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.data.UpdateChecker
+import com.syncit.app.data.WatchlistItem
 import com.syncit.app.di.AppContainer
 import com.syncit.app.social.ActivityText
 import com.syncit.app.social.RoomWording
@@ -159,6 +160,13 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val watchlist: StateFlow<List<WatchlistItem>> = container.watchlist.items
+
+    fun toggleWatchlist(title: TrendingTitle, service: StreamingService) {
+        val saved = container.watchlist.toggle(title, service)
+        showMessage(if (saved) "Saved to your watchlist" else "Removed from your watchlist")
+    }
 
     /** Looks up [title]'s link in [service] (null = not found) and hands it to [open]. */
     fun watchAlone(title: TrendingTitle, service: StreamingService, open: (String?) -> Unit) {

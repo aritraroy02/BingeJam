@@ -2,6 +2,7 @@ package com.syncit.app.di
 
 import android.app.Application
 import com.syncit.app.data.UserPrefs
+import com.syncit.app.data.Watchlist
 import com.syncit.app.social.WatchTogetherRecorder
 import com.syncit.core.lookup.TitleLookup
 import com.syncit.core.lookup.TrendingCatalog
@@ -49,6 +50,7 @@ class AppContainer(app: Application) : SyncDependencies {
 
     val sessionController: SyncSessionController = AndroidSyncSessionController(app)
     val prefs = UserPrefs(app)
+    val watchlist = Watchlist(app)
 
     /** Exact-title IDs for the room's "Play in Netflix" (none with the debug fakes). */
     val titleLookup: TitleLookup = firebase?.titleLookup ?: TitleLookup.None

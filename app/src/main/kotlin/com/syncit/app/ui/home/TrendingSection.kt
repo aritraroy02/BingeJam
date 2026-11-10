@@ -36,7 +36,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
+import com.syncit.app.data.WatchlistItem
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -131,6 +134,25 @@ internal fun TrendingSection(
         )
     }
 }
+
+/** "Your watchlist": saved posters, newest first; tap one for the same sheet as a trending poster. */
+@Composable
+internal fun WatchlistRow(items: List<WatchlistItem>, onOpen: (TrendingTitle, StreamingService) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionLabel("Your watchlist")
+        LazyRow(
+            modifier = Modifier.bleed(),
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(items, key = { it.key }) { item -> PosterCard(item.title) { onOpen(item.title, item.service) } }
+        }
+    }
+}
+
+/** The apps among [rows] that [title] is trending on ("where can I watch this?"). */
+internal fun servicesFor(title: TrendingTitle, rows: List<TrendingRow>?): List<StreamingService> =
+    rows.orEmpty().filter { row -> row.titles.any { it.tmdbId == title.tmdbId && it.type == title.type } }.map { it.service }
 
 /** Widens a horizontal row to the screen edges so items scroll under Home's 20 dp gutters. */
 private fun Modifier.bleed(): Modifier = layout { measurable, constraints ->
@@ -259,7 +281,10 @@ private fun Poster(title: TrendingTitle, modifier: Modifier) {
     }
 }
 
-/** The tapped poster: watch it with friends (a room, then invites) or alone. */
+/**
+ * The tapped poster: watch it with friends (a room, then invites) or alone, save it for later, and
+ * which other apps have it ([available], from the trending rows; tap one to switch to it).
+ */
 @Composable
 internal fun TrendingSheetContent(
     title: TrendingTitle,
@@ -267,6 +292,10 @@ internal fun TrendingSheetContent(
     busy: Boolean,
     onWithFriends: () -> Unit,
     onAlone: () -> Unit,
+    saved: Boolean = false,
+    onToggleSaved: () -> Unit = {},
+    available: List<StreamingService> = emptyList(),
+    onPickService: (StreamingService) -> Unit = {},
 ) {
     val p = Glass.palette
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -293,6 +322,22 @@ internal fun TrendingSheetContent(
             style = GlassButtonStyle.Secondary,
             modifier = Modifier.fillMaxWidth(),
         )
+        GlassButton(
+            if (saved) "On your watchlist" else "Save to watchlist",
+            onClick = onToggleSaved,
+            icon = if (saved) Icons.Filled.Check else Icons.Filled.Add,
+            style = GlassButtonStyle.Secondary,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    val others = available.filter { it != service }
+    if (others.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Also on", style = MaterialTheme.typography.labelLarge, color = p.textSecondary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (other in others) FilterPill(other.displayName, false) { onPickService(other) }
+            }
+        }
     }
     Text(
         "Watch with friends starts a room and lets you invite them. Everyone needs their own ${service.displayName} subscription.",
