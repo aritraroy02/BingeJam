@@ -207,7 +207,6 @@ fun UserProfileScreen(viewModel: UserProfileViewModel, onBack: () -> Unit, onMes
                         profile.displayName.ifEmpty { "?" },
                         size = 120.dp,
                         photoUrl = photo,
-                        online = state.friend?.presence?.online,
                         modifier = Modifier
                             .clip(CircleShape)
                             .clickable(enabled = photo != null, role = Role.Image, onClickLabel = "View profile picture") { viewing = true },

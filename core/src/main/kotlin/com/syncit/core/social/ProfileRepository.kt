@@ -47,7 +47,7 @@ interface ProfileRepository {
      */
     fun observeMyBirthDate(): Flow<BirthDateState> = flowOf(BirthDateState.NotNeeded)
 
-    /** Sets it once; the database refuses changes after that. */
+    /** Sets or changes it (Edit profile). The app only allows 18+ dates. */
     suspend fun setBirthDate(date: String) = Unit
 }
 

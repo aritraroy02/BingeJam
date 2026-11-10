@@ -27,6 +27,7 @@ import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.profile.BirthDateField
+import com.syncit.app.ui.profile.BirthDates
 import com.syncit.app.ui.theme.Glass
 
 @Composable
@@ -82,7 +83,7 @@ fun UsernameScreen(viewModel: UsernameViewModel) {
                 "Continue",
                 onClick = viewModel::submit,
                 icon = Icons.AutoMirrored.Filled.ArrowForward,
-                enabled = status is UsernameAvailability.Status.Available && ui.displayName.isNotBlank() && ui.birthDate != null,
+                enabled = status is UsernameAvailability.Status.Available && ui.displayName.isNotBlank() && ui.birthDate?.let { BirthDates.problem(it) } == null && ui.birthDate != null,
                 loading = ui.busy,
                 modifier = Modifier.fillMaxWidth(),
             )

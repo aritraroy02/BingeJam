@@ -425,7 +425,6 @@ private fun UserDetail(u: AppUser, viewModel: AppReportsViewModel) {
             u.displayName.ifEmpty { "?" },
             size = 112.dp,
             photoUrl = u.photoUrl,
-            online = u.online,
             modifier = Modifier.clip(CircleShape).clickable(enabled = u.photoUrl != null) { viewing = true },
         )
         Text(u.displayName, style = MaterialTheme.typography.headlineSmall, color = p.textPrimary, textAlign = TextAlign.Center)

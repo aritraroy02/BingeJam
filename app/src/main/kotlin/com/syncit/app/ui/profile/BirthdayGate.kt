@@ -70,7 +70,7 @@ class BirthdayGateViewModel(container: AppContainer) : ViewModel() {
     }
 
     fun save() {
-        val date = _picked.value?.takeIf { BirthDates.isValid(it) } ?: return
+        val date = _picked.value?.takeIf { BirthDates.problem(it) == null } ?: return
         if (_saving.value) return
         viewModelScope.launch {
             _saving.value = true
@@ -139,7 +139,7 @@ fun BirthdayGate(viewModel: BirthdayGateViewModel) {
                     GlassButton(
                         "That's my birthday",
                         onClick = viewModel::save,
-                        enabled = picked != null && !saving,
+                        enabled = picked?.let { BirthDates.problem(it) } == null && picked != null && !saving,
                         loading = saving,
                         modifier = Modifier.fillMaxWidth(),
                     )

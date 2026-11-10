@@ -40,4 +40,10 @@ class BirthDatesTest {
         assertEquals("tomorrow", BirthDates.whenText(1))
         assertEquals("in 12 days", BirthDates.whenText(12))
     }
+
+    @Test fun under18IsRefusedWithAClearMessage() {
+        assertEquals("You need to be 18 or older to use BingeJam", BirthDates.problem(LocalDate.of(2008, 11, 11), today))
+        assertNull(BirthDates.problem(LocalDate.of(2008, 11, 10), today))
+        assertEquals("That doesn't look like a real date of birth", BirthDates.problem(LocalDate.of(2030, 1, 1), today))
+    }
 }

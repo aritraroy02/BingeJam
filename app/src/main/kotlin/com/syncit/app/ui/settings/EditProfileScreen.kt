@@ -43,6 +43,8 @@ import com.syncit.app.ui.glass.GlassSmallButton
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.SectionLabel
+import com.syncit.app.ui.profile.BirthDateField
+import com.syncit.app.ui.profile.BirthDates
 import com.syncit.app.ui.theme.Glass
 
 @Composable
@@ -139,10 +141,15 @@ fun EditProfileScreen(viewModel: EditProfileViewModel, onBack: () -> Unit) {
                         modifier = Modifier.align(Alignment.End),
                     )
                 }
+                GlassPanel(Modifier.fillMaxWidth()) {
+                    SectionLabel("Date of birth")
+                    BirthDateField(ui.birthDate, onPick = viewModel::onBirthDateChange)
+                    Text("Private. Friends and other people never see it.", style = MaterialTheme.typography.bodySmall, color = p.textTertiary)
+                }
                 GlassButton(
                     "Save",
                     onClick = { viewModel.save(onSaved = onBack) },
-                    enabled = usernameOk && ui.displayName.isNotBlank(),
+                    enabled = usernameOk && ui.displayName.isNotBlank() && ui.birthDate?.let { BirthDates.problem(it) } == null,
                     loading = ui.saving,
                     modifier = Modifier.fillMaxWidth(),
                 )

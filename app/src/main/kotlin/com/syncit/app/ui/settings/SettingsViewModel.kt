@@ -14,6 +14,8 @@ import com.syncit.app.social.UsernameRules
 import com.syncit.core.model.Activity
 import com.syncit.core.model.AuthState
 import com.syncit.core.model.GroupInvitePolicy
+import com.syncit.app.ui.profile.BirthDates
+import com.syncit.core.social.BirthDateState
 import com.syncit.core.model.UserProfile
 import com.syncit.core.social.AvatarException
 import com.syncit.core.social.UsernameTakenException
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     private val social = container.social
@@ -113,6 +116,8 @@ class EditProfileViewModel(container: AppContainer) : ViewModel() {
         val displayName: String = "",
         val bio: String = "",
         val photoUrl: String? = null,
+        /** Editable (user's request, 2026-11-10); still private and 18+. */
+        val birthDate: LocalDate? = null,
         val photoBusy: Boolean = false,
         val saving: Boolean = false,
         val saved: Boolean = false,
@@ -123,6 +128,7 @@ class EditProfileViewModel(container: AppContainer) : ViewModel() {
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
     private var current: UserProfile? = null
+    private var currentBirthDate: LocalDate? = null
 
     val availability = UsernameAvailability(viewModelScope, profiles::checkUsername, currentUsername = { current?.username })
 
@@ -141,7 +147,16 @@ class EditProfileViewModel(container: AppContainer) : ViewModel() {
             }
             availability.onInput(me?.username.orEmpty())
         }
+        viewModelScope.launch {
+            val saved = runCatching {
+                profiles.observeMyBirthDate().first { it !is BirthDateState.Loading }
+            }.getOrNull() as? BirthDateState.Set
+            currentBirthDate = BirthDates.parse(saved?.date)
+            if (_ui.value.birthDate == null) _ui.update { it.copy(birthDate = currentBirthDate) }
+        }
     }
+
+    fun onBirthDateChange(value: LocalDate) = _ui.update { it.copy(birthDate = value, error = null, saved = false) }
 
     /** Uploads the picked picture (GIFs stay animated) and puts it on our profile right away. */
     fun changePhoto(context: Context, uri: Uri) {
@@ -193,12 +208,18 @@ class EditProfileViewModel(container: AppContainer) : ViewModel() {
         val username = availability.usable ?: return
         val displayName = state.displayName.trim()
         if (displayName.isEmpty() || state.saving) return
+        val birthDate = state.birthDate
+        if (birthDate != null && BirthDates.problem(birthDate) != null) return
         viewModelScope.launch {
             _ui.update { it.copy(saving = true, error = null) }
             try {
                 // Renaming claims the new name and releases the old one atomically (ProfileRepository).
                 if (username != current?.username) profiles.claimUsername(username, displayName)
                 profiles.updateProfile(displayName, state.bio.trim().ifEmpty { null })
+                if (birthDate != null && birthDate != currentBirthDate) {
+                    profiles.setBirthDate(BirthDates.wire(birthDate))
+                    currentBirthDate = birthDate
+                }
                 _ui.update { it.copy(saved = true) }
                 onSaved()
             } catch (e: CancellationException) {

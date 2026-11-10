@@ -1,6 +1,8 @@
 package com.syncit.app.ui.profile
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +45,9 @@ import java.util.Locale
 /** Dates of birth (2026-11-10): stored as "YYYY-MM-DD", private to the person and the app's owner. */
 object BirthDates {
     const val EARLIEST_YEAR = 1920
+
+    /** BingeJam is 18+ (Terms); younger dates are refused (user's request, 2026-11-10). */
+    const val MIN_AGE = 18
     private val DISPLAY = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH)
 
     fun parse(value: String?): LocalDate? = value?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -54,6 +59,13 @@ object BirthDates {
     fun isValid(date: LocalDate, today: LocalDate = LocalDate.now()): Boolean = date.year >= EARLIEST_YEAR && !date.isAfter(today)
 
     fun age(date: LocalDate, today: LocalDate = LocalDate.now()): Int = Period.between(date, today).years
+
+    /** What's wrong with [date], worded for the person entering it, or null if it's fine. */
+    fun problem(date: LocalDate, today: LocalDate = LocalDate.now()): String? = when {
+        !isValid(date, today) -> "That doesn't look like a real date of birth"
+        age(date, today) < MIN_AGE -> "You need to be $MIN_AGE or older to use BingeJam"
+        else -> null
+    }
 
     /** The next birthday on or after [today]; 29 February falls on 28 February in other years. */
     fun nextBirthday(date: LocalDate, today: LocalDate = LocalDate.now()): LocalDate {
@@ -84,8 +96,10 @@ object BirthDates {
 fun BirthDateField(value: LocalDate?, onPick: (LocalDate) -> Unit, modifier: Modifier = Modifier) {
     val p = Glass.palette
     var open by remember { mutableStateOf(false) }
+    val problem = value?.let { BirthDates.problem(it) }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
     Row(
-        modifier
+        Modifier
             .fillMaxWidth()
             .heightIn(min = 44.dp)
             .clip(ControlShape)
@@ -101,6 +115,8 @@ fun BirthDateField(value: LocalDate?, onPick: (LocalDate) -> Unit, modifier: Mod
             style = MaterialTheme.typography.bodyLarge,
             color = if (value == null) p.textTertiary else p.textPrimary,
         )
+    }
+    problem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = p.danger) }
     }
     if (open) {
         val today = LocalDate.now()

@@ -65,7 +65,7 @@ class UsernameViewModel(container: AppContainer, private val seedName: String?) 
     fun submit() {
         val username = availability.usable ?: return
         val displayName = _ui.value.displayName.trim()
-        val birthDate = _ui.value.birthDate?.takeIf { BirthDates.isValid(it) } ?: return
+        val birthDate = _ui.value.birthDate?.takeIf { BirthDates.problem(it) == null } ?: return
         if (displayName.isEmpty() || _ui.value.busy) return
         viewModelScope.launch {
             _ui.update { it.copy(busy = true, error = null) }

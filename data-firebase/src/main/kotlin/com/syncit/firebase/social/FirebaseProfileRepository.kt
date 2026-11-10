@@ -164,7 +164,7 @@ class FirebaseProfileRepository internal constructor(
     private suspend fun loadProfile(uid: String): UserProfile? =
         SocialParser.profile(uid, users.child(uid).get().await())
 
-    /** users_private/{uid}/dob: readable by us and the owner only; write-once (rules). */
+    /** users_private/{uid}/dob: readable by us and the owner only; format checked by the rules. */
     override fun observeMyBirthDate(): Flow<BirthDateState> = session.uid.flatMapLatest { uid ->
         if (uid == null) {
             flowOf(BirthDateState.Loading)
