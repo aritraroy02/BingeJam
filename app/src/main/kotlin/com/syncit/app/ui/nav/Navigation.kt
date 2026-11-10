@@ -62,6 +62,7 @@ import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.home.HomeScreen
 import com.syncit.app.ui.home.HomeViewModel
+import com.syncit.app.ui.home.LiveRoomsViewModel
 import com.syncit.app.ui.join.JoinPreviewScreen
 import com.syncit.app.ui.join.JoinPreviewViewModel
 import com.syncit.app.ui.onboarding.OnboardingScreen
@@ -114,7 +115,7 @@ sealed interface Screen {
     data object NewGroup : Screen
     data object Settings : Screen
 
-    /** Your own profile (opened from your picture on Home). */
+    /** Your own profile: the You tab, with Settings behind its gear. */
     data object Profile : Screen
     data object EditProfile : Screen
 
@@ -193,7 +194,7 @@ fun SyncItApp(
             PushNotifications.TYPE_GROUP_INVITE -> nav.reset(Screen.Chats)
             // Join requests and invites are answered from the banner shown over Home.
             PushNotifications.TYPE_JOIN_REQUEST, PushNotifications.TYPE_INVITE -> nav.reset(Screen.Home)
-            else -> nav.reset(Screen.Friends)
+            else -> nav.reset(Screen.Chats, Screen.Friends)
         }
     }
 
@@ -254,7 +255,7 @@ fun SyncItApp(
                 pendingEmailLink.value = null
                 // Already signed in, so a link only matters when it's the fresh sign-in that
                 // deleting the account asked for; then make sure its sheet is on screen.
-                if (deletion.onEmailLink(link) && nav.current != Screen.Settings) nav.reset(Screen.Settings)
+                if (deletion.onEmailLink(link) && nav.current != Screen.Settings) nav.reset(Screen.Profile, Screen.Settings)
             }
             MainNav(container, nav, deletion)
         }
@@ -281,7 +282,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
     val tabs: MainTabsViewModel = viewModel(factory = viewModelFactory { initializer { MainTabsViewModel(container) } })
     val unreadChats by tabs.unreadChats.collectAsStateWithLifecycle()
     val friendRequests by tabs.friendRequests.collectAsStateWithLifecycle()
-    // The bar shows on the four tab screens themselves, not on screens opened from them.
+    // The bar shows on the three tab screens themselves, not on screens opened from them.
     val currentTab = if (nav.backStack.size == 1) tabFor(nav.current) else null
     val tabHaze = rememberHazeState()
     // Sheets (movie, friend, message actions) hide the bar so it doesn't cover their buttons.
@@ -369,24 +370,22 @@ private fun BottomTabs(
         modifier = modifier,
     ) {
         CompositionLocalProvider(LocalHazeState provides haze) {
-            MainTabBar(current = tab ?: MainTab.HOME, unreadChats = unreadChats, friendRequests = friendRequests, onSelect = onSelect)
+            MainTabBar(current = tab ?: MainTab.WATCH, unreadChats = unreadChats, friendRequests = friendRequests, onSelect = onSelect)
         }
     }
 }
 
 private fun tabFor(screen: Screen): MainTab? = when (screen) {
-    Screen.Home -> MainTab.HOME
+    Screen.Home -> MainTab.WATCH
     Screen.Chats -> MainTab.CHATS
-    Screen.Friends -> MainTab.FRIENDS
-    Screen.Settings -> MainTab.SETTINGS
+    Screen.Profile -> MainTab.YOU
     else -> null
 }
 
 private fun screenFor(tab: MainTab): Screen = when (tab) {
-    MainTab.HOME -> Screen.Home
+    MainTab.WATCH -> Screen.Home
     MainTab.CHATS -> Screen.Chats
-    MainTab.FRIENDS -> Screen.Friends
-    MainTab.SETTINGS -> Screen.Settings
+    MainTab.YOU -> Screen.Profile
 }
 
 /** Badges on the bottom bar: unread messages (all chats) and friend requests. */
@@ -408,13 +407,18 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
         when (val screen = entry.screen) {
             Screen.Home -> {
                 val vm: HomeViewModel = viewModel(factory = viewModelFactory { initializer { HomeViewModel(container) } })
+                val live: LiveRoomsViewModel = viewModel(factory = viewModelFactory { initializer { LiveRoomsViewModel(container) } })
+                val liveRooms by live.rooms.collectAsStateWithLifecycle()
                 HomeScreen(
                     viewModel = vm,
                     onEnterRoom = { code -> nav.push(Screen.Room(code)) },
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
-                    onOpenProfile = { nav.push(Screen.Profile) },
                     onWatchWithFriends = { code -> nav.push(Screen.Room(code, invite = true)) },
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
+                    liveRooms = liveRooms,
+                    onOpenLiveRoom = { room ->
+                        room.groupId?.let { nav.push(Screen.GroupChat(it)) } ?: room.friendUid?.let { nav.push(Screen.Chat(it)) }
+                    },
                 )
             }
 
@@ -423,12 +427,15 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                 // Same (activity-scoped) instances as Home and the group chat: long-press "View profile"
                 // opens Home's friend sheet, "Group info" the group chat's info sheet.
                 val home: HomeViewModel = viewModel(factory = viewModelFactory { initializer { HomeViewModel(container) } })
+                val tabBadges: MainTabsViewModel = viewModel(factory = viewModelFactory { initializer { MainTabsViewModel(container) } })
                 ChatsScreen(
                     vm,
                     home = home,
                     onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
                     onOpenGroup = { id -> nav.push(Screen.GroupChat(id)) },
                     onNewGroup = { nav.push(Screen.NewGroup) },
+                    onAddFriends = { nav.push(Screen.Friends) },
+                    friendRequests = tabBadges.friendRequests.collectAsStateWithLifecycle().value,
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
                     groupInfoSheet = { groupId, visible, onDismiss ->
                         val group: GroupChatViewModel = viewModel(
@@ -493,7 +500,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                 val vm: ProfileViewModel = viewModel(factory = viewModelFactory { initializer { ProfileViewModel(container) } })
                 ProfileScreen(
                     viewModel = vm,
-                    onBack = nav::pop,
+                    onBack = if (entry.depth > 1) nav::pop else null,
                     onEditProfile = { nav.push(Screen.EditProfile) },
                     onOpenSettings = { nav.push(Screen.Settings) },
                 )

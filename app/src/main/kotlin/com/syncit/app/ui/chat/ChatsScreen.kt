@@ -25,6 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import com.syncit.app.R
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
@@ -242,6 +247,8 @@ fun ChatsScreen(
     onOpenChat: (String) -> Unit,
     onOpenGroup: (String) -> Unit = {},
     onNewGroup: () -> Unit = {},
+    onAddFriends: () -> Unit = {},
+    friendRequests: Int = 0,
     onStartRoomWith: (code: String, friendUid: String) -> Unit = { _, _ -> },
     groupInfoSheet: @Composable (groupId: String, visible: Boolean, onDismiss: () -> Unit) -> Unit = { _, _, _ -> },
 ) {
@@ -259,6 +266,7 @@ fun ChatsScreen(
     // Long-press menu and the group info sheet; each keeps its last entry while it slides away.
     var menuFor by remember { mutableStateOf<ChatEntry?>(null) }
     var lastMenu by remember { mutableStateOf<ChatEntry?>(null) }
+    var plusOpen by remember { mutableStateOf(false) }
     var infoFor by remember { mutableStateOf<String?>(null) }
     var lastInfo by remember { mutableStateOf<String?>(null) }
     val openMenu = { entry: ChatEntry ->
@@ -268,7 +276,14 @@ fun ChatsScreen(
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            GlassTopBar(title = "Chats", actions = { GlassSmallButton("New group", onClick = onNewGroup, primary = false) })
+            GlassTopBar(title = "Chats", actions = {
+                Box {
+                    GlassIconButton(Icons.Filled.Add, if (friendRequests > 0) "New, $friendRequests friend requests" else "New", { plusOpen = true })
+                    if (friendRequests > 0) {
+                        Box(Modifier.align(Alignment.TopEnd).size(10.dp).clip(CircleShape).background(p.danger))
+                    }
+                }
+            })
             GlassTextField(
                 value = query,
                 onValueChange = viewModel::onQueryChange,
@@ -295,7 +310,7 @@ fun ChatsScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "No chats yet. Message a friend, or tap New group to start one with several friends.",
+                        "No chats yet. Tap + to add friends or start a group.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = p.textSecondary,
                     )
@@ -335,6 +350,33 @@ fun ChatsScreen(
             onDismiss = { if (notice != null) viewModel.dismissNotice() else home.dismissMessage() },
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
         )
+
+        GlassBottomSheet(visible = plusOpen, onDismiss = { plusOpen = false }) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                GlassRow(
+                    "Add friends",
+                    subtitle = when (friendRequests) {
+                        0 -> "Find someone by their exact username"
+                        1 -> "1 friend request waiting"
+                        else -> "$friendRequests friend requests waiting"
+                    },
+                    icon = ImageVector.vectorResource(R.drawable.ic_tab_add_friend),
+                    onClick = {
+                        plusOpen = false
+                        onAddFriends()
+                    },
+                )
+                GlassRow(
+                    "New group",
+                    subtitle = "Chat and watch with several friends",
+                    icon = Icons.Filled.Add,
+                    onClick = {
+                        plusOpen = false
+                        onNewGroup()
+                    },
+                )
+            }
+        }
 
         lastMenu?.let { entry ->
             ChatRowMenuSheet(

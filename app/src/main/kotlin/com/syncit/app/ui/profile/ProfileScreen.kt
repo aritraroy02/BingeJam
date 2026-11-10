@@ -39,6 +39,7 @@ import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.GlassSwitchRow
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.SectionLabel
+import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.social.ActivityThumb
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.config.Brand
@@ -79,7 +80,7 @@ class ProfileViewModel(container: AppContainer) : ViewModel() {
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onEditProfile: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -95,7 +96,7 @@ fun ProfileScreen(
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(
                 title = profile?.username?.let { "@$it" } ?: "Profile",
-                navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) },
+                navigation = onBack?.let { back -> { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", back) } },
                 actions = { GlassIconButton(Icons.Filled.Settings, "Settings", onOpenSettings, plain = true) },
             )
             Column(
@@ -104,7 +105,7 @@ fun ProfileScreen(
                     .verticalScroll(rememberScrollState())
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 24.dp + LocalBottomBarInset.current),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {

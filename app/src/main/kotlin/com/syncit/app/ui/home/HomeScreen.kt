@@ -92,14 +92,14 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onEnterRoom: (String) -> Unit,
     onStartRoomWith: (code: String, friendUid: String) -> Unit,
-    onOpenProfile: () -> Unit,
     onWatchWithFriends: (code: String) -> Unit,
     onOpenChat: (String) -> Unit,
+    liveRooms: List<LiveRoom> = emptyList(),
+    onOpenLiveRoom: (LiveRoom) -> Unit = {},
 ) {
     val p = Glass.palette
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
-    val me by viewModel.myProfile.collectAsStateWithLifecycle()
     val friends by viewModel.friends.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var sheetUid by rememberSaveable { mutableStateOf<String?>(null) }
@@ -110,22 +110,7 @@ fun HomeScreen(
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            GlassTopBar(
-                navigation = {
-                    // Instagram-style top bar: your picture and plain icons.
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(
-                            me?.displayName ?: "?",
-                            size = 36.dp,
-                            photoUrl = me?.photoUrl,
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .clickable(role = Role.Button, onClick = onOpenProfile)
-                                .semantics { contentDescription = "Your profile" },
-                        )
-                    }
-                },
-            )
+            GlassTopBar(title = "Watch")
             Column(
                 Modifier
                     .fillMaxSize()
@@ -140,6 +125,9 @@ fun HomeScreen(
                 val live = friends.orEmpty().filter { it.online && it.activity != null }
                 if (live.isNotEmpty()) {
                     LiveNowRow(live, onOpen = { sheetUid = it.uid }, modifier = Modifier.staggerIn(0))
+                }
+                if (liveRooms.isNotEmpty()) {
+                    LiveRoomsRow(liveRooms, onOpen = onOpenLiveRoom, modifier = Modifier.staggerIn(0))
                 }
 
                 TrendingSection(

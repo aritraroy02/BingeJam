@@ -17,8 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,8 +45,8 @@ import com.syncit.app.R
 import com.syncit.app.ui.glass.glass
 import com.syncit.app.ui.theme.Glass
 
-/** The four main screens, switched from the bottom bar. */
-enum class MainTab { HOME, CHATS, FRIENDS, SETTINGS }
+/** The three main screens, switched from the bottom bar (2026-11-10: Add friends moved into Chats' "+"). */
+enum class MainTab { WATCH, CHATS, YOU }
 
 /**
  * How much the floating tab bar covers at the bottom of a tab screen, so its scrolling content can
@@ -59,8 +58,8 @@ val LocalBottomBarInset = compositionLocalOf { 0.dp }
 val TabBarInset: Dp = 84.dp
 
 /**
- * Floating glass bar with icons only: Home, Chats, Add friend, Settings. Badges: unread chats and
- * friend requests.
+ * Floating glass bar with icons only: Watch, Chats, You. The Chats badge counts unread messages
+ * plus friend requests (those are answered behind Chats' "+").
  */
 @Composable
 fun MainTabBar(
@@ -83,12 +82,11 @@ fun MainTabBar(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TabIcon(Icons.Filled.Home, "Home", current == MainTab.HOME, 0) { onSelect(MainTab.HOME) }
-        TabIcon(ImageVector.vectorResource(R.drawable.ic_tab_chat), "Chats", current == MainTab.CHATS, unreadChats) { onSelect(MainTab.CHATS) }
-        TabIcon(ImageVector.vectorResource(R.drawable.ic_tab_add_friend), "Add friends", current == MainTab.FRIENDS, friendRequests) {
-            onSelect(MainTab.FRIENDS)
+        TabIcon(ImageVector.vectorResource(R.drawable.ic_tab_watch), "Watch", current == MainTab.WATCH, 0) { onSelect(MainTab.WATCH) }
+        TabIcon(ImageVector.vectorResource(R.drawable.ic_tab_chat), "Chats", current == MainTab.CHATS, unreadChats + friendRequests) {
+            onSelect(MainTab.CHATS)
         }
-        TabIcon(Icons.Filled.Settings, "Settings", current == MainTab.SETTINGS, 0) { onSelect(MainTab.SETTINGS) }
+        TabIcon(Icons.Filled.Person, "You", current == MainTab.YOU, 0) { onSelect(MainTab.YOU) }
     }
 }
 
