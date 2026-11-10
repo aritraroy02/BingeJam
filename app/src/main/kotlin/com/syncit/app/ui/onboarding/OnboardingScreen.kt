@@ -248,7 +248,7 @@ private fun PermissionPage(
         Spacer(Modifier.height(12.dp))
         Text(body, style = MaterialTheme.typography.bodyLarge, color = p.textSecondary, textAlign = TextAlign.Center)
         if (hint != null && !granted) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Text(hint, style = MaterialTheme.typography.bodySmall, color = p.textTertiary, textAlign = TextAlign.Center)
         }
         Spacer(Modifier.height(28.dp))
@@ -256,7 +256,7 @@ private fun PermissionPage(
             GlassPanel(Modifier.fillMaxWidth(), spacing = 0.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Check, contentDescription = null, tint = p.success)
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text("Allowed", style = MaterialTheme.typography.titleSmall, color = p.success)
                 }
             }
@@ -278,13 +278,11 @@ private fun PermissionPage(
 private fun PageIcon(icon: ImageVector, granted: Boolean) {
     val p = Glass.palette
     val a by animateColorAsState(if (granted) p.success else p.accent, label = "iconA")
-    val b by animateColorAsState(if (granted) p.success else p.accent2, label = "iconB")
     Box(
         Modifier
             .size(124.dp)
-            .shadow(28.dp, CircleShape, ambientColor = a, spotColor = a)
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(a, b))),
+            .background(a),
         contentAlignment = Alignment.Center,
     ) {
         Icon(if (granted) Icons.Filled.Check else icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(56.dp))
@@ -307,17 +305,17 @@ private fun DonePage(rows: List<Pair<SetupPage, Boolean>>, onContinue: () -> Uni
             style = MaterialTheme.typography.headlineMedium,
             color = p.textPrimary,
         )
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
         GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp) {
             for ((page, ok) in rows) {
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 6.dp).semantics(mergeDescendants = true) {
+                    Modifier.fillMaxWidth().padding(vertical = 8.dp).semantics(mergeDescendants = true) {
                         contentDescription = "${label(page)}: ${if (ok) "allowed" else "not allowed"}"
                     },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(if (ok) Icons.Filled.Check else Icons.Filled.Close, contentDescription = null, tint = if (ok) p.success else p.textTertiary)
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text(label(page), style = MaterialTheme.typography.bodyLarge, color = p.textPrimary, modifier = Modifier.weight(1f))
                     if (!ok) {
                         TextButton(onClick = { onOpen(page) }) { Text("Set up", color = p.accentText) }
@@ -349,12 +347,12 @@ private fun label(page: SetupPage): String = when (page) {
 private fun PageDots(count: Int, current: Int, done: List<Boolean>) {
     val p = Glass.palette
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 18.dp),
+        Modifier.fillMaxWidth().padding(vertical = 16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(count) { i ->
-            val width by animateDpAsState(if (i == current) 26.dp else 8.dp, label = "dot")
+            val width by animateDpAsState(if (i == current) 24.dp else 8.dp, label = "dot")
             val color = when {
                 i == current -> p.accent
                 done.getOrElse(i) { false } && i != count - 1 -> p.success

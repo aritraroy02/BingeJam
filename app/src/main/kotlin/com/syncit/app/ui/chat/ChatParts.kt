@@ -74,7 +74,7 @@ internal fun DaySeparator(label: String, modifier: Modifier = Modifier) {
             label,
             style = MaterialTheme.typography.labelMedium,
             color = Glass.palette.textSecondary,
-            modifier = Modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 5.dp),
+            modifier = Modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 4.dp),
         )
     }
 }
@@ -87,10 +87,10 @@ internal fun TypingBubble(name: String, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth()) {
         Row(
             Modifier
-                .glass(RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp))
-                .padding(horizontal = 16.dp, vertical = 15.dp)
+                .glass(RoundedCornerShape(16.dp, 16.dp, 16.dp, 8.dp))
+                .padding(horizontal = 16.dp, vertical = 16.dp)
                 .clearAndSetSemantics { contentDescription = "${name.ifEmpty { "Your friend" }} is typing" },
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             repeat(3) { i ->
@@ -114,10 +114,10 @@ internal fun TypingBubble(name: String, modifier: Modifier = Modifier) {
                     Modifier
                         // Read in the layer block so the bounce redraws without recomposing.
                         .graphicsLayer {
-                            translationY = -5.dp.toPx() * lift
+                            translationY = -4.dp.toPx() * lift
                             alpha = 0.45f + 0.55f * lift
                         }
-                        .size(7.dp)
+                        .size(8.dp)
                         .clip(CircleShape)
                         .background(p.textSecondary),
                 )

@@ -248,7 +248,7 @@ private fun TitleEditor(
         modifier = Modifier.fillMaxWidth(),
     )
     check.warning?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = p.warning) }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         GlassButton("Save for everyone", onClick = { onSave(service, link) }, enabled = check.valid, modifier = Modifier.weight(1f))
         onCancel?.let { GlassButton("Cancel", onClick = it, style = GlassButtonStyle.Secondary) }
     }
@@ -267,7 +267,7 @@ private fun BubblePanel(roomCode: String, jam: Boolean) {
             style = MaterialTheme.typography.bodySmall,
             color = p.textSecondary,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GlassButton(
                 "Show bubble",
                 onClick = {

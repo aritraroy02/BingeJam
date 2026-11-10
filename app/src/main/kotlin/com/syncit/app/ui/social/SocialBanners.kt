@@ -96,7 +96,7 @@ private fun Banner(
         Modifier
             .padding(12.dp)
             .fillMaxWidth()
-            .glass(RoundedCornerShape(26.dp))
+            .glass(RoundedCornerShape(16.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -110,7 +110,7 @@ private fun Banner(
                 if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GlassButton(decline, onClick = onDecline, style = GlassButtonStyle.Secondary, enabled = !busy, modifier = Modifier.weight(1f))
             GlassButton(accept, onClick = onAccept, loading = busy, modifier = Modifier.weight(1f))
         }

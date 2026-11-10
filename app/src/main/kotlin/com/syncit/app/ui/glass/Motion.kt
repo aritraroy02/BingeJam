@@ -51,7 +51,7 @@ fun Modifier.staggerIn(index: Int): Modifier = composed {
     LaunchedEffect(Unit) {
         progress.animateTo(1f, tween(durationMillis = 380, delayMillis = (index.coerceAtMost(8)) * 60, easing = EmphasizedEase))
     }
-    val rise = with(LocalDensity.current) { 18.dp.toPx() }
+    val rise = with(LocalDensity.current) { 16.dp.toPx() }
     graphicsLayer {
         val t = progress.value
         alpha = t
@@ -110,15 +110,15 @@ fun SkeletonRows(count: Int, modifier: Modifier = Modifier) {
     Column(modifier.semantics { contentDescription = "Loading" }) {
         repeat(count) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(46.dp).clip(CircleShape).background(brush))
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Box(Modifier.width(140.dp).height(14.dp).clip(RoundedCornerShape(7.dp)).background(brush))
+                    Box(Modifier.width(140.dp).height(16.dp).clip(RoundedCornerShape(8.dp)).background(brush))
                     Spacer(Modifier.height(8.dp))
-                    Box(Modifier.width(90.dp).height(11.dp).clip(RoundedCornerShape(6.dp)).background(brush))
+                    Box(Modifier.width(90.dp).height(12.dp).clip(RoundedCornerShape(8.dp)).background(brush))
                 }
             }
         }

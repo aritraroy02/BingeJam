@@ -102,7 +102,7 @@ fun ChatTab(
                 Column(
                     Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text("No messages yet", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
                     Text(
@@ -188,7 +188,7 @@ internal fun MessageBubble(
 ) {
     val p = Glass.palette
     // The corner nearest the sender is tighter, like a speech bubble's tail.
-    val shape = if (isMine) RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp) else RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp)
+    val shape = if (isMine) RoundedCornerShape(16.dp, 16.dp, 8.dp, 16.dp) else RoundedCornerShape(16.dp, 16.dp, 16.dp, 8.dp)
     val timeStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.2.sp)
     val textColor = if (isMine) p.onAccent else p.textPrimary
     val timeColor = if (isMine) p.onAccent.copy(alpha = 0.72f) else p.textTertiary
@@ -217,7 +217,7 @@ internal fun MessageBubble(
             }
         }
         val bubble = if (isMine) {
-            Modifier.clip(shape).background(Brush.linearGradient(listOf(p.accent, p.accent2)))
+            Modifier.clip(shape).background(p.accent)
         } else {
             Modifier.glass(shape)
         }
@@ -236,7 +236,7 @@ internal fun MessageBubble(
             bubble
                 .then(press)
                 .widthIn(max = 280.dp)
-                .padding(start = 14.dp, end = 12.dp, top = 9.dp, bottom = 7.dp)
+                .padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
                 // Read as one item ("Asha, see you at 9, 10:42 pm"), without the invisible copy.
                 .clearAndSetSemantics {
                     contentDescription = listOfNotNull(
@@ -252,13 +252,13 @@ internal fun MessageBubble(
                 if (forwarded) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 2.dp)) {
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = timeColor, modifier = Modifier.size(12.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text("Forwarded", style = timeStyle.copy(fontStyle = FontStyle.Italic), color = timeColor)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Forwarded", style = timeStyle, color = timeColor)
                     }
                 }
                 Text(
                     body,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontStyle = if (deleted) FontStyle.Italic else FontStyle.Normal),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = if (deleted) timeColor else textColor,
                 )
             }
@@ -307,12 +307,11 @@ internal fun ChatInputBar(
                     .popOn(sent.takeIf { it > 0 })
                     .clip(CircleShape)
                     .background(
-                        if (text.isBlank()) Brush.linearGradient(listOf(p.textTertiary, p.textTertiary))
-                        else Brush.linearGradient(listOf(p.accent, p.accent2)),
+                        if (text.isBlank()) p.raised else p.accent,
                     )
                     .clickable(enabled = text.isNotBlank(), role = Role.Button) { send() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = p.onAccent, modifier = Modifier.size(20.dp)) }
+            ) { Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = if (text.isBlank()) p.textTertiary else p.onAccent, modifier = Modifier.size(20.dp)) }
         },
     )
 }
@@ -320,17 +319,17 @@ internal fun ChatInputBar(
 /** Reactions from the last few seconds, floating up the right edge. */
 @Composable
 private fun FloatingReactions(reactions: List<Reaction>, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (reaction in reactions) {
             // Starts hidden so each new reaction animates in.
             val appear = remember(reaction.id) { MutableTransitionState(false).apply { targetState = true } }
             AnimatedVisibility(visibleState = appear, enter = fadeIn() + slideInVertically { it }, exit = fadeOut()) {
                 Row(
-                    Modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 6.dp),
+                    Modifier.glass(PillShape).padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(reaction.emoji, fontSize = 20.sp)
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(reaction.name, style = MaterialTheme.typography.labelMedium, color = Glass.palette.textPrimary)
                 }
             }

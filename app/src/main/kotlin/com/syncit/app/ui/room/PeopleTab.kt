@@ -53,7 +53,7 @@ fun PeopleTab(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            GlassPanel(spacing = 14.dp) {
+            GlassPanel(spacing = 16.dp) {
                 for (member in members) {
                     MemberRow(
                         member = member,

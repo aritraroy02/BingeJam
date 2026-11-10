@@ -78,7 +78,7 @@ fun MainTabBar(
             .fillMaxWidth()
             .height(60.dp)
             .shadow(16.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.35f))
-            .glass(shape),
+            .glass(shape, floating = true),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -94,8 +94,8 @@ fun MainTabBar(
 private fun TabIcon(icon: ImageVector, label: String, selected: Boolean, badge: Int, onClick: () -> Unit) {
     val p = Glass.palette
     val haptics = LocalHapticFeedback.current
-    val tint by animateColorAsState(if (selected) p.onAccent else p.textSecondary, label = "tabTint")
-    val fill by animateColorAsState(if (selected) p.accent else Color.Transparent, label = "tabFill")
+    val tint by animateColorAsState(if (selected) p.base else p.textSecondary, label = "tabTint")
+    val fill by animateColorAsState(if (selected) p.textPrimary else Color.Transparent, label = "tabFill")
     // Only the round tap target is clipped; the badge sits on top of it, uncut.
     Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
         Box(
@@ -121,16 +121,16 @@ private fun TabIcon(icon: ImageVector, label: String, selected: Boolean, badge: 
                 Modifier
                     .align(Alignment.TopEnd)
                     .offset(x = 4.dp, y = 2.dp)
-                    .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(p.danger)
-                    .padding(horizontal = 5.dp, vertical = 1.dp),
+                    .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(p.accent)
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     if (badge > 99) "99+" else badge.toString(),
                     color = Color.White,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 10.sp),
                 )
             }
         }

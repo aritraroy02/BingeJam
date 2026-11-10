@@ -432,10 +432,10 @@ private fun RoomHero(
                         .padding(1.dp)
                         .background(
                             Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))),
-                            shape = RoundedCornerShape(22.dp),
+                            shape = RoundedCornerShape(16.dp),
                         ),
                 )
-                Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     HeroBadges(service, jamLabel, labelColor = Color.White.copy(alpha = 0.85f), onArtwork = true)
                     Text(title, color = Color.White, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall, maxLines = 1) }
@@ -447,7 +447,7 @@ private fun RoomHero(
                     ArtworkCard(artwork, Modifier.width(92.dp), corner = 16)
                     Spacer(Modifier.width(16.dp))
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     HeroBadges(service, jamLabel, labelColor = p.accentText)
                     Text(title, color = p.textPrimary, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, color = p.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
@@ -455,7 +455,7 @@ private fun RoomHero(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            StatusPill(statusText, sync.status.color())
+            StatusPill(statusText, sync.status.color(), inSync = sync.status == SyncStatus.SYNCING)
             RoomCodePill(code)
         }
         if (service != null) {
@@ -498,7 +498,7 @@ private fun RoomCodePill(code: String) {
                 }
             }
             .semantics { contentDescription = "Room code ${code.toCharArray().joinToString(" ")}" }
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 
@@ -612,8 +612,8 @@ private fun JamPrompt(
     when (prompt) {
         MemberPrompt.NONE -> Unit
         MemberPrompt.STARTING -> Row(verticalAlignment = Alignment.CenterVertically) {
-            CircularProgressIndicator(Modifier.size(14.dp), color = p.accent, strokeWidth = 2.dp)
-            Spacer(Modifier.width(10.dp))
+            CircularProgressIndicator(Modifier.size(16.dp), color = p.accent, strokeWidth = 2.dp)
+            Spacer(Modifier.width(12.dp))
             Text("Starting $what in $app…", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
         }
         MemberPrompt.OPEN_APP -> {
@@ -630,7 +630,7 @@ private fun JamPrompt(
             )
         }
         MemberPrompt.BACK_TO_JAM -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 GlassButton(
                     text = "Back to the jam",
                     icon = Icons.Filled.PlayArrow,
@@ -701,7 +701,7 @@ private fun CountdownOverlay(room: Room?, serverNow: Long) {
                         .semantics { liveRegion = LiveRegionMode.Assertive },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(shown, fontSize = if (shown.length > 2) 40.sp else 88.sp, fontWeight = FontWeight.ExtraBold, color = p.textPrimary)
+                    Text(shown, fontSize = if (shown.length > 2) 40.sp else 88.sp, fontWeight = FontWeight.SemiBold, color = p.textPrimary)
                 }
                 Text(
                     if (ms <= 0) "Everyone press play now" else "Get ready to press play together",
@@ -718,11 +718,11 @@ private fun CountdownOverlay(room: Room?, serverNow: Long) {
 private fun WaitingBanner(friend: RoomViewModel.WaitingFriend, onCancel: () -> Unit, modifier: Modifier = Modifier) {
     val p = Glass.palette
     val declined = friend.state == RoomViewModel.WaitState.DECLINED
-    GlassPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
+    GlassPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (!declined) {
                 CircularProgressIndicator(Modifier.size(16.dp), color = p.accent2, strokeWidth = 2.dp)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
             }
             Text(
                 when (friend.state) {

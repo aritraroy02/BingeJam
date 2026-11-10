@@ -84,7 +84,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp + LocalBottomBarInset.current),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 GlassTextField(
                     value = query,
@@ -98,11 +98,11 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                     ),
                     modifier = Modifier.fillMaxWidth(),
                     trailing = {
-                        if (searching) CircularProgressIndicator(Modifier.padding(end = 14.dp).size(18.dp), color = p.accent, strokeWidth = 2.dp)
+                        if (searching) CircularProgressIndicator(Modifier.padding(end = 16.dp).size(18.dp), color = p.accent, strokeWidth = 2.dp)
                     },
                 )
                 if (query.trim().removePrefix("@").length >= 3) {
-                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
+                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(12.dp)) {
                         if (results.isEmpty()) {
                             Text(
                                 if (searching) "Searching…" else "No one has exactly that username",
@@ -132,7 +132,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                     )
                     // The other half of making friends: let them find you.
                     myUsername?.let { username ->
-                        GlassPanel(Modifier.fillMaxWidth().padding(top = 6.dp).staggerIn(1)) {
+                        GlassPanel(Modifier.fillMaxWidth().padding(top = 8.dp).staggerIn(1)) {
                             Text("Invite friends to ${Brand.NAME}", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
                             Text(
                                 "Send them your username so they can add you: @$username",
@@ -154,15 +154,15 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                 }
 
                 if (incoming.isNotEmpty()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
                         SectionLabel("Requests")
                         Spacer(Modifier.width(8.dp))
                         CountBadge(incoming.size)
                     }
-                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
+                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(12.dp)) {
                         for (req in incoming) {
                             PersonRow("@${req.fromUsername}", "${req.fromDisplayName} · wants to be friends") {
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     GlassSmallButton("Decline", onClick = { viewModel.decline(req) }, primary = false, enabled = req.fromUid !in busy)
                                     GlassSmallButton(
                                         "Accept",
@@ -179,8 +179,8 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                 }
 
                 if (outgoing.isNotEmpty()) {
-                    SectionLabel("Sent", Modifier.padding(top = 10.dp))
-                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
+                    SectionLabel("Sent", Modifier.padding(top = 12.dp))
+                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(12.dp)) {
                         for (req in outgoing) {
                             PersonRow("@${req.toUsername}", "${req.toDisplayName} · waiting") {
                                 GlassSmallButton("Cancel", onClick = { viewModel.cancel(req) }, primary = false, enabled = req.toUid !in busy)
@@ -190,8 +190,8 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                 }
 
                 if (blocked.isNotEmpty()) {
-                    SectionLabel("Blocked", Modifier.padding(top = 10.dp))
-                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(10.dp)) {
+                    SectionLabel("Blocked", Modifier.padding(top = 12.dp))
+                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(12.dp)) {
                         for (profile in blocked) {
                             PersonRow(profile.displayName, "@${profile.username}", profile.photoUrl) {
                                 GlassSmallButton("Unblock", onClick = { viewModel.unblock(profile) }, primary = false, enabled = profile.uid !in busy)
@@ -209,7 +209,7 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
 private fun PersonRow(name: String, subtitle: String, photoUrl: String? = null, trailing: @Composable () -> Unit) {
     // Request rows lead with "@username"; the avatar letter skips the @.
     val p = Glass.palette
-    Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Avatar(name.removePrefix("@"), size = 42.dp, photoUrl = photoUrl)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

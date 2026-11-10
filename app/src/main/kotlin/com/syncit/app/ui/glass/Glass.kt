@@ -96,12 +96,21 @@ import kotlin.math.absoluteValue
 /** The backdrop every glass panel on the current screen blurs. */
 val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
+/** True on screens whose backdrop is a blurred movie artwork: panels there stay glass. */
+val LocalArtworkBackdrop = staticCompositionLocalOf { false }
+
 val PillShape = RoundedCornerShape(percent = 50)
-val PanelShape = RoundedCornerShape(24.dp)
+val PanelShape = RoundedCornerShape(16.dp)
+
+/** Buttons, inputs and the segmented control. */
+val ControlShape = RoundedCornerShape(12.dp)
+
+/** Small buttons and chips inside rows. */
+val ChipShape = RoundedCornerShape(8.dp)
 
 /**
- * Screen root: an aurora (or the movie's blurred [artwork]) as the backdrop, captured by Haze so
- * every [glass] panel drawn in [content] blurs it.
+ * Screen root: the plain page colour, or the movie's blurred [artwork], captured by Haze so the
+ * floating layers drawn in [content] (sheets, banners, the tab bar) can blur it.
  */
 @Composable
 fun GlassScreen(
@@ -112,7 +121,7 @@ fun GlassScreen(
     val haze = rememberHazeState()
     Box(modifier.fillMaxSize().background(Glass.palette.base)) {
         GlassBackdrop(artwork, Modifier.fillMaxSize().hazeSource(haze))
-        CompositionLocalProvider(LocalHazeState provides haze) { content() }
+        CompositionLocalProvider(LocalHazeState provides haze, LocalArtworkBackdrop provides (artwork != null)) { content() }
     }
 }
 
@@ -130,8 +139,6 @@ private fun GlassBackdrop(artwork: ImageBitmap?, modifier: Modifier) {
             // Modifier.blur is a no-op before Android 12, so cover the sharp image more there.
             val scrim = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) p.artworkScrim else p.base.copy(alpha = 0.82f)
             Box(Modifier.fillMaxSize().background(scrim))
-        } else {
-            Aurora()
         }
     }
 }
@@ -148,61 +155,22 @@ fun rememberReduceMotion(): Boolean {
     }
 }
 
-/** Three soft colour blobs drifting slowly. Radial gradients, so no blur is needed. */
-@Composable
-private fun Aurora() {
-    if (rememberReduceMotion()) AuroraFrame(0.5f) else AnimatedAurora()
-}
-
-@Composable
-private fun AnimatedAurora() {
-    val t by rememberInfiniteTransition(label = "aurora").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(18_000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "aurora-t",
-    )
-    AuroraFrame(t)
-}
-
-@Composable
-private fun AuroraFrame(t: Float) {
-    val p = Glass.palette
-    val alpha = if (p.isDark) 0.55f else 0.75f
-    Canvas(Modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-        val spots = listOf(
-            Offset(w * (0.15f + 0.20f * t), h * (0.12f + 0.06f * t)) to w * 0.85f,
-            Offset(w * (0.95f - 0.25f * t), h * (0.42f + 0.10f * t)) to w * 0.80f,
-            Offset(w * (0.30f + 0.15f * t), h * (0.88f - 0.08f * t)) to w * 0.90f,
-        )
-        spots.forEachIndexed { i, (center, radius) ->
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(p.blobs[i].copy(alpha = alpha), Color.Transparent),
-                    center = center,
-                    radius = radius,
-                ),
-                radius = radius,
-                center = center,
-            )
-        }
-    }
-}
-
 /**
- * Frosted glass: blurred backdrop + tint, clipped to [shape], with a light-catching edge.
+ * A surface clipped to [shape] with a hairline edge. Solid ([tint], else the card colour) by
+ * default; frosted glass (blurred backdrop + tint) only when [floating] or over a movie artwork.
  * Falls back to a translucent fill where blur isn't available.
  */
 // Composable on purpose: it reads the palette and the screen's HazeState from composition.
 @Suppress("ComposableModifierFactory", "ModifierFactoryExtensionFunction")
 @Composable
-fun Modifier.glass(shape: Shape = PanelShape, tint: Color? = null, blur: Dp = 28.dp): Modifier {
+fun Modifier.glass(shape: Shape = PanelShape, tint: Color? = null, blur: Dp = 28.dp, floating: Boolean = false): Modifier {
     val p = Glass.palette
     val haze = LocalHazeState.current
-    val fill = tint ?: p.glassTint
     val base = this.clip(shape)
+    if (!floating && !LocalArtworkBackdrop.current) {
+        return base.background(tint ?: p.surface).border(1.dp, p.hairline, shape)
+    }
+    val fill = tint ?: p.glassTint
     val surface = if (haze != null) {
         base.hazeEffect(
             state = haze,
@@ -217,7 +185,15 @@ fun Modifier.glass(shape: Shape = PanelShape, tint: Color? = null, blur: Dp = 28
     } else {
         base.background(p.glassFallback)
     }
-    return surface.border(1.dp, Brush.linearGradient(listOf(p.strokeTop, p.strokeBottom)), shape)
+    return surface.border(1.dp, p.hairline, shape)
+}
+
+/** A control on a card: the raised step with a hairline (secondary buttons, inputs, chips). */
+@Suppress("ComposableModifierFactory", "ModifierFactoryExtensionFunction")
+@Composable
+fun Modifier.raised(shape: Shape = ControlShape): Modifier {
+    val p = Glass.palette
+    return if (LocalArtworkBackdrop.current) glass(shape) else clip(shape).background(p.raised).border(1.dp, p.hairline, shape)
 }
 
 /** A glass card. */
@@ -242,7 +218,7 @@ fun GlassPanel(
 
 enum class GlassButtonStyle { Primary, Secondary, Danger }
 
-/** Pill button. Primary is the accent gradient with a glossy top; Secondary is glass. */
+/** Button: Primary is the solid accent, Secondary the raised surface, Danger red text on it. */
 @Composable
 fun GlassButton(
     text: String,
@@ -263,12 +239,8 @@ fun GlassButton(
         GlassButtonStyle.Danger -> p.danger
     }
     val surface = when (style) {
-        GlassButtonStyle.Primary -> Modifier
-            .clip(PillShape)
-            .background(Brush.horizontalGradient(listOf(p.accent, p.accent2)))
-            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent)))
-            .border(1.dp, Color.White.copy(alpha = 0.25f), PillShape)
-        else -> Modifier.glass(PillShape)
+        GlassButtonStyle.Primary -> Modifier.clip(ControlShape).background(p.accent)
+        else -> Modifier.raised(ControlShape)
     }
     // Pressed: a quick light wash on top of the shrink, so the tap reads even on busy backdrops.
     val pressWash by animateFloatAsState(if (pressed) 1f else 0f, tween(if (pressed) 60 else 180), label = "wash")
@@ -276,7 +248,7 @@ fun GlassButton(
     Row(
         modifier = modifier
             .scale(scale)
-            .heightIn(min = 40.dp)
+            .heightIn(min = 44.dp)
             .then(surface)
             .drawWithContent {
                 drawContent()
@@ -297,7 +269,7 @@ fun GlassButton(
                 }
             }
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -306,7 +278,7 @@ fun GlassButton(
         } else {
             if (icon != null) {
                 Icon(icon, contentDescription = null, tint = textColor, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(8.dp))
             }
             Text(text, style = MaterialTheme.typography.labelLarge, color = textColor)
         }
@@ -314,7 +286,7 @@ fun GlassButton(
 }
 
 /**
- * Round glass button for top-bar actions. [plain] = no glass circle, a bare 24 dp icon like
+ * Round button for top-bar actions: a raised circle, or with [plain] a bare 24 dp icon like
  * Instagram's top bar (the 40 dp touch area stays).
  */
 @Composable
@@ -326,7 +298,7 @@ fun GlassIconButton(
     plain: Boolean = false,
     enabled: Boolean = true,
 ) {
-    val surface = if (plain) Modifier.clip(CircleShape) else Modifier.glass(CircleShape)
+    val surface = if (plain) Modifier.clip(CircleShape) else Modifier.raised(CircleShape)
     Box(
         modifier = modifier
             .size(40.dp)
@@ -339,12 +311,12 @@ fun GlassIconButton(
             icon,
             contentDescription = contentDescription,
             tint = Glass.palette.textPrimary,
-            modifier = Modifier.size(if (plain) 24.dp else 22.dp),
+            modifier = Modifier.size(if (plain) 24.dp else 20.dp),
         )
     }
 }
 
-/** Floating top bar: controls float over the backdrop like iOS liquid glass. */
+/** Top bar: back or picture, title, and plain actions. */
 @Composable
 fun GlassTopBar(
     modifier: Modifier = Modifier,
@@ -355,7 +327,7 @@ fun GlassTopBar(
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         navigation?.invoke()
         if (title != null) {
@@ -374,7 +346,7 @@ fun GlassTopBar(
     }
 }
 
-/** Single-line glass text field with a placeholder. */
+/** Single-line text field on the raised surface, with a placeholder. */
 @Composable
 fun GlassTextField(
     value: String,
@@ -387,7 +359,7 @@ fun GlassTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = true,
     maxLines: Int = 1,
-    shape: Shape = PillShape,
+    shape: Shape = ControlShape,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val p = Glass.palette
@@ -405,14 +377,14 @@ fun GlassTextField(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 40.dp)
-                    .glass(shape)
+                    .heightIn(min = 44.dp)
+                    .raised(shape)
                     .padding(start = 16.dp, end = if (trailing != null) 4.dp else 16.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (leadingIcon != null) {
                     Icon(leadingIcon, contentDescription = null, tint = p.textTertiary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                 }
                 Box(Modifier.weight(1f)) {
                     if (value.isEmpty()) Text(placeholder, style = textStyle, color = p.textTertiary, maxLines = 1)
@@ -424,11 +396,11 @@ fun GlassTextField(
     )
 }
 
-/** Glass segmented control with a sliding accent pill. */
+/** Segmented control: a raised track with the selected segment inverted (light on dark). */
 @Composable
 fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val p = Glass.palette
-    BoxWithConstraints(modifier.fillMaxWidth().height(40.dp).glass(PillShape).padding(3.dp)) {
+    BoxWithConstraints(modifier.fillMaxWidth().height(40.dp).raised(ControlShape).padding(4.dp)) {
         val segment = maxWidth / options.size
         val offset by animateDpAsState(segment * selected, label = "segment")
         Box(
@@ -436,9 +408,8 @@ fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
                 .offset { IntOffset(offset.roundToPx(), 0) }
                 .width(segment)
                 .fillMaxHeight()
-                .clip(PillShape)
-                .background(Brush.horizontalGradient(listOf(p.accent, p.accent2)))
-                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent))),
+                .clip(ChipShape)
+                .background(p.textPrimary),
         )
         // Tabs for TalkBack: "Chat, tab, selected, 1 of 3".
         Row(Modifier.fillMaxSize().selectableGroup()) {
@@ -447,14 +418,14 @@ fun GlassSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(PillShape)
+                        .clip(ChipShape)
                         .selectable(selected = i == selected, role = Role.Tab, onClick = { onSelect(i) }),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         label,
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (i == selected) p.onAccent else p.textSecondary,
+                        color = if (i == selected) p.base else p.textSecondary,
                     )
                 }
             }
@@ -470,7 +441,7 @@ fun PlatformBadge(service: StreamingService, modifier: Modifier = Modifier, onAr
     if (icon != null) {
         Row(modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
             Image(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
             Text(
                 service.displayName,
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -511,49 +482,50 @@ fun PlatformNameChip(service: StreamingService, modifier: Modifier = Modifier) {
             else -> Color.White
         },
         fontSize = 11.sp,
-        fontWeight = FontWeight.ExtraBold,
+        fontWeight = FontWeight.SemiBold,
         letterSpacing = if (service == StreamingService.NETFLIX) 1.2.sp else 0.2.sp,
-        modifier = modifier.clip(RoundedCornerShape(6.dp)).background(bg).padding(horizontal = 8.dp, vertical = 3.dp),
+        modifier = modifier.clip(RoundedCornerShape(4.dp)).background(bg).padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }
 
-/** Small glass pill with a coloured dot, e.g. "● In sync". */
+/** Small status tag with a coloured dot, e.g. "In sync". */
 @Composable
-fun StatusPill(text: String, color: Color, modifier: Modifier = Modifier) {
+fun StatusPill(text: String, color: Color, modifier: Modifier = Modifier, inSync: Boolean = false) {
     Row(
-        modifier = modifier.glass(PillShape).padding(horizontal = 10.dp, vertical = 5.dp),
+        modifier = modifier.raised(ChipShape).padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+        if (inSync) SyncDots() else Box(Modifier.size(8.dp).clip(CircleShape).background(color))
         Spacer(Modifier.width(8.dp))
         Text(text, style = MaterialTheme.typography.labelMedium, color = Glass.palette.textPrimary, maxLines = 1)
     }
 }
 
-private val AvatarGradients = listOf(
-    Color(0xFFC2410C) to Color(0xFFBE185D),
-    Color(0xFFFF6B9A) to Color(0xFFFFA45C),
-    Color(0xFF22C55E) to Color(0xFF14B8A6),
-    Color(0xFFF59E0B) to Color(0xFFEF4444),
-    Color(0xFF8B5CF6) to Color(0xFFEC4899),
+/** Deep, warm tones for letter avatars (no picture yet), chosen from the name. */
+private val AvatarTones = listOf(
+    Color(0xFF7A2E2A),
+    Color(0xFF7A5A24),
+    Color(0xFF4D5A2E),
+    Color(0xFF2F4F55),
+    Color(0xFF5B3A4A),
 )
 
 /**
- * Profile picture ([photoUrl], still or animated GIF) over the initial on a gradient circle chosen
+ * Profile picture ([photoUrl], still or animated GIF) over the initial on a toned circle chosen
  * from the name; the initial shows while the picture loads or if there is none. Optional online dot.
  */
 @Composable
 fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp, online: Boolean? = null, photoUrl: String? = null) {
-    val (a, b) = AvatarGradients[name.hashCode().absoluteValue % AvatarGradients.size]
+    val tone = AvatarTones[name.hashCode().absoluteValue % AvatarTones.size]
     Box(modifier.size(size)) {
         Box(
-            Modifier.fillMaxSize().clip(CircleShape).background(Brush.linearGradient(listOf(a, b))),
+            Modifier.fillMaxSize().clip(CircleShape).background(tone),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 name.trim().take(1).uppercase().ifEmpty { "?" },
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
+                color = Color(0xFFF3E9DD),
+                fontWeight = FontWeight.Medium,
                 fontSize = (size.value * 0.42f).sp,
                 textAlign = TextAlign.Center,
             )
@@ -582,14 +554,14 @@ fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp, online
     }
 }
 
-/** Small uppercase label above a group. */
+/** Small label above a group, in sentence case. */
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(
-        text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
+        text,
+        style = MaterialTheme.typography.labelMedium,
         color = Glass.palette.textTertiary,
-        modifier = modifier.padding(start = 6.dp),
+        modifier = modifier.padding(start = 4.dp),
     )
 }
 
@@ -607,17 +579,16 @@ fun GlassRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .padding(vertical = 10.dp, horizontal = 4.dp),
+            .padding(vertical = 12.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Box(
-                Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(p.accent.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center,
-            ) { Icon(icon, contentDescription = null, tint = p.accentText, modifier = Modifier.size(18.dp)) }
-            Spacer(Modifier.width(14.dp))
+            Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = p.textSecondary, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(16.dp))
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = p.textPrimary)

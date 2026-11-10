@@ -72,6 +72,7 @@ import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.glass.staggerIn
 import com.syncit.app.ui.social.color
 import com.syncit.app.ui.glass.Avatar
+import com.syncit.app.ui.glass.SyncDots
 import com.syncit.app.ui.glass.GlassBottomSheet
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.GlassButtonStyle
@@ -121,7 +122,7 @@ fun HomeScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 24.dp + LocalBottomBarInset.current),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 // What friends are playing right now, up top: the quickest way into something.
                 val live = friends.orEmpty().filter { it.online && it.activity != null }
@@ -213,9 +214,9 @@ fun HomeScreen(
  */
 @Composable
 private fun LiveNowRow(rows: List<FriendRow>, onOpen: (FriendRow) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-            LivePulse()
+            SyncDots()
             Spacer(Modifier.width(8.dp))
             SectionLabel("Live now", Modifier.weight(1f))
         }
@@ -239,7 +240,7 @@ private fun LiveCard(row: FriendRow, onClick: () -> Unit) {
     val p = Glass.palette
     val activity = row.activity ?: return
     val art = rememberArtwork(activity.artworkJpeg)
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(16.dp)
     val name = row.friend.profile.displayName
     val what = activity.title?.takeIf { it.isNotBlank() } ?: activity.app.displayName
     Box(
@@ -247,8 +248,8 @@ private fun LiveCard(row: FriendRow, onClick: () -> Unit) {
             .width(168.dp)
             .height(220.dp)
             .clip(shape)
-            .background(Brush.linearGradient(listOf(activity.app.color(), activity.app.color().copy(alpha = 0.45f))))
-            .border(1.dp, Brush.linearGradient(listOf(p.strokeTop, p.strokeBottom)), shape)
+            .background(activity.app.color())
+            .border(1.dp, p.hairline, shape)
             .clickable(onClickLabel = "Open $name", role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) {},
     ) {
@@ -262,7 +263,7 @@ private fun LiveCard(row: FriendRow, onClick: () -> Unit) {
             size = 36.dp,
             online = true,
             photoUrl = row.friend.profile.photoUrl,
-            modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
+            modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
         )
         Column(Modifier.align(Alignment.BottomStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             ActivityAppBadge(activity.app, onArtwork = true)
@@ -274,38 +275,6 @@ private fun LiveCard(row: FriendRow, onClick: () -> Unit) {
                 maxLines = 1,
             )
         }
-    }
-}
-
-/** A red dot with a ring that pulses outward, like a live broadcast. Still with reduced motion. */
-@Composable
-private fun LivePulse() {
-    val red = Color(0xFFFF4D6D)
-    val reduce = rememberReduceMotion()
-    val t = if (reduce) {
-        0f
-    } else {
-        val v by rememberInfiniteTransition(label = "live").animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Restart),
-            label = "live-t",
-        )
-        v
-    }
-    Box(Modifier.size(14.dp), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .size(14.dp)
-                .graphicsLayer {
-                    scaleX = 0.6f + t * 0.8f
-                    scaleY = 0.6f + t * 0.8f
-                    alpha = (1f - t) * 0.6f
-                }
-                .clip(CircleShape)
-                .background(red),
-        )
-        Box(Modifier.size(8.dp).clip(CircleShape).background(red))
     }
 }
 
@@ -378,7 +347,7 @@ private fun FriendSheetContent(
     var confirm by rememberSaveable { mutableStateOf<String?>(null) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Avatar(profile.displayName, size = 64.dp, online = row.online, photoUrl = profile.photoUrl)
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(profile.displayName, style = MaterialTheme.typography.headlineSmall, color = p.textPrimary)
             Text("@${profile.username}", style = MaterialTheme.typography.bodyMedium, color = p.textSecondary)
@@ -387,7 +356,7 @@ private fun FriendSheetContent(
     profile.bio?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary) }
     val activity = row.activity
     if (activity != null) {
-        GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+        GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ActivityThumb(activity, size = 56.dp)
                 Spacer(Modifier.width(12.dp))
@@ -426,7 +395,7 @@ private fun FriendSheetContent(
         modifier = Modifier.fillMaxWidth(),
     )
     GlassButton("Message", onClick = onMessage, icon = Icons.AutoMirrored.Filled.Send, style = GlassButtonStyle.Secondary, modifier = Modifier.fillMaxWidth())
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         GlassButton("Unfriend", onClick = { confirm = "unfriend" }, style = GlassButtonStyle.Secondary, modifier = Modifier.weight(1f))
         GlassButton("Block", onClick = { confirm = "block" }, style = GlassButtonStyle.Danger, modifier = Modifier.weight(1f))
     }

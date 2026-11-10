@@ -272,7 +272,7 @@ private fun EmailEntry(
     Text(body, style = MaterialTheme.typography.bodyLarge, color = p.textSecondary)
     // A visible label (placeholders vanish as you type) and an autofill hint for the email.
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Email", style = MaterialTheme.typography.labelLarge, color = p.textPrimary, modifier = Modifier.padding(start = 6.dp))
+        Text("Email", style = MaterialTheme.typography.labelLarge, color = p.textPrimary, modifier = Modifier.padding(start = 8.dp))
         GlassTextField(
             value = email,
             onValueChange = onEmailChange,

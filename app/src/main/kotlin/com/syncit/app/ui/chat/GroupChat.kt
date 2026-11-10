@@ -75,6 +75,8 @@ import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.glass.SectionLabel
+import com.syncit.app.ui.glass.ChipShape
+import com.syncit.app.ui.glass.raised
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.model.ChatRoomLink
 import com.syncit.core.model.DirectMessage
@@ -269,9 +271,9 @@ fun GroupChatScreen(
         Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Avatar(group?.name ?: "?", size = 40.dp)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f).clickable(onClick = onOpenInfo)) {
                     Text(group?.name.orEmpty(), style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val live = room
@@ -289,7 +291,7 @@ fun GroupChatScreen(
                 } else {
                     GlassSmallButton(if (busy) "Starting…" else "Start room", onClick = { viewModel.startRoom(onOpenRoom) }, enabled = !busy && group != null)
                 }
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(8.dp))
                 GlassIconButton(Icons.Filled.Info, "Group info", onOpenInfo, plain = true)
             }
 
@@ -297,8 +299,8 @@ fun GroupChatScreen(
             if (group != null && group.members.size <= 1) {
                 GlassPanel(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    contentPadding = PaddingValues(14.dp),
-                    spacing = 10.dp,
+                    contentPadding = PaddingValues(16.dp),
+                    spacing = 12.dp,
                 ) {
                     Text("It's just you here", style = MaterialTheme.typography.titleSmall, color = p.textPrimary)
                     Text(
@@ -314,7 +316,7 @@ fun GroupChatScreen(
                 if (me !in live.inRoom) {
                     GlassPanel(
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                        contentPadding = PaddingValues(14.dp),
+                        contentPadding = PaddingValues(16.dp),
                         onClick = { viewModel.joinRoom(live.code, onOpenRoom) },
                     ) {
                         val names = live.inRoom.mapNotNull { people[it]?.displayName?.substringBefore(' ') }
@@ -335,7 +337,7 @@ fun GroupChatScreen(
                 Modifier.weight(1f).fillMaxWidth(),
                 state = listState,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(list, key = { it.id }) { m ->
                     val mine = m.fromUid == me
@@ -345,14 +347,14 @@ fun GroupChatScreen(
                                 people[m.fromUid]?.displayName ?: "Someone",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = p.accentText,
-                                modifier = Modifier.padding(start = 6.dp, bottom = 2.dp),
+                                modifier = Modifier.padding(start = 8.dp, bottom = 2.dp),
                             )
                         }
                         Box(
                             Modifier
-                                .clip(RoundedCornerShape(18.dp))
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(if (mine) p.accent else p.glassFallback)
-                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                         ) {
                             Text(m.text, style = MaterialTheme.typography.bodyLarge, color = if (mine) p.onAccent else p.textPrimary)
                         }
@@ -365,7 +367,7 @@ fun GroupChatScreen(
                     "Only admins can send messages",
                     style = MaterialTheme.typography.bodyMedium,
                     color = p.textSecondary,
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 18.dp),
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 16.dp),
                     textAlign = TextAlign.Center,
                 )
             } else Row(
@@ -440,7 +442,7 @@ fun GroupInfoScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Avatar(group.name, size = 88.dp)
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     if (editing) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             GlassTextField(
@@ -485,7 +487,7 @@ fun GroupInfoScreen(
                 }
 
                 SectionLabel("${group.members.size} ${if (group.members.size == 1) "member" else "members"}", Modifier.padding(top = 4.dp))
-                GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp), spacing = 0.dp) {
+                GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 8.dp), spacing = 0.dp) {
                     for (m in group.members.sortedWith(compareBy({ it.uid != me }, { !it.admin }, { it.joinedAt }))) {
                         val profile = people[m.uid]
                         val inRoom = room?.inRoom?.contains(m.uid) == true
@@ -496,7 +498,7 @@ fun GroupInfoScreen(
                                     memberFor = m.uid
                                     lastMember = m.uid
                                 }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Avatar(profile?.displayName ?: "?", size = 40.dp, photoUrl = profile?.photoUrl)
@@ -520,11 +522,10 @@ fun GroupInfoScreen(
                                 Text(
                                     "Group admin",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = p.accentText,
+                                    color = p.textSecondary,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(p.accent.copy(alpha = 0.14f))
-                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                        .raised(ChipShape)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
                                 )
                             }
                         }
@@ -687,7 +688,7 @@ fun AddGroupMembersScreen(viewModel: GroupChatViewModel, onBack: () -> Unit) {
                 LazyColumn(
                     Modifier.fillMaxSize().navigationBarsPadding(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(addable, key = { it.profile.uid }) { f ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -786,7 +787,7 @@ fun NewGroupScreen(viewModel: NewGroupViewModel, onBack: () -> Unit, onCreated: 
                 "Pick friends now or add them later. People who chose \"Ask me first\" get an invite; the rest are added straight away.",
                 style = MaterialTheme.typography.bodySmall,
                 color = p.textSecondary,
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
             )
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
@@ -808,7 +809,7 @@ fun NewGroupScreen(viewModel: NewGroupViewModel, onBack: () -> Unit, onCreated: 
                                 Text("@${f.profile.username}", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
                             }
                             Box(
-                                Modifier.size(26.dp).clip(CircleShape).background(if (on) p.accent else p.glassFallback),
+                                Modifier.size(24.dp).clip(CircleShape).background(if (on) p.accent else p.glassFallback),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (on) androidx.compose.material3.Icon(Icons.Filled.Check, contentDescription = "Selected", tint = p.onAccent, modifier = Modifier.size(18.dp))

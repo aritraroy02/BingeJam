@@ -13,5 +13,5 @@ import com.syncit.core.config.Brand
 @Composable
 fun BrandWordmark(modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.displaySmall) {
     val p = Glass.palette
-    Text(Brand.NAME, modifier = modifier, style = style.copy(brush = Brush.horizontalGradient(listOf(p.accent2, p.accentText))))
+    Text(Brand.NAME, modifier = modifier, style = style.copy(color = p.textPrimary))
 }

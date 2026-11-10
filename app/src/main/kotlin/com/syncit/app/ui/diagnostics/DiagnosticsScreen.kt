@@ -86,7 +86,7 @@ fun DiagnosticsScreen(viewModel: DiagnosticsViewModel, onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = Inter,
                         color = p.textTertiary,
-                        modifier = Modifier.padding(top = 6.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
                 if (!accessGranted) {
@@ -119,8 +119,8 @@ fun DiagnosticsScreen(viewModel: DiagnosticsViewModel, onBack: () -> Unit) {
                     .navigationBarsPadding()
                     .padding(bottom = 12.dp)
                     .glass(PanelShape)
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     lastResult ?: if (selectedKey == null) "Tap a session to control it" else "Send to the selected session",

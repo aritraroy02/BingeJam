@@ -88,10 +88,10 @@ fun VoiceBar(
     if (!inVoice) {
         val talking = members.filter { it.inVoice && it.online && it.uid != myUid }
         if (talking.isEmpty()) return
-        GlassPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
+        GlassPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(ImageVector.vectorResource(R.drawable.ic_voice_mic), null, tint = p.success, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(
                     "${names(talking.map { it.name })} ${if (talking.size == 1) "is" else "are"} in voice",
                     style = MaterialTheme.typography.bodyMedium,
@@ -108,7 +108,7 @@ fun VoiceBar(
 
     var volumeFor by rememberSaveable { mutableStateOf<String?>(null) }
 
-    GlassPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(12.dp), spacing = 10.dp) {
+    GlassPanel(modifier.fillMaxWidth(), contentPadding = PaddingValues(12.dp), spacing = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 when (voice.status) {
@@ -121,7 +121,7 @@ fun VoiceBar(
                 modifier = Modifier.weight(1f),
             )
             QualityChip("HD", voice.quality == VoiceQuality.HD) { onQuality(VoiceQuality.HD) }
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
             QualityChip("SD", voice.quality == VoiceQuality.SD) { onQuality(VoiceQuality.SD) }
         }
 
@@ -148,7 +148,7 @@ fun VoiceBar(
             }
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GlassIconButton(
                 ImageVector.vectorResource(if (voice.muted) R.drawable.ic_voice_mic_off else R.drawable.ic_voice_mic),
                 if (voice.muted) "Unmute" else "Mute",
@@ -173,7 +173,7 @@ fun VoiceBar(
                 Modifier.size(40.dp).clip(CircleShape).background(p.danger).clickable(onClick = onLeave),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(ImageVector.vectorResource(R.drawable.ic_voice_leave), "Leave voice", tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(ImageVector.vectorResource(R.drawable.ic_voice_leave), "Leave voice", tint = Color.White, modifier = Modifier.size(24.dp))
             }
         }
     }
@@ -203,7 +203,7 @@ private fun QualityChip(label: String, selected: Boolean, onClick: () -> Unit) {
             .clip(shape)
             .then(if (selected) Modifier.background(p.accent) else Modifier.border(1.dp, p.textSecondary.copy(alpha = 0.4f), shape))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = if (selected) p.onAccent else p.textSecondary)
     }
@@ -229,7 +229,7 @@ private fun Speaker(
                 avatarName,
                 size = 44.dp,
                 photoUrl = photoUrl,
-                modifier = Modifier.border(2.dp, if (speaking) p.success else Color.Transparent, CircleShape).padding(3.dp),
+                modifier = Modifier.border(2.dp, if (speaking) p.success else Color.Transparent, CircleShape).padding(4.dp),
             )
             if (muted || deafened) {
                 Box(

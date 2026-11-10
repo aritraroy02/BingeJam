@@ -31,14 +31,19 @@ fun ThemeMode.isDark(): Boolean = when (this) {
 }
 
 /**
- * Liquid-glass palette. Panels are blurred backdrop + [glassTint]; [glassFallback] is used where
- * blur isn't available (Android 11 and older, dialogs in their own window).
+ * Palette (unslop pass, 2026-11-10; direction: late-night, warm, a little mischievous, a dark room
+ * lit by one screen). Warm neutral surfaces, one red accent from the startup animation, and the
+ * colour left to the content: posters, artwork and faces. [surface] is a card, [raised] a control
+ * or input on it, [hairline] every border. Glass ([glassTint], blurred) only on layers that float
+ * over content: the tab bar, sheets, banners and the room over its movie artwork.
  */
 @Immutable
 data class GlassPalette(
     val isDark: Boolean,
     val base: Color,
-    val blobs: List<Color>,
+    val surface: Color,
+    val raised: Color,
+    val hairline: Color,
     val glassTint: Color,
     val glassFallback: Color,
     val strokeTop: Color,
@@ -46,11 +51,11 @@ data class GlassPalette(
     val textPrimary: Color,
     val textSecondary: Color,
     val textTertiary: Color,
-    /** Gradient start for filled buttons, my chat bubbles, selected pills ([onAccent] text). */
+    /** Fill for the primary action, my chat bubbles and selections ([onAccent] text, >= 4.5:1). */
     val accent: Color,
-    /** Gradient end; with [accent] it must keep [onAccent] text ≥ 4.5:1. */
+    /** Same as [accent]; kept so older call sites keep compiling. No gradients. */
     val accent2: Color,
-    /** The accent for text, links and icons drawn on glass (≥ 4.5:1 against it). */
+    /** The accent for text, links and icons (>= 4.5:1 on [raised]). */
     val accentText: Color,
     val onAccent: Color,
     val success: Color,
@@ -58,52 +63,61 @@ data class GlassPalette(
     val danger: Color,
     /** Laid over a blurred movie artwork backdrop so text stays readable. */
     val artworkScrim: Color,
-)
+) {
+    /** The two friends from the startup animation: together they mark "live" and "in sync". */
+    val friendA: Color get() = Color(0xFFFF2E4D)
+    val friendB: Color get() = Color(0xFFFF7A45)
+}
 
-// "Sunset": warm orange into magenta over a dusk-purple glow. Friendly and social.
+private val DarkText = Color(0xFFEFE9DE)
+private val LightText = Color(0xFF1F1B16)
+
 val DarkGlass = GlassPalette(
     isDark = true,
-    base = Color(0xFF0A0606),
-    blobs = listOf(Color(0xFFEA580C), Color(0xFFBE185D), Color(0xFF6D28D9)),
-    glassTint = Color.White.copy(alpha = 0.09f),
-    glassFallback = Color(0xE01E1A1A),
-    strokeTop = Color.White.copy(alpha = 0.30f),
-    strokeBottom = Color.White.copy(alpha = 0.05f),
-    textPrimary = Color(0xFFF5F7FA),
-    textSecondary = Color.White.copy(alpha = 0.70f),
-    // ≥ 4.5:1 on the darkest glass (0.45 was ~4.4:1).
-    textTertiary = Color.White.copy(alpha = 0.56f),
-    accent = Color(0xFFC2410C), // burnt orange, white on it 5.2:1
-    accent2 = Color(0xFFBE185D), // magenta, white on it 6.0:1
-    accentText = Color(0xFFFB923C), // 7.6:1 on dark glass
+    base = Color(0xFF121110),
+    surface = Color(0xFF1A1917),
+    raised = Color(0xFF24221F),
+    hairline = DarkText.copy(alpha = 0.08f),
+    glassTint = Color(0xFF1A1917).copy(alpha = 0.72f),
+    glassFallback = Color(0xF21E1C1A),
+    strokeTop = DarkText.copy(alpha = 0.10f),
+    strokeBottom = DarkText.copy(alpha = 0.06f),
+    textPrimary = DarkText,
+    textSecondary = Color(0xFFAAA398),
+    // >= 4.5:1 on raised (#24221F).
+    textTertiary = Color(0xFF948E84),
+    accent = Color(0xFFC8102E), // white on it 5.9:1
+    accent2 = Color(0xFFC8102E),
+    accentText = Color(0xFFFF5468), // 5.1:1 on raised, 6.0:1 on base
     onAccent = Color.White,
-    success = Color(0xFF34D399),
-    warning = Color(0xFFFBBF24),
-    // A clear red, apart from the orange highlights.
+    success = Color(0xFF4CC38A),
+    warning = Color(0xFFE5A93B),
     danger = Color(0xFFF87171),
-    artworkScrim = Color.Black.copy(alpha = 0.45f),
+    artworkScrim = Color.Black.copy(alpha = 0.50f),
 )
 
 val LightGlass = GlassPalette(
     isDark = false,
-    base = Color(0xFFFFF7F2),
-    blobs = listOf(Color(0xFFFED7AA), Color(0xFFFBCFE8), Color(0xFFDDD6FE)),
-    glassTint = Color.White.copy(alpha = 0.55f),
-    glassFallback = Color(0xF0FFFFFF),
-    strokeTop = Color.White.copy(alpha = 0.95f),
-    strokeBottom = Color.White.copy(alpha = 0.30f),
-    textPrimary = Color(0xFF0B0D12),
-    textSecondary = Color(0xFF0B0D12).copy(alpha = 0.68f),
-    // ≥ 4.5:1 on the light base (0.42 was ~2.9:1, unreadable for hints and labels).
-    textTertiary = Color(0xFF0B0D12).copy(alpha = 0.60f),
-    accent = Color(0xFFC2410C),
-    accent2 = Color(0xFFBE185D),
-    accentText = Color(0xFFC2410C), // 4.9:1 on the light base
+    base = Color(0xFFF7F4EE),
+    surface = Color(0xFFFDFBF7),
+    raised = Color(0xFFEFE9DF),
+    hairline = LightText.copy(alpha = 0.08f),
+    glassTint = Color(0xFFFDFBF7).copy(alpha = 0.80f),
+    glassFallback = Color(0xF5FDFBF7),
+    strokeTop = LightText.copy(alpha = 0.10f),
+    strokeBottom = LightText.copy(alpha = 0.06f),
+    textPrimary = LightText,
+    textSecondary = Color(0xFF5E554A),
+    // >= 4.5:1 on raised (#EFE9DF).
+    textTertiary = Color(0xFF6B6257),
+    accent = Color(0xFFC8102E),
+    accent2 = Color(0xFFC8102E),
+    accentText = Color(0xFFB80F2B), // 5.5:1 on raised
     onAccent = Color.White,
-    success = Color(0xFF059669),
-    warning = Color(0xFFD97706),
+    success = Color(0xFF15803D),
+    warning = Color(0xFFB45309),
     danger = Color(0xFFB91C1C),
-    artworkScrim = Color.White.copy(alpha = 0.40f),
+    artworkScrim = Color.White.copy(alpha = 0.45f),
 )
 
 val LocalGlassPalette = staticCompositionLocalOf { DarkGlass }
@@ -140,22 +154,22 @@ private fun FontFamily.style(size: Int, weight: FontWeight, line: Int, tracking:
 )
 
 // Sized like Instagram's Android app (user's choice, 2026-10-29): 14 sp body text and list titles,
-// 12 sp secondary text, ~20 sp screen titles.
+// 12 sp secondary text, ~20 sp screen titles. Weights 400 to 600; hierarchy from size and colour.
 private fun glassTypography(inter: FontFamily) = with(inter) {
     Typography(
-        displaySmall = style(30, FontWeight.ExtraBold, 36, -0.8f),
-        headlineLarge = style(26, FontWeight.Bold, 32, -0.6f),
-        headlineMedium = style(22, FontWeight.Bold, 28, -0.4f),
-        headlineSmall = style(20, FontWeight.Bold, 26, -0.3f),
-        titleLarge = style(18, FontWeight.SemiBold, 24, -0.2f),
-        titleMedium = style(16, FontWeight.SemiBold, 21),
-        titleSmall = style(14, FontWeight.SemiBold, 19),
-        bodyLarge = style(15, FontWeight.Normal, 21),
-        bodyMedium = style(14, FontWeight.Normal, 19),
+        displaySmall = style(30, FontWeight.Medium, 36, -0.3f),
+        headlineLarge = style(26, FontWeight.Medium, 32, -0.2f),
+        headlineMedium = style(22, FontWeight.Medium, 28),
+        headlineSmall = style(20, FontWeight.Medium, 28),
+        titleLarge = style(18, FontWeight.Medium, 24),
+        titleMedium = style(16, FontWeight.Medium, 24),
+        titleSmall = style(14, FontWeight.Medium, 20),
+        bodyLarge = style(15, FontWeight.Normal, 22),
+        bodyMedium = style(14, FontWeight.Normal, 20),
         bodySmall = style(12, FontWeight.Normal, 16),
-        labelLarge = style(14, FontWeight.SemiBold, 18),
+        labelLarge = style(14, FontWeight.Medium, 20),
         labelMedium = style(12, FontWeight.Medium, 16),
-        labelSmall = style(11, FontWeight.SemiBold, 14, 0.6f),
+        labelSmall = style(11, FontWeight.Medium, 16, 0.1f),
     )
 }
 
@@ -168,17 +182,17 @@ fun SyncItTheme(dark: Boolean, content: @Composable () -> Unit) {
         darkColorScheme(
             primary = p.accentText, onPrimary = p.onAccent, secondary = p.accent2,
             background = p.base, onBackground = p.textPrimary,
-            surface = Color(0xFF1A1414), onSurface = p.textPrimary,
-            surfaceVariant = Color(0xFF261E1E), onSurfaceVariant = p.textSecondary,
-            surfaceContainerHigh = Color(0xFF211A1A), error = p.danger,
+            surface = p.surface, onSurface = p.textPrimary,
+            surfaceVariant = p.raised, onSurfaceVariant = p.textSecondary,
+            surfaceContainerHigh = p.raised, error = p.danger,
         )
     } else {
         lightColorScheme(
             primary = p.accentText, onPrimary = p.onAccent, secondary = p.accent2,
             background = p.base, onBackground = p.textPrimary,
-            surface = Color(0xFFFFFBF8), onSurface = p.textPrimary,
-            surfaceVariant = Color(0xFFF6E7DE), onSurfaceVariant = p.textSecondary,
-            surfaceContainerHigh = Color(0xFFFCF2EC), error = p.danger,
+            surface = p.surface, onSurface = p.textPrimary,
+            surfaceVariant = p.raised, onSurfaceVariant = p.textSecondary,
+            surfaceContainerHigh = p.raised, error = p.danger,
         )
     }
     val assets = LocalContext.current.applicationContext.assets

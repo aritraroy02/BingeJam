@@ -74,6 +74,7 @@ import com.syncit.app.ui.glass.GlassSmallButton
 import com.syncit.app.ui.glass.GlassTextField
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.NoticeBanner
+import com.syncit.app.ui.glass.SyncDots
 import com.syncit.app.ui.home.FriendSheet
 import com.syncit.app.ui.home.HomeViewModel
 import com.syncit.app.ui.nav.LocalBottomBarInset
@@ -278,7 +279,7 @@ fun ChatsScreen(
                 Box {
                     GlassIconButton(Icons.Filled.Add, if (friendRequests > 0) "New, $friendRequests friend requests" else "New", { plusOpen = true })
                     if (friendRequests > 0) {
-                        Box(Modifier.align(Alignment.TopEnd).size(10.dp).clip(CircleShape).background(p.danger))
+                        Box(Modifier.align(Alignment.TopEnd).size(8.dp).clip(CircleShape).background(p.danger))
                     }
                 }
             })
@@ -293,7 +294,7 @@ fun ChatsScreen(
                 } else {
                     null
                 },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 10.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp),
             )
             val list = rows
             when {
@@ -317,7 +318,7 @@ fun ChatsScreen(
                 else -> LazyColumn(
                     Modifier.fillMaxSize().navigationBarsPadding(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + bottom),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     items(invites, key = { "invite:${it.groupId}" }) { invite ->
                         InviteCard(invite, onJoin = { viewModel.accept(invite, onOpenGroup) }, onDecline = { viewModel.decline(invite) })
@@ -473,7 +474,7 @@ private fun ChatRowMenuSheet(entry: ChatEntry, visible: Boolean, onDismiss: () -
 @Composable
 private fun InviteCard(invite: GroupInvite, onJoin: () -> Unit, onDecline: () -> Unit) {
     val p = Glass.palette
-    GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp), spacing = 10.dp) {
+    GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), spacing = 12.dp) {
         Text(
             "${invite.fromName.ifBlank { "A friend" }} invited you to ${invite.groupName}",
             style = MaterialTheme.typography.titleSmall,
@@ -547,12 +548,7 @@ private fun ChatRowView(row: ChatRow, myUid: String?, onClick: () -> Unit, onLon
     val time = timeLabel(row.last.sentAt)
     val unread = row.unread > 0
 
-    GlassPanel(
-        Modifier
-            .fillMaxWidth()
-            .rowClicks(onClick, onLongClick, haptics),
-        contentPadding = PaddingValues(12.dp),
-    ) {
+    Column(Modifier.fillMaxWidth().rowClicks(onClick, onLongClick, haptics).padding(horizontal = 4.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(
                 row.friend.profile.displayName,
@@ -585,11 +581,12 @@ private fun ChatRowView(row: ChatRow, myUid: String?, onClick: () -> Unit, onLon
                             last.fromUid == myUid -> "You: ${last.text}"
                             else -> last.text
                         },
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontStyle = if (last.deleted) FontStyle.Italic else FontStyle.Normal,
-                            fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal,
-                        ),
-                        color = if (unread) p.textPrimary else p.textSecondary,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal),
+                        color = when {
+                            last.deleted -> p.textTertiary
+                            unread -> p.textPrimary
+                            else -> p.textSecondary
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
@@ -604,7 +601,7 @@ private fun ChatRowView(row: ChatRow, myUid: String?, onClick: () -> Unit, onLon
 /** Tap opens the chat; long-press (haptic tick) opens the row menu. TalkBack offers it as "More options". */
 @OptIn(ExperimentalFoundationApi::class)
 private fun Modifier.rowClicks(onClick: () -> Unit, onLongClick: () -> Unit, haptics: HapticFeedback): Modifier =
-    clip(RoundedCornerShape(24.dp)).combinedClickable(
+    clip(RoundedCornerShape(12.dp)).combinedClickable(
         onClickLabel = "Open chat",
         onLongClickLabel = "More options",
         onClick = onClick,
@@ -619,7 +616,7 @@ private fun GroupRowView(row: GroupRow, myUid: String?, onClick: () -> Unit, onL
     val p = Glass.palette
     val haptics = LocalHapticFeedback.current
     val unread = row.unread > 0
-    GlassPanel(Modifier.fillMaxWidth().rowClicks(onClick, onLongClick, haptics), contentPadding = PaddingValues(12.dp)) {
+    Column(Modifier.fillMaxWidth().rowClicks(onClick, onLongClick, haptics).padding(horizontal = 4.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Avatar(row.group.name, size = 48.dp)
             Spacer(Modifier.width(12.dp))
@@ -639,9 +636,9 @@ private fun GroupRowView(row: GroupRow, myUid: String?, onClick: () -> Unit, onL
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (row.inRoom > 0) {
-                        Box(Modifier.clip(CircleShape).background(p.success).padding(horizontal = 8.dp, vertical = 2.dp)) {
-                            Text("Room live · ${row.inRoom}", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = p.base)
-                        }
+                        SyncDots()
+                        Spacer(Modifier.width(8.dp))
+                        Text("Live · ${row.inRoom}", style = MaterialTheme.typography.labelMedium, color = p.textPrimary)
                         Spacer(Modifier.width(8.dp))
                     }
                     val last = row.last
@@ -651,7 +648,7 @@ private fun GroupRowView(row: GroupRow, myUid: String?, onClick: () -> Unit, onL
                             last.fromUid == myUid -> "You: ${last.text}"
                             else -> last.text
                         },
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal),
                         color = if (unread) p.textPrimary else p.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -669,12 +666,12 @@ private fun UnreadBadge(count: Int) {
     val p = Glass.palette
     Spacer(Modifier.width(8.dp))
     Box(
-        Modifier.clip(CircleShape).background(p.accent).padding(horizontal = 7.dp, vertical = 2.dp),
+        Modifier.clip(CircleShape).background(p.accent).padding(horizontal = 8.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             if (count > 99) "99+" else count.toString(),
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
             color = p.onAccent,
         )
     }

@@ -26,6 +26,7 @@ import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.SectionLabel
+import com.syncit.app.ui.glass.SyncDots
 import com.syncit.app.ui.glass.glass
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.model.ChatRoomLink
@@ -109,28 +110,32 @@ fun LiveRoomsRow(rooms: List<LiveRoom>, onOpen: (LiveRoom) -> Unit, modifier: Mo
     val p = Glass.palette
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel("Live rooms")
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 4.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(end = 4.dp)) {
             items(rooms, key = { it.key }) { room ->
-                val shape = RoundedCornerShape(18.dp)
+                val shape = RoundedCornerShape(16.dp)
                 Row(
                     Modifier
                         .widthIn(min = 150.dp, max = 220.dp)
                         .clip(shape)
                         .glass(shape)
                         .clickable(role = Role.Button) { onOpen(room) }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Avatar(room.title, size = 36.dp, photoUrl = room.photoUrl)
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f, fill = false)) {
                         Text(room.title, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            if (room.people == 1) "1 watching · Join" else "${room.people} watching · Join",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = p.accentText,
-                            maxLines = 1,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SyncDots(size = 8.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (room.people == 1) "1 watching" else "${room.people} watching",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = p.textSecondary,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }

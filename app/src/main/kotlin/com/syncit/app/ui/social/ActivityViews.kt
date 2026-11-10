@@ -51,13 +51,13 @@ fun ActivityAppIcon(app: ActivityApp, modifier: Modifier = Modifier, size: Dp = 
             modifier
                 .size(size)
                 .clip(RoundedCornerShape(size * 0.24f))
-                .background(Brush.linearGradient(listOf(c, c.copy(alpha = 0.7f)))),
+                .background(c),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 app.displayName.take(1),
                 color = if (app == ActivityApp.SPOTIFY || app == ActivityApp.AMAZON_MUSIC) PlatformColors.OnLightBrand else Color.White,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = (size.value * 0.45f).sp,
             )
         }
@@ -78,8 +78,8 @@ fun ActivityAppBadge(app: ActivityApp, modifier: Modifier = Modifier, onArtwork:
             app.displayName,
             color = Color.White,
             fontSize = 11.sp,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = modifier.clip(RoundedCornerShape(6.dp)).background(app.color()).padding(horizontal = 8.dp, vertical = 3.dp),
+            fontWeight = FontWeight.SemiBold,
+            modifier = modifier.clip(RoundedCornerShape(8.dp)).background(app.color()).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }
@@ -90,16 +90,16 @@ fun ActivityThumb(activity: Activity, modifier: Modifier = Modifier, size: Dp = 
     val p = Glass.palette
     val shape = RoundedCornerShape(12.dp)
     val art = rememberArtwork(activity.artworkJpeg)
-    val edge = Modifier.border(1.dp, Brush.linearGradient(listOf(p.strokeTop, p.strokeBottom)), shape)
+    val edge = Modifier.border(1.dp, p.hairline, shape)
     if (art != null) {
         Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier.size(size).clip(shape).then(edge))
     } else {
         val c = activity.app.color()
         Box(
-            modifier.size(size).clip(shape).background(Brush.linearGradient(listOf(c, c.copy(alpha = 0.55f)))).then(edge),
+            modifier.size(size).clip(shape).background(c).then(edge),
             contentAlignment = Alignment.Center,
         ) {
-            Text(activity.app.displayName.take(1), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = (size.value * 0.4f).sp)
+            Text(activity.app.displayName.take(1), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = (size.value * 0.4f).sp)
         }
     }
 }

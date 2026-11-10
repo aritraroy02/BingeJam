@@ -47,11 +47,11 @@ private fun MediaKind.groupNote(): String = when (this) {
 @Composable
 fun ActivityAppToggles(shared: Set<ActivityApp>, onToggle: (ActivityApp, Boolean) -> Unit, modifier: Modifier = Modifier) {
     val p = Glass.palette
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         for (kind in MediaKind.entries) {
             val apps = ActivityApp.entries.filter { it.kind == kind }
             if (apps.isEmpty()) continue
-            SectionLabel(kind.groupLabel(), Modifier.padding(top = 6.dp))
+            SectionLabel(kind.groupLabel(), Modifier.padding(top = 8.dp))
             GlassPanel(Modifier.fillMaxWidth(), spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
                 Text(kind.groupNote(), style = MaterialTheme.typography.bodySmall, color = p.textSecondary, modifier = Modifier.padding(4.dp))
                 for (app in apps) {
@@ -85,7 +85,7 @@ fun ActivitySetupScreen(prefs: UserPrefs, onDone: () -> Unit) {
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(top = 32.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Share what you're playing?", style = MaterialTheme.typography.headlineMedium, color = p.textPrimary)
             Text(
@@ -110,7 +110,7 @@ fun ActivitySetupScreen(prefs: UserPrefs, onDone: () -> Unit) {
                 text = if (shared.isEmpty()) "Continue" else "Share ${shared.size} app${if (shared.size == 1) "" else "s"}",
                 icon = Icons.AutoMirrored.Filled.ArrowForward,
                 onClick = onDone,
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             GlassButton(
                 text = "Share nothing",

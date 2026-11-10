@@ -5,6 +5,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -156,7 +157,7 @@ fun GlassBottomSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composab
                     .offset { IntOffset(0, dragY.roundToInt()) }
                     .fillMaxWidth()
                     .padding(8.dp)
-                    .glass(RoundedCornerShape(32.dp), tint = Glass.palette.glassFallback.copy(alpha = 0.55f))
+                    .glass(RoundedCornerShape(24.dp), tint = Glass.palette.glassTint, floating = true)
                     // Swallow taps so they don't reach the scrim.
                     .clickable(remember { MutableInteractionSource() }, indication = null) {}
                     .navigationBarsPadding()
@@ -189,15 +190,15 @@ fun CountBadge(count: Int, modifier: Modifier = Modifier) {
         modifier
             .heightIn(min = 20.dp)
             .clip(PillShape)
-            .background(Brush.horizontalGradient(listOf(Color(0xFFFF4D8D), Color(0xFFFF7A59))))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .background(p.accent)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             if (count > 99) "99+" else count.toString(),
             color = p.onAccent,
             fontFamily = Inter,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp,
         )
     }
@@ -212,28 +213,28 @@ fun BadgedIconButton(icon: ImageVector, contentDescription: String, count: Int, 
     }
 }
 
-/** Tappable glass chip, e.g. a username suggestion. */
+/** Tappable chip, e.g. a username suggestion; selected is inverted (light on dark). */
 @Composable
 fun GlassChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false) {
     val p = Glass.palette
     val surface = if (selected) {
-        Modifier.clip(PillShape).background(Brush.horizontalGradient(listOf(p.accent, p.accent2)))
+        Modifier.clip(ChipShape).background(p.textPrimary)
     } else {
-        Modifier.glass(PillShape)
+        Modifier.raised(ChipShape)
     }
     Text(
         text,
         style = MaterialTheme.typography.labelMedium,
-        color = if (selected) p.onAccent else p.textPrimary,
+        color = if (selected) p.base else p.textPrimary,
         modifier = modifier
             .then(surface)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { this.selected = selected }
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 
-/** Small pill-shaped action used inside list rows ("Ask to join", "Accept"). */
+/** Small action used inside list rows ("Ask to join", "Accept"). */
 @Composable
 fun GlassSmallButton(
     text: String,
@@ -244,9 +245,9 @@ fun GlassSmallButton(
 ) {
     val p = Glass.palette
     val surface = if (primary && enabled) {
-        Modifier.clip(PillShape).background(Brush.horizontalGradient(listOf(p.accent, p.accent2)))
+        Modifier.clip(ChipShape).background(p.accent)
     } else {
-        Modifier.glass(PillShape)
+        Modifier.raised(ChipShape)
     }
     Text(
         text,
@@ -260,7 +261,7 @@ fun GlassSmallButton(
         modifier = modifier
             .then(surface)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 
@@ -280,7 +281,7 @@ fun GlassSwitchRow(
     Row(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(12.dp))
             .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -324,11 +325,11 @@ fun NoticeBanner(message: String?, onDismiss: () -> Unit, modifier: Modifier = M
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth()
-                .glass(RoundedCornerShape(20.dp))
+                .glass(RoundedCornerShape(12.dp), floating = true)
                 .clickable(onClickLabel = "Dismiss", onClick = onDismiss)
                 // Screen readers announce it without the user having to find it.
                 .semantics { liveRegion = LiveRegionMode.Polite }
-                .padding(horizontal = 18.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         )
     }
 }
@@ -337,6 +338,19 @@ fun NoticeBanner(message: String?, onDismiss: () -> Unit, modifier: Modifier = M
 @Composable
 fun Dot(color: Color, modifier: Modifier = Modifier) {
     Box(modifier.size(8.dp).clip(CircleShape).background(color))
+}
+
+/**
+ * The app's signature (the startup animation's two friends, red and orange) meeting: marks
+ * something live and in sync, like a room people are in. Used for that and nothing else.
+ */
+@Composable
+fun SyncDots(modifier: Modifier = Modifier, size: Dp = 8.dp) {
+    val p = Glass.palette
+    Box(modifier.size(width = size * 1.6f, height = size)) {
+        Box(Modifier.size(size).clip(CircleShape).background(p.friendA))
+        Box(Modifier.align(Alignment.CenterEnd).size(size).clip(CircleShape).background(p.friendB))
+    }
 }
 
 /** How far a bottom sheet must be pulled down to close when let go. */

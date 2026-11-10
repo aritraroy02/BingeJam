@@ -50,9 +50,9 @@ fun UsernameField(
             modifier = Modifier.fillMaxWidth(),
             trailing = {
                 when (status) {
-                    Status.Checking -> CircularProgressIndicator(Modifier.padding(end = 14.dp).size(18.dp), color = p.accent, strokeWidth = 2.dp)
+                    Status.Checking -> CircularProgressIndicator(Modifier.padding(end = 16.dp).size(18.dp), color = p.accent, strokeWidth = 2.dp)
                     is Status.Available, Status.Unchanged ->
-                        Icon(Icons.Filled.Check, "Available", tint = p.success, modifier = Modifier.padding(end = 14.dp))
+                        Icon(Icons.Filled.Check, "Available", tint = p.success, modifier = Modifier.padding(end = 16.dp))
                     else -> Unit
                 }
             },

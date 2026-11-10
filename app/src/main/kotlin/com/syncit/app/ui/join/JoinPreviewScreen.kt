@@ -94,7 +94,7 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
                     Text(it, style = MaterialTheme.typography.bodyLarge, color = p.textSecondary, textAlign = TextAlign.Center)
                 }
 
-                GlassPanel(Modifier.fillMaxWidth(), spacing = 14.dp) {
+                GlassPanel(Modifier.fillMaxWidth(), spacing = 16.dp) {
                     if (preview != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Avatar(preview.hostName, size = 44.dp)
@@ -124,7 +124,7 @@ fun JoinPreviewScreen(viewModel: JoinPreviewViewModel, onJoined: (String) -> Uni
                         Text(
                             viewModel.code,
                             fontFamily = Inter,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 18.sp,
                             letterSpacing = 3.sp,
                             color = p.textPrimary,

@@ -137,9 +137,9 @@ fun OngoingRoomBar(
             .statusBarsPadding()
             .clickable(role = Role.Button, onClick = onOpen)
             .semantics { contentDescription = "$label, $time. Tap to return to the room" }
-            .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(Color.White))
         Text(
@@ -152,7 +152,7 @@ fun OngoingRoomBar(
         if (ongoing.inVoice) {
             Box(
                 Modifier
-                    .size(34.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.18f))
                     .clickable(role = Role.Button) { onMute(!ongoing.muted) }
@@ -172,11 +172,11 @@ fun OngoingRoomBar(
                 .clip(CircleShape)
                 .background(p.danger)
                 .clickable(role = Role.Button) { confirmLeave = true }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(ImageVector.vectorResource(R.drawable.ic_voice_leave), null, tint = Color.White, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
             Text("Exit", style = MaterialTheme.typography.labelLarge, color = Color.White)
         }
     }

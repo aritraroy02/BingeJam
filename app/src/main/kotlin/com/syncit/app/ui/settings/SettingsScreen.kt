@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -146,7 +147,7 @@ fun SettingsScreen(
                         .padding(horizontal = 16.dp)
                         .navigationBarsPadding()
                         .padding(top = 8.dp, bottom = 24.dp + LocalBottomBarInset.current),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     when (current) {
                         SettingsPage.MAIN -> MainPage(
@@ -254,7 +255,7 @@ private fun DevicePicker(
 @Composable
 private fun DeviceOption(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = onClick)
@@ -296,7 +297,7 @@ private fun MainPage(
         CategoryRow("Theme", themeSummary, ImageVector.vectorResource(R.drawable.ic_settings_theme)) { onOpen(SettingsPage.THEME) }
     }
     GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
-        CategoryRow("Setup & permissions", "Notification Access, notifications, battery", Icons.Filled.Lock, onOpenSetup)
+        CategoryRow("Setup & permissions", "Notification Access, notifications, battery", Icons.Filled.Notifications, onOpenSetup)
         CategoryRow("Media diagnostics", "See what your streaming and music apps report", Icons.Filled.Build, onOpenDiagnostics)
     }
     GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
@@ -325,7 +326,7 @@ private fun SharingPage(shared: Set<ActivityApp>, invisible: Boolean, onToggle: 
         },
         style = MaterialTheme.typography.bodySmall,
         color = Glass.palette.textSecondary,
-        modifier = Modifier.padding(horizontal = 6.dp),
+        modifier = Modifier.padding(horizontal = 8.dp),
     )
     ActivityAppToggles(shared = shared, onToggle = onToggle)
 }
@@ -353,7 +354,7 @@ private fun AudioPage(voiceDevices: VoiceDevices, onPick: (String) -> Unit) {
         "Automatic uses a headset when one is connected. Volume, HD / SD and mute are in the room's voice controls.",
         style = MaterialTheme.typography.bodySmall,
         color = Glass.palette.textSecondary,
-        modifier = Modifier.padding(horizontal = 6.dp),
+        modifier = Modifier.padding(horizontal = 8.dp),
     )
 }
 
@@ -469,7 +470,7 @@ private fun AboutPage(viewModel: SettingsViewModel, openLegal: (String) -> Unit)
                 "video, audio or notifications.",
             style = MaterialTheme.typography.bodySmall,
             color = p.textTertiary,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
         )
         GlassRow(
             title = "Terms of Service",

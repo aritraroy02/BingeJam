@@ -106,7 +106,7 @@ fun ProfileScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp + LocalBottomBarInset.current),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                     Avatar(profile?.displayName ?: "?", size = 84.dp, photoUrl = profile?.photoUrl)
@@ -150,7 +150,7 @@ fun ProfileScreen(
                     )
                 }
 
-                SectionLabel("Sharing now", Modifier.padding(top = 6.dp))
+                SectionLabel("Sharing now", Modifier.padding(top = 8.dp))
                 GlassPanel(Modifier.fillMaxWidth(), spacing = 8.dp) {
                     GlassSwitchRow(
                         title = "Invisible",

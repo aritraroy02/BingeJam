@@ -119,7 +119,7 @@ class SocialEventsViewModel(private val container: AppContainer) : ViewModel() {
                     events.send(NavEvent.JoinRoom(code))
                 }
             }
-            JoinStatus.DECLINED -> if (fresh) _notice.value = "$host can't have you join right now. Maybe next time!"
+            JoinStatus.DECLINED -> if (fresh) _notice.value = "$host can't have you join right now. Maybe next time"
             JoinStatus.PENDING -> Unit
         }
     }

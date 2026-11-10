@@ -34,6 +34,6 @@ fun ArtworkCard(artwork: ImageBitmap, modifier: Modifier = Modifier, corner: Int
         modifier = modifier
             .aspectRatio(artwork.width.toFloat() / artwork.height.coerceAtLeast(1))
             .clip(shape)
-            .border(1.dp, Brush.linearGradient(listOf(p.strokeTop, p.strokeBottom)), shape),
+            .border(1.dp, p.hairline, shape),
     )
 }

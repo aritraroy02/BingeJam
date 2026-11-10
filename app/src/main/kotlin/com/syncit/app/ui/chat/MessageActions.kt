@@ -143,7 +143,7 @@ internal fun ForwardSheet(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .toggleable(checked, role = Role.Checkbox) { on ->
                         haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                         selected = if (on) selected + uid else selected - uid
@@ -176,7 +176,7 @@ internal fun ForwardSheet(
 private fun CheckDot(checked: Boolean) {
     val p = Glass.palette
     val surface = if (checked) {
-        Modifier.clip(CircleShape).background(Brush.linearGradient(listOf(p.accent, p.accent2)))
+        Modifier.clip(CircleShape).background(p.accent)
     } else {
         Modifier.glass(CircleShape)
     }
@@ -194,18 +194,18 @@ internal fun WatchedTogetherCard(card: WatchedTogether, time: String, modifier: 
     val p = Glass.palette
     val headline = WatchTogether.headline(card)
     val details = listOfNotNull(card.service?.displayName, WatchTogether.formatDuration(card.durationMs), time).joinToString(" · ")
-    Box(modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+    Box(modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
         Row(
             Modifier
-                .glass(RoundedCornerShape(18.dp))
+                .glass(RoundedCornerShape(16.dp))
                 .onLongPress(onLongPress)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .clearAndSetSemantics { contentDescription = "$headline, $details" },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             card.service?.let {
                 PlatformBadge(it)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
             }
             Column {
                 Text(

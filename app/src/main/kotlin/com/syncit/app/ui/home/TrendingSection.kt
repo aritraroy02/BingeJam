@@ -5,6 +5,8 @@ import com.syncit.core.lookup.TrendingFilter
 import com.syncit.core.lookup.TitleType
 import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.glass.glass
+import com.syncit.app.ui.glass.ChipShape
+import com.syncit.app.ui.glass.raised
 import com.syncit.app.ui.glass.GlassSegmented
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
@@ -84,7 +86,7 @@ internal fun TrendingSection(
     modifier: Modifier = Modifier,
 ) {
     val p = Glass.palette
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Trending now", style = MaterialTheme.typography.headlineSmall, color = p.textPrimary)
         GlassSegmented(
             options = TitleType.entries.map { it.label },
@@ -115,7 +117,7 @@ internal fun TrendingSection(
                 modifier = Modifier.padding(vertical = 12.dp),
             )
             else -> for (row in rows) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionLabel(row.service.displayName)
                     LazyRow(
                         modifier = Modifier.bleed(),
@@ -138,7 +140,7 @@ internal fun TrendingSection(
 /** "Your watchlist": saved posters, newest first; tap one for the same sheet as a trending poster. */
 @Composable
 internal fun WatchlistRow(items: List<WatchlistItem>, onOpen: (TrendingTitle, StreamingService) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionLabel("Your watchlist")
         LazyRow(
             modifier = Modifier.bleed(),
@@ -174,16 +176,15 @@ private fun ChipRow(content: androidx.compose.foundation.lazy.LazyListScope.() -
 @Composable
 private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
     val p = Glass.palette
-    val shape = RoundedCornerShape(50)
     Box(
         Modifier
-            .clip(shape)
-            .then(if (selected) Modifier.background(p.accent) else Modifier.glass(shape))
+            .clip(ChipShape)
+            .then(if (selected) Modifier.background(p.textPrimary) else Modifier.raised(ChipShape))
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = if (selected) p.onAccent else p.textSecondary)
+        Text(label, style = MaterialTheme.typography.labelLarge, color = if (selected) p.base else p.textSecondary)
     }
 }
 
@@ -211,14 +212,14 @@ private fun SkeletonRow() {
         start = Offset(sweep * 900f - 300f, 0f),
         end = Offset(sweep * 900f + 300f, 600f),
     )
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.semantics { contentDescription = "Loading trending titles" }) {
-        Box(Modifier.width(90.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(brush))
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.semantics { contentDescription = "Loading trending titles" }) {
+        Box(Modifier.width(90.dp).height(12.dp).clip(RoundedCornerShape(8.dp)).background(brush))
         Row(Modifier.bleed().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             repeat(4) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(Modifier.width(120.dp).height(180.dp).clip(RoundedCornerShape(14.dp)).background(brush))
-                    Box(Modifier.width(90.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(brush))
-                    Box(Modifier.width(40.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(brush))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.width(120.dp).height(180.dp).clip(RoundedCornerShape(12.dp)).background(brush))
+                    Box(Modifier.width(90.dp).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    Box(Modifier.width(40.dp).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
                 }
             }
         }
@@ -228,14 +229,14 @@ private fun SkeletonRow() {
 @Composable
 private fun PosterCard(title: TrendingTitle, onClick: () -> Unit) {
     val p = Glass.palette
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(12.dp)
     Column(
         Modifier
             .width(120.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = listOfNotNull(title.title, title.year?.toString()).joinToString(", ") }
-            .padding(bottom = 6.dp),
+            .padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Poster(title, Modifier.width(120.dp).height(180.dp).clip(shape))
@@ -267,13 +268,13 @@ private fun Poster(title: TrendingTitle, modifier: Modifier) {
             Row(
                 Modifier
                     .align(Alignment.TopEnd)
-                    .padding(6.dp)
+                    .padding(8.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(horizontal = 5.dp, vertical = 2.dp),
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(11.dp))
+                Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
                 Spacer(Modifier.width(2.dp))
                 Text("%.1f".format(rating), style = MaterialTheme.typography.labelSmall, color = Color.White)
             }
@@ -300,8 +301,8 @@ internal fun TrendingSheetContent(
     val p = Glass.palette
     Row(verticalAlignment = Alignment.CenterVertically) {
         Poster(title, Modifier.width(84.dp).height(126.dp).clip(RoundedCornerShape(12.dp)))
-        Spacer(Modifier.width(14.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Spacer(Modifier.width(16.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PlatformBadge(service)
             Text(title.title, style = MaterialTheme.typography.titleLarge, color = p.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             listOfNotNull(title.year?.toString(), title.rating?.takeIf { it > 0 }?.let { "★ %.1f".format(it) })

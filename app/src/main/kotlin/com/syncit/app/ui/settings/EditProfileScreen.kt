@@ -82,7 +82,7 @@ fun EditProfileScreen(viewModel: EditProfileViewModel, onBack: () -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(contentAlignment = Alignment.Center) {
                             Avatar(ui.displayName.ifBlank { "?" }, size = 84.dp, photoUrl = ui.photoUrl)
-                            if (ui.photoBusy) CircularProgressIndicator(Modifier.size(32.dp), color = p.accent, strokeWidth = 3.dp)
+                            if (ui.photoBusy) CircularProgressIndicator(Modifier.size(32.dp), color = p.accent, strokeWidth = 4.dp)
                         }
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,7 +129,7 @@ fun EditProfileScreen(viewModel: EditProfileViewModel, onBack: () -> Unit) {
                         placeholder = "A line about you (optional)",
                         singleLine = false,
                         maxLines = 4,
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(

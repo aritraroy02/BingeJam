@@ -127,14 +127,14 @@ fun DmScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Avatar(
                     name.ifEmpty { "?" },
                     size = 40.dp,
                     online = friend?.presence?.online == true,
                     photoUrl = profile?.photoUrl ?: friend?.profile?.photoUrl,
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(name, style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     // "typing…" replaces the online/last-seen line while they type.
@@ -166,7 +166,7 @@ fun DmScreen(
                         )
                     }
                 }
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(8.dp))
                 GlassIconButton(Icons.Filled.MoreVert, "More", { confirmClear = true }, plain = true)
             }
             if (confirmClear) {
