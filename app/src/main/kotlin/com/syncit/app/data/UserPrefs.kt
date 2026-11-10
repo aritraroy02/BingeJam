@@ -51,6 +51,16 @@ class UserPrefs(context: Context) {
             _onboarded.value = value
         }
 
+    /**
+     * Whether this launch gets the full startup animation: on the first launch and once per
+     * calendar day; other launches get the short version. Calling it marks today as played.
+     */
+    fun takeFullSplash(today: Long): Boolean {
+        if (prefs.getLong(KEY_SPLASH_DAY, -1L) == today) return false
+        prefs.edit { putLong(KEY_SPLASH_DAY, today) }
+        return true
+    }
+
     /** A room to join once onboarding is finished (from an invite link). Survives process death. */
     var pendingJoinCode: String?
         get() = prefs.getString(KEY_PENDING_JOIN, null)
@@ -171,6 +181,7 @@ class UserPrefs(context: Context) {
         const val KEY_TRENDING = "trending_filter"
         const val KEY_ROOM_JOINED_AT = "room_joined_at"
         const val KEY_ONBOARDED = "onboarding_done"
+        const val KEY_SPLASH_DAY = "splash_full_day"
         const val KEY_PENDING_JOIN = "pending_join"
         const val KEY_CLIPBOARD_CHECKED = "invite_clipboard_checked"
         const val KEY_THEME = "theme_mode"

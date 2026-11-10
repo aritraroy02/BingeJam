@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
         if (pendingJoinCode.value != null) container.prefs.inviteClipboardChecked = true
         // The startup animation: only on a fresh launch from the home screen, not from a link or notification.
         val playSplash = savedInstanceState == null && intent?.action == Intent.ACTION_MAIN
+        val quickSplash = playSplash && !container.prefs.takeFullSplash(java.time.LocalDate.now().toEpochDay())
         setContent {
             val mode by container.prefs.themeMode.collectAsStateWithLifecycle()
             val dark = mode.isDark()
@@ -74,7 +75,7 @@ class MainActivity : ComponentActivity() {
                         pendingEmailLink = pendingEmailLink,
                         pendingNotification = pendingNotification,
                     )
-                    if (splash) StartupSplash(onDone = { splash = false })
+                    if (splash) StartupSplash(quick = quickSplash, onDone = { splash = false })
                 }
             }
         }

@@ -55,22 +55,24 @@ import kotlin.math.hypot
  * A red and an orange-red dot fly in and draw the two sync arrows, the ring spins once into sync,
  * play drops in, a dark-red flood reveals "BingeJam", then everything glides away into the app.
  *
- * About 3.2 s; a tap skips to the exit. With animations turned off it shows the finished logo for a
- * moment and fades. Drawn over the app, so Home is already loading underneath.
+ * About 3.2 s; a tap skips to the exit. [quick] (every launch after the day's first, 2026-11-10)
+ * shows the finished logo and glides away in about 0.7 s. With animations turned off it shows the
+ * finished logo for a moment and fades. Drawn over the app, so Home is already loading underneath.
  */
 @Composable
-fun StartupSplash(onDone: () -> Unit) {
+fun StartupSplash(onDone: () -> Unit, quick: Boolean = false) {
     val reduce = rememberReduceMotion()
-    val time = remember { Animatable(if (reduce) STILL_AT else 0f) }
+    val time = remember { Animatable(if (reduce) STILL_AT else if (quick) QUICK_AT else 0f) }
     val fade = remember { Animatable(1f) }
     var skipped by remember { mutableStateOf(false) }
     val finish by rememberUpdatedState(onDone)
 
     LaunchedEffect(skipped) {
         if (reduce) {
-            if (!skipped) delay(1_200)
+            if (!skipped) delay(if (quick) 300 else 1_200)
             fade.animateTo(0f, tween(300))
         } else {
+            if (quick && !skipped) delay(QUICK_HOLD)
             if (skipped && time.value < EXIT_AT) time.snapTo(EXIT_AT)
             time.animateTo(END, tween((END - time.value).toInt().coerceAtLeast(1), easing = LinearEasing))
         }
@@ -255,6 +257,9 @@ private const val END = 3_250f
 private const val EXIT_AT = 2_750f
 /** Reduce motion: the finished logo and name, before the exit. */
 private const val STILL_AT = 2_300f
+/** Quick launch: start just before the exit, after a short look at the finished logo. */
+private const val QUICK_AT = 2_700f
+private const val QUICK_HOLD = 150L
 /** Logo centre, as a fraction of the screen height. */
 private const val CENTER_Y = 0.43f
 
