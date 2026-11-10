@@ -46,7 +46,8 @@ import com.syncit.app.ui.activity.ActivitySetupScreen
 import com.syncit.app.ui.chat.DmScreen
 import com.syncit.app.ui.chat.DmViewModel
 import com.syncit.app.ui.chat.GroupChatScreen
-import com.syncit.app.ui.chat.GroupInfoSheet
+import com.syncit.app.ui.chat.AddGroupMembersScreen
+import com.syncit.app.ui.chat.GroupInfoScreen
 import com.syncit.app.ui.chat.GroupChatViewModel
 import com.syncit.app.ui.chat.NewGroupScreen
 import com.syncit.app.ui.chat.NewGroupViewModel
@@ -112,6 +113,10 @@ sealed interface Screen {
 
     /** A group chat with its room (2026-11-05). */
     data class GroupChat(val groupId: String) : Screen
+
+    /** WhatsApp-style group info and its Add people screen (2026-11-10). */
+    data class GroupInfo(val groupId: String) : Screen
+    data class AddGroupMembers(val groupId: String) : Screen
     data object NewGroup : Screen
     data object Settings : Screen
 
@@ -437,13 +442,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     onAddFriends = { nav.push(Screen.Friends) },
                     friendRequests = tabBadges.friendRequests.collectAsStateWithLifecycle().value,
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
-                    groupInfoSheet = { groupId, visible, onDismiss ->
-                        val group: GroupChatViewModel = viewModel(
-                            key = "group-$groupId",
-                            factory = viewModelFactory { initializer { GroupChatViewModel(groupId, container) } },
-                        )
-                        GroupInfoSheet(visible, onDismiss = onDismiss, viewModel = group, onLeft = {})
-                    },
+                    onGroupInfo = { id -> nav.push(Screen.GroupInfo(id)) },
                 )
             }
 
@@ -452,7 +451,35 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     key = "group-${screen.groupId}",
                     factory = viewModelFactory { initializer { GroupChatViewModel(screen.groupId, container) } },
                 )
-                GroupChatScreen(vm, onBack = nav::pop, onOpenRoom = { code -> nav.push(Screen.Room(code)) })
+                GroupChatScreen(
+                    vm,
+                    onBack = nav::pop,
+                    onOpenRoom = { code -> nav.push(Screen.Room(code)) },
+                    onOpenInfo = { nav.push(Screen.GroupInfo(screen.groupId)) },
+                    onAddPeople = { nav.push(Screen.AddGroupMembers(screen.groupId)) },
+                )
+            }
+
+            is Screen.GroupInfo -> {
+                val vm: GroupChatViewModel = viewModel(
+                    key = "group-${screen.groupId}",
+                    factory = viewModelFactory { initializer { GroupChatViewModel(screen.groupId, container) } },
+                )
+                GroupInfoScreen(
+                    vm,
+                    onBack = nav::pop,
+                    onAddPeople = { nav.push(Screen.AddGroupMembers(screen.groupId)) },
+                    onOpenChat = { uid -> nav.push(Screen.Chat(uid)) },
+                    onLeft = { nav.reset(Screen.Chats) },
+                )
+            }
+
+            is Screen.AddGroupMembers -> {
+                val vm: GroupChatViewModel = viewModel(
+                    key = "group-${screen.groupId}",
+                    factory = viewModelFactory { initializer { GroupChatViewModel(screen.groupId, container) } },
+                )
+                AddGroupMembersScreen(vm, onBack = nav::pop)
             }
 
             Screen.NewGroup -> {

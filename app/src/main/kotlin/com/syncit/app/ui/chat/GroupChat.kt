@@ -1,6 +1,16 @@
 package com.syncit.app.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.text.style.TextAlign
+import com.syncit.app.ui.glass.GlassRow
+import com.syncit.app.ui.glass.GlassSwitchRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -196,6 +206,14 @@ class GroupChatViewModel(val groupId: String, private val container: AppContaine
 
     fun remove(uid: String) = action("Couldn't remove them") { groups.removeMember(groupId, uid) }
 
+    fun setAdmin(uid: String, admin: Boolean) = action(if (admin) "Couldn't make them admin" else "Couldn't dismiss them as admin") {
+        groups.setAdmin(groupId, uid, admin)
+    }
+
+    fun setSettings(onlyAdminsSend: Boolean, onlyAdminsEdit: Boolean) = action("Couldn't change the group settings") {
+        groups.setSettings(groupId, onlyAdminsSend, onlyAdminsEdit)
+    }
+
     fun leave(onLeft: () -> Unit) = action("Couldn't leave the group", busy = true) {
         groups.leave(groupId)
         onLeft()
@@ -219,7 +237,13 @@ class GroupChatViewModel(val groupId: String, private val container: AppContaine
 }
 
 @Composable
-fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoom: (code: String) -> Unit) {
+fun GroupChatScreen(
+    viewModel: GroupChatViewModel,
+    onBack: () -> Unit,
+    onOpenRoom: (code: String) -> Unit,
+    onOpenInfo: () -> Unit,
+    onAddPeople: () -> Unit,
+) {
     val p = Glass.palette
     val state by viewModel.group.collectAsStateWithLifecycle()
     val people by viewModel.people.collectAsStateWithLifecycle()
@@ -227,7 +251,6 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
     val room by viewModel.room.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
-    var showInfo by rememberSaveable { mutableStateOf(false) }
     var draft by rememberSaveable { mutableStateOf("") }
     val group = state.group
     val me = viewModel.myUid
@@ -249,7 +272,7 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
                 Spacer(Modifier.width(10.dp))
                 Avatar(group?.name ?: "?", size = 40.dp)
                 Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f).clickable { showInfo = true }) {
+                Column(Modifier.weight(1f).clickable(onClick = onOpenInfo)) {
                     Text(group?.name.orEmpty(), style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val live = room
                     Text(
@@ -267,7 +290,7 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
                     GlassSmallButton(if (busy) "Starting…" else "Start room", onClick = { viewModel.startRoom(onOpenRoom) }, enabled = !busy && group != null)
                 }
                 Spacer(Modifier.width(6.dp))
-                GlassIconButton(Icons.Filled.Info, "Group info", { showInfo = true }, plain = true)
+                GlassIconButton(Icons.Filled.Info, "Group info", onOpenInfo, plain = true)
             }
 
             // A group of one (created without anyone, or everyone else left): offer Add people.
@@ -283,7 +306,7 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
                         style = MaterialTheme.typography.bodySmall,
                         color = p.textSecondary,
                     )
-                    GlassSmallButton("Add people", onClick = { showInfo = true })
+                    if (group.isAdmin(me)) GlassSmallButton("Add people", onClick = onAddPeople)
                 }
             }
 
@@ -337,7 +360,15 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
                 }
             }
 
-            Row(
+            if (group != null && !group.canSend(me)) {
+                Text(
+                    "Only admins can send messages",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = p.textSecondary,
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 18.dp),
+                    textAlign = TextAlign.Center,
+                )
+            } else Row(
                 Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -357,16 +388,22 @@ fun GroupChatScreen(viewModel: GroupChatViewModel, onBack: () -> Unit, onOpenRoo
             }
         }
         NoticeBanner(notice, onDismiss = viewModel::dismissNotice, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
-        GroupInfoSheet(showInfo, onDismiss = { showInfo = false }, viewModel = viewModel, onLeft = onBack)
     }
 }
 
 /**
- * Rename, members (ping the ones not in the room), add friends, remove (admins), leave. Also opened
- * from the Chats list's long-press "Group info"; [onLeft] runs after leaving.
+ * Group info (WhatsApp-style, user's request 2026-11-10): the name (editable unless only admins may),
+ * members with their admin tag (tap one for Message / Make admin / Remove), Add people for admins,
+ * the group settings for admins, and Leave group. Also opened from the Chats list's long-press.
  */
 @Composable
-internal fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: GroupChatViewModel, onLeft: () -> Unit) {
+fun GroupInfoScreen(
+    viewModel: GroupChatViewModel,
+    onBack: () -> Unit,
+    onAddPeople: () -> Unit,
+    onOpenChat: (uid: String) -> Unit,
+    onLeft: () -> Unit,
+) {
     val p = Glass.palette
     val state by viewModel.group.collectAsStateWithLifecycle()
     val people by viewModel.people.collectAsStateWithLifecycle()
@@ -374,90 +411,186 @@ internal fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: 
     val invited by viewModel.invited.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
     val pinged by viewModel.pinged.collectAsStateWithLifecycle()
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
     val group = state.group
     val me = viewModel.myUid
+    var editing by rememberSaveable { mutableStateOf(false) }
     var name by remember(group?.name) { mutableStateOf(group?.name.orEmpty()) }
     var confirmLeave by remember { mutableStateOf(false) }
-    val admin = group?.isAdmin(me) == true
+    var memberFor by remember { mutableStateOf<String?>(null) }
+    var lastMember by remember { mutableStateOf<String?>(null) }
+    val friendUids = friends.mapTo(HashSet()) { it.profile.uid }
 
-    GlassBottomSheet(visible = visible && group != null, onDismiss = onDismiss) {
-        if (group == null) return@GlassBottomSheet
-        Column(Modifier.padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionLabel("Group name")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                GlassTextField(
-                    value = name,
-                    onValueChange = { name = it.take(GroupChats.MAX_NAME_LENGTH) },
-                    placeholder = "Group name",
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                GlassSmallButton("Save", onClick = { viewModel.rename(name) }, enabled = GroupChats.cleanName(name) != null && name.trim() != group.name)
-            }
+    LaunchedEffect(state) { if (state.loaded && state.group == null) onBack() }
 
-            SectionLabel("Members · ${group.members.size}")
-            for (m in group.members) {
-                val profile = people[m.uid]
-                val inRoom = room?.inRoom?.contains(m.uid) == true
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(profile?.displayName ?: "?", size = 40.dp, photoUrl = profile?.photoUrl)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            (if (m.uid == me) "You" else profile?.displayName ?: "Member") + if (m.admin) " · admin" else "",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = p.textPrimary,
-                        )
-                        Text(
-                            if (inRoom) "In the room" else "@${profile?.username.orEmpty()}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (inRoom) p.success else p.textSecondary,
-                        )
-                    }
-                    if (m.uid != me && room != null && !inRoom) {
-                        val done = m.uid in pinged
-                        GlassSmallButton(if (done) "Pinged" else "Ping", onClick = { viewModel.ping(m.uid) }, enabled = !done)
-                        Spacer(Modifier.width(6.dp))
-                    }
-                    if (admin && m.uid != me) {
-                        GlassSmallButton("Remove", onClick = { viewModel.remove(m.uid) }, primary = false)
-                    }
-                }
-            }
-
-            if (admin) {
-                val addable = friends.filter { it.profile.uid !in group.memberUids }
-                if (addable.isNotEmpty()) {
-                    SectionLabel("Add friends")
-                    Text(
-                        "Friends who chose \"Ask me first\" get an invite; the rest are added straight away.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = p.textSecondary,
-                    )
-                    for (f in addable) {
+    GlassScreen {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            GlassTopBar(title = "Group info", navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) })
+            if (group == null) return@Column
+            val admin = group.isAdmin(me)
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Avatar(group.name, size = 88.dp)
+                    Spacer(Modifier.height(10.dp))
+                    if (editing) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Avatar(f.profile.displayName, size = 40.dp, photoUrl = f.profile.photoUrl)
-                            Spacer(Modifier.width(10.dp))
-                            Text(f.profile.displayName, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, modifier = Modifier.weight(1f))
-                            if (f.profile.uid in invited) {
-                                GlassSmallButton("Invited", onClick = {}, primary = false, enabled = false)
-                            } else {
-                                GlassSmallButton("Add", onClick = { viewModel.add(listOf(f.profile.uid)) })
+                            GlassTextField(
+                                value = name,
+                                onValueChange = { name = it.take(GroupChats.MAX_NAME_LENGTH) },
+                                placeholder = "Group name",
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            GlassSmallButton(
+                                "Save",
+                                onClick = {
+                                    viewModel.rename(name)
+                                    editing = false
+                                },
+                                enabled = GroupChats.cleanName(name) != null && name.trim() != group.name,
+                            )
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(group.name, style = MaterialTheme.typography.headlineSmall, color = p.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            if (group.canEditInfo(me)) {
+                                Spacer(Modifier.width(4.dp))
+                                GlassIconButton(Icons.Filled.Edit, "Edit group name", { editing = true }, plain = true)
                             }
                         }
                     }
-                } else if (group.members.size <= 1) {
-                    SectionLabel("Add friends")
                     Text(
-                        "Add friends first (+ in Chats), then add them here.",
+                        "Group · ${group.members.size} ${if (group.members.size == 1) "member" else "members"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = p.textSecondary,
+                    )
+                }
+
+                if (admin) {
+                    GlassRow(
+                        "Add people",
+                        subtitle = if (invited.isEmpty()) null else "${invited.size} invite${if (invited.size == 1) "" else "s"} waiting for an answer",
+                        icon = Icons.Filled.Add,
+                        onClick = onAddPeople,
+                    )
+                }
+
+                SectionLabel("${group.members.size} ${if (group.members.size == 1) "member" else "members"}", Modifier.padding(top = 4.dp))
+                GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp), spacing = 0.dp) {
+                    for (m in group.members.sortedWith(compareBy({ it.uid != me }, { !it.admin }, { it.joinedAt }))) {
+                        val profile = people[m.uid]
+                        val inRoom = room?.inRoom?.contains(m.uid) == true
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = m.uid != me) {
+                                    memberFor = m.uid
+                                    lastMember = m.uid
+                                }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Avatar(profile?.displayName ?: "?", size = 40.dp, photoUrl = profile?.photoUrl)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (m.uid == me) "You" else profile?.displayName ?: "Member",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = p.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                val line = when {
+                                    inRoom -> "In the room"
+                                    group.isCreator(m.uid) -> "Created the group"
+                                    else -> null
+                                }
+                                line?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (inRoom) p.success else p.textSecondary) }
+                            }
+                            if (m.admin) {
+                                Text(
+                                    "Group admin",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = p.accentText,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(p.accent.copy(alpha = 0.14f))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (admin) {
+                    SectionLabel("Group settings", Modifier.padding(top = 4.dp))
+                    GlassPanel(Modifier.fillMaxWidth(), spacing = 8.dp) {
+                        GlassSwitchRow(
+                            title = "Only admins can send messages",
+                            subtitle = "Everyone else can still read, join the room and watch.",
+                            checked = group.onlyAdminsSend,
+                            onCheckedChange = { viewModel.setSettings(onlyAdminsSend = it, onlyAdminsEdit = group.onlyAdminsEdit) },
+                        )
+                        GlassSwitchRow(
+                            title = "Only admins can edit group info",
+                            subtitle = "The group's name.",
+                            checked = group.onlyAdminsEdit,
+                            onCheckedChange = { viewModel.setSettings(onlyAdminsSend = group.onlyAdminsSend, onlyAdminsEdit = it) },
+                        )
+                    }
+                    Text(
+                        "Admins can add and remove people, make others admin and change these settings. Nobody can remove the group's creator.",
                         style = MaterialTheme.typography.bodySmall,
                         color = p.textSecondary,
                     )
                 }
-            }
 
-            Spacer(Modifier.height(4.dp))
-            GlassButton("Leave group", onClick = { confirmLeave = true }, style = GlassButtonStyle.Secondary, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(4.dp))
+                GlassButton("Leave group", onClick = { confirmLeave = true }, style = GlassButtonStyle.Danger, modifier = Modifier.fillMaxWidth())
+            }
+        }
+        NoticeBanner(notice, onDismiss = viewModel::dismissNotice, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+
+        val g = group
+        lastMember?.let { uid ->
+            if (g != null) {
+                MemberSheet(
+                    visible = memberFor != null,
+                    onDismiss = { memberFor = null },
+                    name = people[uid]?.displayName ?: "Member",
+                    photoUrl = people[uid]?.photoUrl,
+                    group = g,
+                    me = me,
+                    uid = uid,
+                    isFriend = uid in friendUids,
+                    canPing = room != null && room?.inRoom?.contains(uid) != true && uid !in pinged,
+                    onMessage = {
+                        memberFor = null
+                        onOpenChat(uid)
+                    },
+                    onPing = {
+                        memberFor = null
+                        viewModel.ping(uid)
+                    },
+                    onSetAdmin = { makeAdmin ->
+                        memberFor = null
+                        viewModel.setAdmin(uid, makeAdmin)
+                    },
+                    onRemove = {
+                        memberFor = null
+                        viewModel.remove(uid)
+                    },
+                )
+            }
         }
     }
     if (confirmLeave) {
@@ -466,7 +599,6 @@ internal fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: 
             alone = (group?.members?.size ?: 0) <= 1,
             onConfirm = {
                 confirmLeave = false
-                onDismiss()
                 viewModel.leave(onLeft)
             },
             onDismiss = { confirmLeave = false },
@@ -474,7 +606,109 @@ internal fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: 
     }
 }
 
-/** "Leave <group>?" confirmation (group info sheet and the Chats list's long-press menu). */
+/** Tapping a member in Group info: message them, ping them into the room, and the admin actions. */
+@Composable
+private fun MemberSheet(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    name: String,
+    photoUrl: String?,
+    group: Group,
+    me: String?,
+    uid: String,
+    isFriend: Boolean,
+    canPing: Boolean,
+    onMessage: () -> Unit,
+    onPing: () -> Unit,
+    onSetAdmin: (Boolean) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val p = Glass.palette
+    val manage = group.canManage(me, uid)
+    val isAdmin = group.isAdmin(uid)
+    GlassBottomSheet(visible = visible, onDismiss = onDismiss) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Avatar(name, size = 40.dp, photoUrl = photoUrl)
+            Spacer(Modifier.width(12.dp))
+            Text(name, style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (isFriend) GlassRow("Message $name", icon = Icons.AutoMirrored.Filled.Send, onClick = onMessage)
+            if (canPing) GlassRow("Ask to join the room", icon = Icons.Filled.Notifications, onClick = onPing)
+            if (manage) {
+                GlassRow(
+                    if (isAdmin) "Dismiss as admin" else "Make group admin",
+                    icon = Icons.Filled.Star,
+                    onClick = { onSetAdmin(!isAdmin) },
+                )
+                GlassRow("Remove from group", icon = Icons.Filled.Delete, onClick = onRemove)
+            }
+            if (!isFriend && !canPing && !manage) {
+                Text(
+                    if (group.isCreator(uid)) "Created this group." else "Not on your friends list.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textSecondary,
+                )
+            }
+        }
+    }
+}
+
+/** Add people (admins): friends not in the group yet; those with an unanswered invite show "Invited". */
+@Composable
+fun AddGroupMembersScreen(viewModel: GroupChatViewModel, onBack: () -> Unit) {
+    val p = Glass.palette
+    val state by viewModel.group.collectAsStateWithLifecycle()
+    val friends by viewModel.friends.collectAsStateWithLifecycle()
+    val invited by viewModel.invited.collectAsStateWithLifecycle()
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val group = state.group
+    LaunchedEffect(state) { if (state.loaded && state.group == null) onBack() }
+
+    GlassScreen {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            GlassTopBar(title = "Add people", navigation = { GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) })
+            if (group == null) return@Column
+            val addable = friends.filter { it.profile.uid !in group.memberUids }.sortedBy { it.profile.displayName.lowercase() }
+            Text(
+                "Friends who chose \"Ask me first\" get an invite; the rest are added straight away.",
+                style = MaterialTheme.typography.bodySmall,
+                color = p.textSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            if (addable.isEmpty()) {
+                Text(
+                    if (friends.isEmpty()) "Add friends first (+ in Chats), then add them here." else "All your friends are already in this group.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = p.textSecondary,
+                    modifier = Modifier.padding(16.dp),
+                )
+            } else {
+                LazyColumn(
+                    Modifier.fillMaxSize().navigationBarsPadding(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(addable, key = { it.profile.uid }) { f ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Avatar(f.profile.displayName, size = 44.dp, photoUrl = f.profile.photoUrl)
+                            Spacer(Modifier.width(12.dp))
+                            Text(f.profile.displayName, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, modifier = Modifier.weight(1f))
+                            if (f.profile.uid in invited) {
+                                GlassSmallButton("Invited", onClick = {}, primary = false, enabled = false)
+                            } else {
+                                GlassSmallButton("Add", onClick = { viewModel.add(listOf(f.profile.uid)) })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        NoticeBanner(notice, onDismiss = viewModel::dismissNotice, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+    }
+}
+
+/** "Leave <group>?" confirmation (Group info and the Chats list's long-press menu). */
 @Composable
 internal fun LeaveGroupDialog(name: String, alone: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val p = Glass.palette

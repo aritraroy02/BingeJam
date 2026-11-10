@@ -193,6 +193,21 @@ class FirebaseGroupChats internal constructor(
         ).await()
     }
 
+    override suspend fun setAdmin(groupId: String, uid: String, admin: Boolean) {
+        session.requireUid()
+        db.getReference("groups").child(groupId).child("members").child(uid).child("role").setValue(if (admin) ADMIN else MEMBER).await()
+    }
+
+    override suspend fun setSettings(groupId: String, onlyAdminsSend: Boolean, onlyAdminsEdit: Boolean) {
+        session.requireUid()
+        db.getReference("groups").child(groupId).child("settings").setValue(
+            mapOf(
+                "send" to if (onlyAdminsSend) ADMINS_ONLY else EVERYONE,
+                "edit" to if (onlyAdminsEdit) ADMINS_ONLY else EVERYONE,
+            ),
+        ).await()
+    }
+
     /** If we're the only admin and others stay, the longest-standing member becomes admin first. */
     override suspend fun leave(groupId: String) {
         val me = session.requireUid()
@@ -297,6 +312,8 @@ class FirebaseGroupChats internal constructor(
     companion object {
         private const val ADMIN = "admin"
         private const val MEMBER = "member"
+        private const val ADMINS_ONLY = "admins"
+        private const val EVERYONE = "all"
         private const val POLICY = "groupInvites"
         private const val MAX_LIMIT = 500
 
@@ -313,6 +330,8 @@ class FirebaseGroupChats internal constructor(
                 createdBy = s.child("createdBy").string().orEmpty(),
                 createdAt = s.child("createdAt").long() ?: 0L,
                 members = members,
+                onlyAdminsSend = s.child("settings").child("send").string() == ADMINS_ONLY,
+                onlyAdminsEdit = s.child("settings").child("edit").string() == ADMINS_ONLY,
             )
         }
     }

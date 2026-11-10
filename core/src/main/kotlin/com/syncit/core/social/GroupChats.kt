@@ -46,8 +46,14 @@ interface GroupChats {
     /** Admins only; each uid must be one of our friends. */
     suspend fun addMembers(groupId: String, uids: Collection<String>)
 
-    /** Admins only. */
+    /** Admins only; never the group's creator. */
     suspend fun removeMember(groupId: String, uid: String)
+
+    /** Admins only: make [uid] a group admin, or dismiss them as admin (never the creator). */
+    suspend fun setAdmin(groupId: String, uid: String, admin: Boolean) = Unit
+
+    /** Admins only: who can send messages and who can edit the group's info. */
+    suspend fun setSettings(groupId: String, onlyAdminsSend: Boolean, onlyAdminsEdit: Boolean) = Unit
 
     /** Leaves the group on all our devices. */
     suspend fun leave(groupId: String)

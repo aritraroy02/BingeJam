@@ -238,7 +238,7 @@ internal fun matchFriends(friends: List<Friend>, query: String): List<Friend> {
 
 /**
  * [home] is the activity-scoped Home view model: long-press -> View profile opens its friend sheet.
- * [groupInfoSheet] draws the group info sheet for a group id (long-press -> Group info).
+ * [onGroupInfo] opens a group's info screen (long-press -> Group info).
  */
 @Composable
 fun ChatsScreen(
@@ -250,7 +250,7 @@ fun ChatsScreen(
     onAddFriends: () -> Unit = {},
     friendRequests: Int = 0,
     onStartRoomWith: (code: String, friendUid: String) -> Unit = { _, _ -> },
-    groupInfoSheet: @Composable (groupId: String, visible: Boolean, onDismiss: () -> Unit) -> Unit = { _, _, _ -> },
+    onGroupInfo: (groupId: String) -> Unit = {},
 ) {
     val p = Glass.palette
     val rows by viewModel.rows.collectAsStateWithLifecycle()
@@ -263,12 +263,10 @@ fun ChatsScreen(
     var deleteFor by remember { mutableStateOf<ChatRow?>(null) }
     var leaveFor by remember { mutableStateOf<GroupRow?>(null) }
     var profileUid by remember { mutableStateOf<String?>(null) }
-    // Long-press menu and the group info sheet; each keeps its last entry while it slides away.
+    // Long-press menu; it keeps its last entry while it slides away.
     var menuFor by remember { mutableStateOf<ChatEntry?>(null) }
     var lastMenu by remember { mutableStateOf<ChatEntry?>(null) }
     var plusOpen by remember { mutableStateOf(false) }
-    var infoFor by remember { mutableStateOf<String?>(null) }
-    var lastInfo by remember { mutableStateOf<String?>(null) }
     val openMenu = { entry: ChatEntry ->
         menuFor = entry
         lastMenu = entry
@@ -388,10 +386,7 @@ fun ChatsScreen(
                     when (action) {
                         ChatRowAction.VIEW_PROFILE -> (entry as? ChatEntry.Dm)?.let { profileUid = it.row.uid }
                         ChatRowAction.DELETE_CHAT -> (entry as? ChatEntry.Dm)?.let { deleteFor = it.row }
-                        ChatRowAction.GROUP_INFO -> (entry as? ChatEntry.Grp)?.let {
-                            infoFor = it.row.group.id
-                            lastInfo = it.row.group.id
-                        }
+                        ChatRowAction.GROUP_INFO -> (entry as? ChatEntry.Grp)?.let { onGroupInfo(it.row.group.id) }
                         ChatRowAction.LEAVE_GROUP -> (entry as? ChatEntry.Grp)?.let { leaveFor = it.row }
                     }
                 },
@@ -406,7 +401,6 @@ fun ChatsScreen(
             onStartRoomWith = onStartRoomWith,
         )
 
-        lastInfo?.let { id -> groupInfoSheet(id, infoFor != null) { infoFor = null } }
     }
 
     leaveFor?.let { row ->
