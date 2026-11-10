@@ -5,42 +5,108 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BingeJam · Watch together</title>
 <meta name="description" content="Watch Netflix or JioHotstar together, each on your own phone, in sync.">
+<meta name="theme-color" content="#161513">
 <link rel="stylesheet" href="/style.css">
 </head>
-<body>
-<main class="card">
-  <h1 class="brand">BingeJam</h1>
-  <p class="lead">Watch Netflix or JioHotstar together, each on your own phone. When anyone plays, pauses or skips, everyone's movie follows.</p>
+<body class="landing">
+<header class="top">
+  <a class="wordmark" href="/">BingeJam</a>
+</header>
 
-  <div class="notice" id="in-app" hidden>
-    <b>This in-app browser can't install apps.</b> Open this page in Chrome to get BingeJam.
-    <a class="btn primary" id="open-chrome" href="#">Open in Chrome</a>
-  </div>
-  <div class="notice" id="not-android" hidden>
-    <b>BingeJam is for Android phones.</b> Open this page on your Android phone, or:
-    <img class="qr" src="/indus-qr.svg" width="180" height="180" alt="QR code: BingeJam on the PhonePe Appstore">
-    Scan it with your phone's camera to get BingeJam from the PhonePe Appstore.
-  </div>
+<main class="hero">
+  <div class="hero-text">
+    <h1>Same movie, same second, different homes</h1>
+    <p class="sub">Watch Netflix or JioHotstar together, each on your own phone. When anyone plays, pauses or skips, everyone's movie follows.</p>
 
-  <a class="store-badge" id="download" href="https://indusapp.store/qcsredto"><img src="/phonepe-badge.png" width="217" height="69" alt="Get it on PhonePe Appstore"></a>
-
-  <section class="help" id="after-download" hidden>
-    <h2>Installing BingeJam</h2>
-    <ol class="steps">
-      <li>BingeJam opens on the <b>PhonePe Appstore</b>. Tap <b>Install</b>.</li>
-      <li>No PhonePe Appstore on your phone yet? The page shows how to get it, free, then come back to BingeJam.</li>
-      <li>Open <b>BingeJam</b> and finish setup. Updates come through the PhonePe Appstore.</li>
-    </ol>
-    <div class="notice">
-      <b>The store didn't open?</b> Tap below to try again, or search <b>BingeJam</b> in the PhonePe Appstore.
-      <a class="btn" id="download-again" href="#">Open the PhonePe Appstore</a>
+    <div class="notice" id="in-app" hidden>
+      <b>This in-app browser can't install apps.</b> Open this page in Chrome to get BingeJam.
+      <a class="btn primary" id="open-chrome" href="#">Open in Chrome</a>
     </div>
-  </section>
 
-  <p class="fine">Create a room in the app and share its invite link. BingeJam shares play, pause, position and what's playing with your room, never your video, audio or notifications.</p>
-  <p class="fine"><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/delete-account">Delete account</a></p>
+    <div class="get">
+      <a class="store-badge" id="download" href="https://indusapp.store/qcsredto"><img src="/phonepe-badge.png" width="217" height="69" alt="Get it on PhonePe Appstore"></a>
+      <div class="scan" id="not-android" hidden>
+        <img class="qr" src="/indus-qr.svg" width="96" height="96" alt="QR code: BingeJam on the PhonePe Appstore">
+        <p><b>BingeJam is for Android phones.</b> Scan this with your phone's camera to get it from the PhonePe Appstore.</p>
+      </div>
+    </div>
+
+    <section class="help" id="after-download" hidden>
+      <h2>Installing BingeJam</h2>
+      <ol class="steps">
+        <li>BingeJam opens on the <b>PhonePe Appstore</b>. Tap <b>Install</b>.</li>
+        <li>No PhonePe Appstore on your phone yet? The page shows how to get it, free, then come back to BingeJam.</li>
+        <li>Open <b>BingeJam</b> and finish setup. Updates come through the PhonePe Appstore.</li>
+      </ol>
+      <div class="notice">
+        <b>The store didn't open?</b> Tap below to try again, or search <b>BingeJam</b> in the PhonePe Appstore.
+        <a class="btn" id="download-again" href="#">Open the PhonePe Appstore</a>
+      </div>
+    </section>
+  </div>
+
+  <figure class="preview" aria-label="A BingeJam room: Riya and Kabir watching the same movie at the same second">
+    <div class="phone">
+      <div class="screen">
+        <div class="room-bar">
+          <span>Room <span class="code">K7M2QX</span></span>
+          <span class="muted">2 watching</span>
+        </div>
+
+        <div class="now">
+          <div class="poster" aria-hidden="true"><span>The Last Monsoon</span></div>
+          <div>
+            <p class="title">The Last Monsoon</p>
+            <p class="muted">Netflix · Movie</p>
+          </div>
+        </div>
+
+        <div class="sync">
+          <div class="time"><span id="t-now">1:12:04</span><span class="muted"> / 2:18:40</span></div>
+          <div class="track">
+            <div class="fill" id="t-fill"></div>
+            <div class="mark" id="t-mark"><i class="a"></i><i class="b"></i></div>
+          </div>
+          <p class="status"><span class="ok"></span>In sync on 2 phones</p>
+        </div>
+
+        <ul class="people">
+          <li><span class="av a">R</span><span>Riya</span><span class="muted">Mumbai</span></li>
+          <li><span class="av b">K</span><span>Kabir</span><span class="muted">Pune</span></li>
+        </ul>
+
+        <p class="event">Kabir paused at 1:08:31, and Riya's movie paused too</p>
+      </div>
+    </div>
+  </figure>
 </main>
+
+<footer class="foot">
+  <p>Create a room in the app and share its invite link. BingeJam shares play, pause, position and what's playing with your room, never your video, audio or notifications.</p>
+  <p class="links"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/delete-account">Delete account</a></p>
+</footer>
+
 <script src="/download.js"></script>
-<script>SyncItDownload.setup(document.getElementById('download'));</script>
+<script>
+  SyncItDownload.setup(document.getElementById('download'));
+
+  // The preview's clock runs, and both friends' dots move together.
+  (function () {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var now = 1 * 3600 + 12 * 60 + 4, total = 2 * 3600 + 18 * 60 + 40;
+    var label = document.getElementById('t-now');
+    var fill = document.getElementById('t-fill');
+    var mark = document.getElementById('t-mark');
+    function draw() {
+      var h = Math.floor(now / 3600), m = Math.floor(now % 3600 / 60), s = now % 60;
+      label.textContent = h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      var share = now / total;
+      fill.style.transform = 'scaleX(' + share.toFixed(5) + ')';
+      mark.style.left = (share * 100).toFixed(3) + '%';
+    }
+    draw();
+    setInterval(function () { now = now + 1 >= total ? 0 : now + 1; draw(); }, 1000);
+  })();
+</script>
 </body>
 </html>
