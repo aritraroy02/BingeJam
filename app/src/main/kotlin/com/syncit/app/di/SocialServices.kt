@@ -1,6 +1,7 @@
 package com.syncit.app.di
 
 import com.syncit.core.auth.AuthService
+import com.syncit.core.social.AppReports
 import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.ActivityTracker
 import com.syncit.core.social.DirectMessages
@@ -35,4 +36,6 @@ class SocialServices(
     val invites: FriendInvites = FriendInvites.None,
     /** Report and block groups (off in the fakes). */
     val safety: Safety = Safety.None,
+    /** Crash reports, users and notifications for the owner and developers (off in the fakes). */
+    val appReports: AppReports = AppReports.None,
 )

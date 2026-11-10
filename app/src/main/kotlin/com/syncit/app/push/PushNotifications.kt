@@ -146,6 +146,13 @@ object PushNotifications {
     const val TOPIC_UPDATES = "updates"
     const val TYPE_UPDATE = "update"
 
+    /** Notifications the owner or a developer sends to everyone from App reports (relay POST /broadcast). */
+    const val TOPIC_ALL = "all"
+
+    fun subscribeToAnnouncements() {
+        runCatching { FirebaseMessaging.getInstance().subscribeToTopic(TOPIC_ALL) }
+    }
+
     /** Every install listens for new-version announcements. Idempotent; best effort. */
     fun subscribeToUpdates() {
         if (!UpdateChecker.enabled) return

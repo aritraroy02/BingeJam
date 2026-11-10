@@ -39,6 +39,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.syncit.app.di.AppContainer
 import com.syncit.app.push.PushNotifications
+import com.syncit.app.reports.AppReportsScreen
+import com.syncit.app.reports.AppReportsViewModel
+import com.syncit.app.reports.CrashCatcher
 import com.syncit.app.ui.account.AccountFlow
 import com.syncit.app.ui.account.AuthViewModel
 import com.syncit.app.ui.account.UsernameScreen
@@ -138,6 +141,9 @@ sealed interface Screen {
 
     /** Our invite link and QR (2026-11-10); [welcome] = the one-time "Bring a friend" step after setup. */
     data class Invite(val welcome: Boolean = false) : Screen
+
+    /** Crash reports, users and notifications: owner and developers only (2026-11-10). */
+    data object AppReports : Screen
 
     /** A friend's invite link opened on this phone. */
     data class FriendInvite(val username: String, val token: String) : Screen
@@ -315,6 +321,9 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
             }
         }
     }
+
+    // Crash reports say which screen was open (its name only, never ids).
+    LaunchedEffect(nav.current) { CrashCatcher.screen = nav.current::class.simpleName ?: "Unknown" }
 
     BackHandler(enabled = nav.backStack.size > 1) { nav.pop() }
     // Back on another tab goes to Home first, like most apps with a bottom bar.
@@ -549,7 +558,9 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
 
             Screen.Settings -> {
                 val vm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer { SettingsViewModel(container) } })
+                val staffRole by remember { container.social.appReports.observeRole().catch { emit(null) } }.collectAsStateWithLifecycle(null)
                 SettingsScreen(
+                    onOpenAppReports = if (staffRole != null) ({ nav.push(Screen.AppReports) }) else null,
                     viewModel = vm,
                     deleteAccount = deletion,
                     useFakeGoogle = container.social.isFake,
@@ -603,6 +614,11 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
             is Screen.Invite -> {
                 val vm: InviteViewModel = viewModel(key = "invite", factory = viewModelFactory { initializer { InviteViewModel(container) } })
                 InviteScreen(vm, welcome = screen.welcome, onDone = { if (screen.welcome) nav.reset(Screen.Home) else nav.pop() })
+            }
+
+            Screen.AppReports -> {
+                val vm: AppReportsViewModel = viewModel(key = "app-reports", factory = viewModelFactory { initializer { AppReportsViewModel(container) } })
+                AppReportsScreen(vm, onBack = nav::pop)
             }
 
             is Screen.FriendInvite -> {

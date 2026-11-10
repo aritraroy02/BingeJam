@@ -1,5 +1,6 @@
 // Push relay + profile-picture store for Vyro (Cloudflare Worker, free tier).
-// Cron: release announcements, trending refresh, and sweeping rooms everyone left (sweepRooms).
+// Cron: release announcements, trending refresh, sweeping rooms everyone left and crash reports
+// older than 7 days (sweepRooms). POST /broadcast: App reports notifications (owner, developers).
 // Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid>, GET /netflix (title lookup),
 // GET /voice/<code> (room voice chat WebSocket, src/voice.js), GET /trending and GET /watch-link
 // (Home's trending titles and the link that opens one, src/trending.js).
@@ -49,6 +50,7 @@ export default {
     if (path.startsWith('/voice/') && request.method === 'GET') {
       return connectVoice(request, env, path.slice('/voice/'.length), { verifyIdToken, bearer, Database, clip });
     }
+    if (path === '/broadcast' && request.method === 'POST') return broadcast(request, env);
     if (path !== '/' || request.method !== 'POST') return new Response('Not found', { status: 404 });
     return notify(request, env);
   },
@@ -69,6 +71,7 @@ export default {
 // (dmRooms, groupRooms) that point at rooms that are gone. Direct and group messages are never touched.
 
 const ROOM_IDLE_MS = 15 * 60_000;
+const CRASH_KEEP_MS = 7 * 24 * 60 * 60_000;
 /** Paths per run; a big backlog is cleared over several runs. */
 const MAX_SWEEP_PATHS = 2000;
 
@@ -99,6 +102,14 @@ async function sweepRooms(env) {
       if (!link || !live.has(link.code)) paths[`${name}/${id}`] = null;
     }
   }
+  // Crash reports are kept 7 days (App reports, 2026-11-10).
+  // Its own try, so a failed crash query never stops the room clean-up.
+  try {
+    const oldCrashes = (await db.get('crashes', `?orderBy=${encodeURIComponent('"at"')}&endAt=${now - CRASH_KEEP_MS}&limitToFirst=500`)) || {};
+    for (const id of Object.keys(oldCrashes)) paths[`crashes/${id}`] = null;
+  } catch (e) {
+    console.error('crash sweep failed', e && e.message);
+  }
   const keys = Object.keys(paths).slice(0, MAX_SWEEP_PATHS);
   if (keys.length === 0) return;
   await db.update(Object.fromEntries(keys.map((k) => [k, null])));
@@ -114,6 +125,87 @@ function roomIsIdle(room, now) {
   for (const m of members) if (m) times.push(m.lastSeen, m.joinedAt, m.reportedAt);
   const latest = Math.max(0, ...times.filter((t) => typeof t === 'number'));
   return now - latest > ROOM_IDLE_MS;
+}
+
+// ---- App reports: notifications from the owner and developers (POST /broadcast) ----
+//
+// Body {title, body, to?: [uid]}. The caller's role comes from their verified Google/email account, the
+// same way the database rules decide it: the owner is OWNER_EMAIL (wrangler.toml); developers are
+// staff/{emailKey} = "developer". Everyone (topic "all"): owner and developers. Picked people: owner only.
+
+const MAX_TITLE = 65;
+const MAX_BODY = 240;
+const MAX_PICK = 20;
+
+async function broadcast(request, env) {
+  let claims;
+  try {
+    claims = await verifyIdTokenClaims(bearer(request), env.FIREBASE_PROJECT_ID);
+  } catch (e) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return new Response('Bad request', { status: 400 });
+  }
+  const title = typeof body.title === 'string' ? body.title.trim() : '';
+  const text = typeof body.body === 'string' ? body.body.trim() : '';
+  if (!title || !text || title.length > MAX_TITLE || text.length > MAX_BODY) return new Response('Bad request', { status: 400 });
+
+  try {
+    const db = new Database(env);
+    const role = await staffRole(db, env, claims);
+    if (!role) return new Response('Forbidden', { status: 403 });
+    const accessToken = await getAccessToken(env);
+    const note = { title, body: text };
+
+    if (body.to === undefined || body.to === null) {
+      await fcmSend(env, accessToken, { topic: 'all', ...announcement(note) });
+      console.log('broadcast to all by', role);
+      return json({ sent: null });
+    }
+    if (role !== 'owner') return new Response('Forbidden', { status: 403 });
+    const to = Array.isArray(body.to) ? [...new Set(body.to.map(String))] : [];
+    if (to.length === 0 || to.length > MAX_PICK || !to.every((u) => UID.test(u))) return new Response('Bad request', { status: 400 });
+    // One read for everyone's tokens, at most 2 phones each: stays inside the free plan's 50 requests.
+    const allTokens = (await db.get('pushTokens')) || {};
+    const tokens = to.flatMap((uid) => Object.keys(allTokens[uid] || {}).slice(0, 2));
+    const results = await Promise.all(tokens.map((token) => fcmSend(env, accessToken, { token, ...announcement(note) }).then(() => true, () => false)));
+    const sent = results.filter(Boolean).length;
+    console.log('broadcast to', to.length, 'people,', sent, 'phones');
+    return json({ sent });
+  } catch (e) {
+    console.error('broadcast failed', e && e.message);
+    return new Response('Relay error', { status: 502 });
+  }
+}
+
+/** 'owner', 'developer' or null, from the token's verified email. */
+async function staffRole(db, env, claims) {
+  if (claims.email_verified !== true || typeof claims.email !== 'string') return null;
+  const email = claims.email.trim().toLowerCase();
+  if (env.OWNER_EMAIL && email === env.OWNER_EMAIL.toLowerCase()) return 'owner';
+  const entry = await db.get(`staff/${email.replaceAll('.', ',')}`);
+  return entry === 'developer' ? 'developer' : null;
+}
+
+/** Shown by Android on the "News & updates" channel; in the app, like a Firebase-console announcement. */
+function announcement(note) {
+  return {
+    notification: { title: note.title, body: note.body },
+    android: { priority: 'HIGH', notification: { channel_id: 'news' } },
+  };
+}
+
+async function fcmSend(env, accessToken, message) {
+  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/messages:send`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  });
+  if (!res.ok) throw new Error(`FCM ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
 // ---- New version announcements (cron, every 30 min) ----
@@ -622,7 +714,12 @@ function bearer(request) {
   return header.startsWith('Bearer ') ? header.slice(7).trim() : null;
 }
 
+/** The verified token's uid; see verifyIdTokenClaims for the email. */
 async function verifyIdToken(token, projectId) {
+  return (await verifyIdTokenClaims(token, projectId)).sub;
+}
+
+async function verifyIdTokenClaims(token, projectId) {
   if (!token) throw new Error('missing token');
   const [h, p, s] = token.split('.');
   if (!h || !p || !s) throw new Error('malformed token');
@@ -642,7 +739,7 @@ async function verifyIdToken(token, projectId) {
   const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
   const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, bytesFromB64url(s), new TextEncoder().encode(`${h}.${p}`));
   if (!ok) throw new Error('bad signature');
-  return payload.sub;
+  return payload;
 }
 
 async function getJwks() {

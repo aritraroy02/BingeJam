@@ -4,6 +4,7 @@
     ".write": false,
 
     "users": {
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.email === 'aritraditya.roy@gmail.com'",
       "$uid": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
@@ -32,6 +33,7 @@
       }
     },
     "users_private": {
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.email === 'aritraditya.roy@gmail.com'",
       "$uid": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
@@ -44,6 +46,15 @@
         },
         "inviteToken": {
           ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{12}$/)"
+        },
+        "device": {
+          ".validate": "newData.hasChildren(['app', 'code', 'model', 'android', 'at'])",
+          "app": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "code": { ".validate": "newData.isNumber()" },
+          "model": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "android": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "at": { ".validate": "newData.val() === now" },
+          "$other": { ".validate": false }
         },
         "createdAt": {
           ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
@@ -130,6 +141,7 @@
       }
     },
     "presence": {
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.email === 'aritraditya.roy@gmail.com'",
       "$uid": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid === $uid || root.child('friends').child($uid).child(auth.uid).exists())",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
@@ -711,6 +723,56 @@
             ".validate": false
           }
         }
+      }
+    },
+
+    "staff": {
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.email === 'aritraditya.roy@gmail.com'",
+      "$email": {
+        ".read": "auth != null && auth.token.email_verified == true && auth.token.email.toLowerCase().replace('.', ',') === $email",
+        ".write": "auth != null && auth.token.email_verified == true && auth.token.email === 'aritraditya.roy@gmail.com'",
+        ".validate": "newData.val() === 'developer' && $email.length >= 3 && $email.length <= 254"
+      }
+    },
+
+    "staffKeys": {
+      ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+      "$email": {
+        ".write": "auth != null && auth.token.email_verified == true && auth.token.email === 'aritraditya.roy@gmail.com' && !newData.exists()",
+        "$keyId": {
+          ".write": "auth != null && auth.token.email_verified == true && auth.token.email.toLowerCase().replace('.', ',') === $email && ($email === 'aritraditya,roy@gmail,com' || root.child('staff').child($email).val() === 'developer')",
+          ".validate": "$keyId.matches(/^[A-Za-z0-9_-]{8,40}$/) && newData.hasChildren(['key', 'at'])",
+          "key": { ".validate": "newData.isString() && newData.val().length >= 200 && newData.val().length <= 800" },
+          "at": { ".validate": "newData.val() === now" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "crashes": {
+      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email === 'aritraditya.roy@gmail.com' || root.child('staff').child(auth.token.email.toLowerCase().replace('.', ',')).val() === 'developer')",
+      ".indexOn": ["at"],
+      "$id": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !data.exists() && newData.exists() && newData.parent().parent().child('crashLimits').child(auth.uid).val() === now",
+        ".validate": "$id.matches(/^[-_A-Za-z0-9]{1,40}$/) && newData.hasChildren(['v', 'iv', 'box', 'keys', 'at', 'uploadedAt', 'uid'])",
+        "v": { ".validate": "newData.val() === 1" },
+        "iv": { ".validate": "newData.isString() && newData.val().length <= 32" },
+        "box": { ".validate": "newData.isString() && newData.val().length <= 40000" },
+        "keys": {
+          "$keyId": {
+            ".validate": "$keyId.matches(/^[A-Za-z0-9_-]{8,40}$/) && newData.isString() && newData.val().length <= 700"
+          }
+        },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+        "uploadedAt": { ".validate": "newData.val() === now" },
+        "uid": { ".validate": "newData.val() === auth.uid" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "crashLimits": {
+      "$uid": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && newData.val() === now && (!data.exists() || now - data.val() >= 5000)"
       }
     },
 

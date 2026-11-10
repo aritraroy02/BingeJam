@@ -6,6 +6,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.syncit.core.auth.AuthService
 import com.syncit.core.lookup.TitleLookup
 import com.syncit.core.lookup.TrendingCatalog
+import com.syncit.core.social.AppReports
 import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendInvites
@@ -19,6 +20,7 @@ import com.syncit.core.social.WatchInvites
 import com.syncit.core.transport.SyncTransport
 import com.syncit.core.voice.VoiceAuth
 import com.syncit.firebase.social.ChatRoomLinks
+import com.syncit.firebase.social.FirebaseAppReports
 import com.syncit.firebase.social.FirebaseAvatarStore
 import com.syncit.firebase.social.FirebaseGroupChats
 import com.syncit.firebase.social.FirebaseDirectMessages
@@ -71,6 +73,9 @@ class FirebaseServices private constructor(context: Context) {
     /** Personal invite links, and report/block (2026-11-10). */
     val invites: FriendInvites = FirebaseFriendInvites(session, db, profiles, friends)
     val safety: Safety = FirebaseSafety(session, db, groups)
+
+    /** Crash reports, the user list and notifications for staff. */
+    val appReports: AppReports = FirebaseAppReports(session, db)
     val push: PushRegistry = FirebasePushRegistry(session, db)
     val avatars: AvatarStore = avatarsImpl
     val presence: PresenceRepository = presenceImpl

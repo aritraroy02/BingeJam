@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Firebase. -->
+    <!-- Fingerprint/face prompt before App reports opens (owner and developers only). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 13+: lets the sync foreground-service notification show. Asked during onboarding. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

@@ -34,6 +34,19 @@ listed in Friends. Rules checked in the local emulator (30 cases) and the relay 
 session scratchpad. **Needs deploying, with the user's go-ahead: database rules, relay (`npx wrangler deploy`),
 hosting (add.html, privacy/delete-account pages).**
 
+**Unreleased (2026-11-10): App reports.** Crash reports from every phone, no opt-in (disclosed in web/privacy.html):
+`app/reports/CrashCatcher.kt` (uncaught crashes with cleaned stack + scrubbed own logcat lines; Android 11+ freezes
+and native crashes from ApplicationExitInfo) → pending files → `CrashUploader` after sign-in. **End-to-end
+encrypted** (`ReportCrypto`): AES-256-GCM per report, key wrapped with RSA-OAEP for every staff phone's Keystore key
+(`staffKeys/{emailKey}/{keyId}`; private key needs fingerprint/face/screen lock, 5 min). The DB only sees `crashes/{id}`
+= {v, iv, box, keys, at, uid}; nothing is uploaded until a staff key exists. Roles from the verified email: owner
+hardcoded in the rules and relay (`OWNER_EMAIL` in wrangler.toml) = aritraditya.roy@gmail.com; developers in
+`staff/{emailKey}`, added by the owner in the app. Settings → App reports (owner/devs only, unlock first): Crashes
+(grouped by signature), Users (owner: everyone incl. email, device), Notify (relay POST /broadcast: everyone via FCM
+topic `all`, or up to 20 picked people, owner only), Team (owner). Relay cron deletes crashes after 7 days.
+Rules tested locally (36 cases), relay broadcast/retention tested against the emulator. **Needs deploying with the
+user's go-ahead: rules, relay, hosting (privacy policy).**
+
 **Indus only (2026-11-04):** updates come only from the Indus (PhonePe) Appstore. Every build defaults to `-Pstore=indus` (no GitHub updater; `-Pstore=github` restores it). Listing: https://indusapp.store/qcsredto. Website buttons open that link (web/download.js) and computers see web/indus-qr.svg. `release.sh` uploads to Indus only (`GITHUB_RELEASE=1` adds a GitHub release). API (base `https://developer-api.phonepeappstore.com` per the docs; the old `developer-api.indusappstore.com` still answers; header `Authorization: O-Bearer <token>`; console is now developer.phonepeappstore.com → Tools & Resources): POST `/devtools/apk/upgrade/<pkg>` (multipart `file`, `releaseNotes`; what indus-upload.sh uses), POST `/devtools/apks/upgrade/<pkg>`, POST `/devtools/aab/upgrade/<pkg>`, PUT `/devtools/app/metadata/<pkg>` (title and description only: screenshots can only be changed in the console, Edit Details), GET `/devtools/app/stats/<pkg>`, GET `/devtools/app/details/<pkg>` (listing text, screenshots), GET `/devtools/app/versions/<pkg>` (live versions only), GET `/devtools/app/app-versions/<pkg>` (every listing submission with its id and status: inreview/active/cancelled/onhold; the in-review id is what review/cancel takes), POST `/devtools/review/cancel/<pkg>` (`{"id": "<review id>"}`; use when an upload gets 409 "under review/draft", it discards the pending submission). 0.6.7 uploaded 2026-11-04 after cancelling a pending review; GitHub 0.6.6 installs were left as they are.
 
 **Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app

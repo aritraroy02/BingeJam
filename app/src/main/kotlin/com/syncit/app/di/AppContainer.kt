@@ -3,8 +3,10 @@ package com.syncit.app.di
 import android.app.Application
 import com.syncit.app.data.UserPrefs
 import com.syncit.app.data.Watchlist
+import com.syncit.app.reports.CrashUploader
 import com.syncit.app.social.WatchTogetherRecorder
 import com.syncit.core.lookup.TitleLookup
+import com.syncit.core.model.AuthState
 import com.syncit.core.lookup.TrendingCatalog
 import com.syncit.core.media.MediaControllerGateway
 import com.syncit.core.session.SyncDependencies
@@ -25,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -70,6 +73,7 @@ class AppContainer(app: Application) : SyncDependencies {
             groups = fb.groups,
             invites = fb.invites,
             safety = fb.safety,
+            appReports = fb.appReports,
         )
     } ?: DebugSocial.createFake(now = transport.serverClock::serverNowMs)
 
@@ -82,10 +86,21 @@ class AppContainer(app: Application) : SyncDependencies {
     /** Who's in each chat's room (1:1 chats and groups), see [ChatRoomTracker]. */
     val chatRooms = ChatRoomTracker(social, sessionController, appScope)
 
+    /** Sends crash reports, encrypted, once someone is signed in (App reports, 2026-11-10). */
+    val crashUploader = CrashUploader(app, social.appReports)
+
     /** Room voice chat through our relay (unsupported with the debug fakes). */
     val voice: VoiceController = AndroidVoiceController(app, firebase?.voiceAuth)
 
     init {
+        appScope.launch {
+            social.auth.state.map { (it as? AuthState.SignedIn)?.uid }.distinctUntilChanged().collect { uid ->
+                if (uid != null) {
+                    val username = runCatching { social.profiles.observeMyProfile().first()?.username }.getOrNull()
+                    crashUploader.run(uid, username)
+                }
+            }
+        }
         // members/{me}/voice follows the voice chat, so the others see who's talking.
         appScope.launch {
             var shown: String? = null

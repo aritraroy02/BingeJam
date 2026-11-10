@@ -17,6 +17,7 @@ import coil3.request.crossfade
 import com.syncit.app.di.AppContainer
 import com.syncit.app.overlay.ChatBubbleService
 import com.syncit.app.push.PushNotifications
+import com.syncit.app.reports.CrashCatcher
 import com.syncit.core.session.AppQuitHandler
 import com.syncit.core.session.SyncDependencies
 import com.syncit.core.session.SyncDependenciesProvider
@@ -31,9 +32,12 @@ class SyncItApplication : Application(), SyncDependenciesProvider, AppQuitHandle
 
     override fun onCreate() {
         super.onCreate()
+        // First, so a crash anywhere after this is reported (App reports, 2026-11-10).
+        CrashCatcher.install(this)
         // Before any push can arrive: background FCM notifications name these channels.
         PushNotifications.createChannels(this)
         PushNotifications.subscribeToUpdates()
+        PushNotifications.subscribeToAnnouncements()
         container = AppContainer(this)
     }
 

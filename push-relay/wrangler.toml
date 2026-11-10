@@ -5,6 +5,8 @@ compatibility_date = "2025-06-01"
 [vars]
 FIREBASE_PROJECT_ID = "syncit-watchparty"
 DATABASE_URL = "https://syncit-watchparty-default-rtdb.asia-southeast1.firebasedatabase.app"
+# App reports owner (same email as the database rules). Developers are added in the app.
+OWNER_EMAIL = "aritraditya.roy@gmail.com"
 
 # Profile pictures (free plan: 1 GB, 100k reads and 1k writes a day).
 # New-release check (announceRelease in src/index.js). Free plan: up to 5 cron triggers.

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -103,6 +104,8 @@ fun SettingsScreen(
     onEditProfile: () -> Unit,
     onOpenSetup: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    /** Shown only to the owner and developers (App reports, 2026-11-10). */
+    onOpenAppReports: (() -> Unit)? = null,
 ) {
     val p = Glass.palette
     val context = LocalContext.current
@@ -159,6 +162,7 @@ fun SettingsScreen(
                             onOpen = { page = it },
                             onOpenSetup = onOpenSetup,
                             onOpenDiagnostics = onOpenDiagnostics,
+                            onOpenAppReports = onOpenAppReports,
                         )
                         SettingsPage.SHARING -> SharingPage(
                             shared = shared,
@@ -290,6 +294,7 @@ private fun MainPage(
     onOpen: (SettingsPage) -> Unit,
     onOpenSetup: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    onOpenAppReports: (() -> Unit)?,
 ) {
     GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
         CategoryRow("Activity sharing", sharingSummary, Icons.Filled.Share) { onOpen(SettingsPage.SHARING) }
@@ -299,6 +304,7 @@ private fun MainPage(
     GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
         CategoryRow("Setup & permissions", "Notification Access, notifications, battery", Icons.Filled.Notifications, onOpenSetup)
         CategoryRow("Media diagnostics", "See what your streaming and music apps report", Icons.Filled.Build, onOpenDiagnostics)
+        onOpenAppReports?.let { CategoryRow("App reports", "Crashes, users and notifications · locked", Icons.Filled.Warning, it) }
     }
     GlassPanel(spacing = 0.dp, contentPadding = PaddingValues(12.dp)) {
         CategoryRow("Privacy", "Group invites, private username", Icons.Filled.Lock) { onOpen(SettingsPage.PRIVACY) }
