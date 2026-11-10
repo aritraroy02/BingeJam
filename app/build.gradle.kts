@@ -105,6 +105,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.gif)
     implementation(libs.coil.network.okhttp)
+    // QR code for personal invite links (encoding only, no camera).
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
 }

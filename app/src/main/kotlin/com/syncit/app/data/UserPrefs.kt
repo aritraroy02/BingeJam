@@ -66,6 +66,11 @@ class UserPrefs(context: Context) {
         get() = prefs.getString(KEY_PENDING_JOIN, null)
         set(value) = prefs.edit { putString(KEY_PENDING_JOIN, value) }
 
+    /** A friend's invite link (FriendLinks) waiting for sign-in and setup to finish. */
+    var pendingFriendInvite: String?
+        get() = prefs.getString(KEY_PENDING_FRIEND_INVITE, null)
+        set(value) = prefs.edit { putString(KEY_PENDING_FRIEND_INVITE, value) }
+
     /** The first-launch clipboard check for an invite (see InviteHandoff) runs only once. */
     var inviteClipboardChecked: Boolean
         get() = prefs.getBoolean(KEY_CLIPBOARD_CHECKED, false)
@@ -167,6 +172,7 @@ class UserPrefs(context: Context) {
             remove(KEY_NAME)
             remove(KEY_LAST_ROOM)
             remove(KEY_PENDING_JOIN)
+            remove(KEY_PENDING_FRIEND_INVITE)
         }
         _activitySetupDone.value = setupDone
         if (boundUid == uid) {
@@ -183,6 +189,7 @@ class UserPrefs(context: Context) {
         const val KEY_ONBOARDED = "onboarding_done"
         const val KEY_SPLASH_DAY = "splash_full_day"
         const val KEY_PENDING_JOIN = "pending_join"
+        const val KEY_PENDING_FRIEND_INVITE = "pending_friend_invite"
         const val KEY_CLIPBOARD_CHECKED = "invite_clipboard_checked"
         const val KEY_THEME = "theme_mode"
         const val KEY_QUIT = "quit"

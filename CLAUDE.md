@@ -21,6 +21,19 @@ Prime has no public play link). Titles Watchmode doesn't know fall back to Netfl
 removed from Home; Chats has a friend search; bottom sheets hide the tab bar and close with a swipe down. Both test
 phones (OPPO, Motorola) run this build (still labelled 0.6.6).
 
+**Unreleased (2026-11-10): room cleanup, invite links, report/block.** The last one to leave a room deletes it
+(`FirebaseSyncTransport.leaveRoom`: removes offline members, then `rooms/`, `previews/`, `chats/`, `reactions/` for
+the code; `ChatRoomLinks` drops an empty dmRooms/groupRooms link); the relay cron `sweepRooms` deletes rooms with
+nobody online for 15 min plus orphans (never DMs or group messages). Personal invite links
+`https://WEB_HOST/add/<username>/<token>` (`core/config/FriendLinks.kt`, token in `users_private/{uid}/inviteToken`,
+request field `via`): the relay's `acceptInvited` makes the friendship at once, `SocialSession` accepts as a fallback;
+Invite screen with QR (zxing core) from Chats +, Friends and Profile, plus a one-time "Bring a friend" step after
+setup; web/add.html. Report (reports/{uid}/{id}, write-once, console only, up to 5 messages of evidence) and block
+from the DM menu and Group info; blocked groups in `blockedGroups/{uid}/{gid}` (rules stop re-adds and invites),
+listed in Friends. Rules checked in the local emulator (30 cases) and the relay against it; scripts were in the
+session scratchpad. **Needs deploying, with the user's go-ahead: database rules, relay (`npx wrangler deploy`),
+hosting (add.html, privacy/delete-account pages).**
+
 **Indus only (2026-11-04):** updates come only from the Indus (PhonePe) Appstore. Every build defaults to `-Pstore=indus` (no GitHub updater; `-Pstore=github` restores it). Listing: https://indusapp.store/qcsredto. Website buttons open that link (web/download.js) and computers see web/indus-qr.svg. `release.sh` uploads to Indus only (`GITHUB_RELEASE=1` adds a GitHub release). API (base `https://developer-api.phonepeappstore.com` per the docs; the old `developer-api.indusappstore.com` still answers; header `Authorization: O-Bearer <token>`; console is now developer.phonepeappstore.com → Tools & Resources): POST `/devtools/apk/upgrade/<pkg>` (multipart `file`, `releaseNotes`; what indus-upload.sh uses), POST `/devtools/apks/upgrade/<pkg>`, POST `/devtools/aab/upgrade/<pkg>`, PUT `/devtools/app/metadata/<pkg>` (title and description only: screenshots can only be changed in the console, Edit Details), GET `/devtools/app/stats/<pkg>`, GET `/devtools/app/details/<pkg>` (listing text, screenshots), GET `/devtools/app/versions/<pkg>` (live versions only), GET `/devtools/app/app-versions/<pkg>` (every listing submission with its id and status: inreview/active/cancelled/onhold; the in-review id is what review/cancel takes), POST `/devtools/review/cancel/<pkg>` (`{"id": "<review id>"}`; use when an upload gets 409 "under review/draft", it discards the pending submission). 0.6.7 uploaded 2026-11-04 after cancelling a pending review; GitHub 0.6.6 installs were left as they are.
 
 **Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app

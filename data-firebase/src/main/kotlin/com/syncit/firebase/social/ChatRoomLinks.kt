@@ -5,7 +5,9 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.MutableData
 import com.google.firebase.database.ServerValue
+import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
 import com.syncit.core.model.ChatRoomLink
 import com.syncit.firebase.await
@@ -66,7 +68,24 @@ internal class ChatRoomLinks(db: FirebaseDatabase) {
             synchronized(marked) { marked.remove(key) }
             ref.onDisconnect().cancel()
             ref.removeValue().await()
+            dropIfEmpty(link)
         }
+    }
+
+    /** The last one out removes the link too (a transaction, so a room started meanwhile stays). */
+    private fun dropIfEmpty(link: DatabaseReference) {
+        link.runTransaction(object : Transaction.Handler {
+            override fun doTransaction(current: MutableData): Transaction.Result {
+                if (current.value == null) return Transaction.success(current)
+                if (current.child("in").hasChildren()) return Transaction.abort()
+                current.value = null
+                return Transaction.success(current)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                if (error != null) Log.d(TAG, "Room link not removed", error.toException())
+            }
+        })
     }
 
     /** Like setIn(false) but never waits or throws (leaving a group, where the write may be refused). */

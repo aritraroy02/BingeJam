@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Add a friend · BingeJam</title>
+<meta name="description" content="A friend invited you to BingeJam. Watch Netflix or JioHotstar together, in sync.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="card">
+  <p class="eyebrow" id="eyebrow">A friend invited you</p>
+  <h1 class="brand">BingeJam</h1>
+  <p class="lead">Watch Netflix or JioHotstar together, each on your own phone. When anyone plays, pauses or skips, everyone follows.</p>
+
+  <div class="notice" id="in-app" hidden>
+    <b>This in-app browser can't install apps.</b> Open this page in Chrome to get BingeJam.
+    <a class="btn primary" id="open-chrome" href="#">Open in Chrome</a>
+  </div>
+  <div class="notice" id="not-android" hidden>
+    <b>BingeJam is for Android phones.</b> Open this link on your Android phone to add your friend, or:
+    <img class="qr" src="/indus-qr.svg" width="180" height="180" alt="QR code: BingeJam on the PhonePe Appstore">
+    Scan it with your phone's camera to get BingeJam from the PhonePe Appstore.
+  </div>
+
+  <section id="ok" hidden>
+    <div class="code-box">
+      <span>Friend</span>
+      <strong class="handle" id="who"></strong>
+    </div>
+
+    <a class="store-badge" id="download" href="https://indusapp.store/qcsredto"><img src="/phonepe-badge.png" width="217" height="69" alt="Get it on PhonePe Appstore"></a>
+    <a class="btn" id="open" href="#">I already have BingeJam</a>
+    <p class="fine" id="copied" hidden>Invite copied, so BingeJam can add your friend after installing.</p>
+  </section>
+
+  <section id="bad" hidden>
+    <p class="lead">This invite link looks incomplete. Ask your friend to send it again, or search their username in BingeJam.</p>
+    <a class="store-badge" id="download-bad" href="https://indusapp.store/qcsredto"><img src="/phonepe-badge.png" width="217" height="69" alt="Get it on PhonePe Appstore"></a>
+  </section>
+
+  <section class="help" id="after-download" hidden>
+    <h2>Installing BingeJam</h2>
+    <ol class="steps">
+      <li>BingeJam opens on the <b>PhonePe Appstore</b>. Tap <b>Install</b>.</li>
+      <li>No PhonePe Appstore on your phone yet? The page shows how to get it, free, then come back to BingeJam.</li>
+      <li>Open <b>BingeJam</b> and finish setup. You'll be friends straight away.</li>
+    </ol>
+    <div class="notice">
+      <b>The store didn't open?</b> Tap below to try again, or search <b>BingeJam</b> in the PhonePe Appstore.
+      <a class="btn" id="download-again" href="#">Open the PhonePe Appstore</a>
+    </div>
+    <p class="fine">Can't open the link after installing? Search <b id="who-again"></b> in BingeJam, under Chats, +, Add friends.</p>
+  </section>
+
+  <p class="fine">Android only. BingeJam shares play, pause, position and what's playing with the room, never your video, audio or notifications.</p>
+  <p class="fine"><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/delete-account">Delete account</a></p>
+</main>
+
+<script src="/download.js"></script>
+<script>
+  // /add/<username>/<token>: same formats as FriendLinks in the app.
+  const match = location.pathname.match(/\/add\/([a-z0-9_][a-z0-9_.]{1,18}[a-z0-9_])\/([A-Za-z0-9]{12})\/?$/);
+  const username = match && !match[1].includes('..') ? match[1] : null;
+  const token = username ? match[2] : null;
+
+  if (!username) {
+    document.getElementById('bad').hidden = false;
+    SyncItDownload.setup(document.getElementById('download-bad'));
+  } else {
+    document.getElementById('ok').hidden = false;
+    document.getElementById('who').textContent = '@' + username;
+    document.getElementById('who-again').textContent = '@' + username;
+    document.getElementById('eyebrow').textContent = '@' + username + ' invited you to be friends';
+    const link = 'https://syncit-watchparty.web.app/add/' + username + '/' + token;
+
+    // Installed: opens the app on this invite. Not installed: comes back here.
+    document.getElementById('open').href =
+      'intent://add/' + username + '/' + token + '#Intent;scheme=syncit;package=com.syncit.app;S.browser_fallback_url=' +
+      encodeURIComponent(link) + ';end';
+
+    // An install can't carry the link, so leave it on the clipboard. BingeJam reads it once on its
+    // first launch and opens this invite.
+    SyncItDownload.setup(document.getElementById('download'), async () => {
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(link);
+        copied = true;
+      } catch (e) {
+        copied = fallbackCopy(link);
+      }
+      if (copied) document.getElementById('copied').hidden = false;
+    });
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(area);
+    return ok;
+  }
+</script>
+</body>
+</html>

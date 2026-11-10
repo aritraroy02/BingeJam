@@ -81,7 +81,7 @@ class FirebaseFriendsRepository internal constructor(
             }
     }
 
-    override suspend fun sendRequest(toUsername: String) {
+    override suspend fun sendRequest(toUsername: String, via: String?) {
         val me = session.requireUid()
         val name = UsernameRules.normalize(toUsername)
         if (!UsernameRules.isValid(name)) throw FriendRequestException("No one is called @$name")
@@ -101,8 +101,13 @@ class FirebaseFriendsRepository internal constructor(
             accept(them)
             return
         }
-        // Already pending from us: nothing to do.
-        if (db.getReference("friendRequests").child(them).child(me).get().await().exists()) return
+        // Already pending from us: nothing to do, unless we now have their invite token. Requests
+        // can't be edited, so the old one is withdrawn and sent again with it.
+        val pending = db.getReference("friendRequests").child(them).child(me).get().await()
+        if (pending.exists()) {
+            if (via == null || pending.child("via").string() == via) return
+            cancel(them)
+        }
 
         val theirProfile = SocialParser.profile(them, db.getReference("users").child(them).get().await())
             ?: throw FriendRequestException("No one is called @$name")
@@ -113,7 +118,7 @@ class FirebaseFriendsRepository internal constructor(
                 "toUsername" to theirProfile.username,
                 "toDisplayName" to theirProfile.displayName,
                 "sentAt" to ServerValue.TIMESTAMP,
-            ),
+            ) + listOfNotNull(via?.let { "via" to it }),
             "sentFriendRequests/$me/$them" to true,
         )
         try {

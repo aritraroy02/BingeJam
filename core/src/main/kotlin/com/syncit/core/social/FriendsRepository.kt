@@ -21,8 +21,11 @@ interface FriendsRepository {
 
     fun observeOutgoingRequests(): Flow<List<FriendRequest>>
 
-    /** Throws [FriendRequestException] (unknown user, yourself, already friends, blocked). */
-    suspend fun sendRequest(toUsername: String)
+    /**
+     * Throws [FriendRequestException] (unknown user, yourself, already friends, blocked). [via]: the
+     * token from their invite link, which lets the request be accepted without them (FriendInvites).
+     */
+    suspend fun sendRequest(toUsername: String, via: String? = null)
 
     /** If they had already sent us a request, sending one back accepts it instead. */
     suspend fun accept(fromUid: String)

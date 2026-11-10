@@ -68,6 +68,8 @@ class AppContainer(app: Application) : SyncDependencies {
             push = fb.push,
             avatars = fb.avatars,
             groups = fb.groups,
+            invites = fb.invites,
+            safety = fb.safety,
         )
     } ?: DebugSocial.createFake(now = transport.serverClock::serverNowMs)
 

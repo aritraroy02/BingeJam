@@ -1,4 +1,5 @@
 // Push relay + profile-picture store for Vyro (Cloudflare Worker, free tier).
+// Cron: release announcements, trending refresh, and sweeping rooms everyone left (sweepRooms).
 // Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid>, GET /netflix (title lookup),
 // GET /voice/<code> (room voice chat WebSocket, src/voice.js), GET /trending and GET /watch-link
 // (Home's trending titles and the link that opens one, src/trending.js).
@@ -52,12 +53,68 @@ export default {
     return notify(request, env);
   },
 
-  /** Cron trigger (wrangler.toml): tell every phone about a new release, once per version; keep trending fresh. */
+  /** Cron trigger (wrangler.toml): tell every phone about a new release, once per version; keep trending fresh; sweep empty rooms. */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(announceRelease(env).catch((e) => console.error('release check failed', e && e.message)));
+    ctx.waitUntil(sweepRooms(env).catch((e) => console.error('room sweep failed', e && e.message)));
     ctx.waitUntil(refreshTrendingIfStale(env).catch((e) => console.error('trending refresh failed', e && e.message)));
   },
 };
+
+// ---- Empty rooms (cron, every 30 min) ----
+//
+// The app deletes a room when the last person taps Leave. Rooms whose people closed the app, lost
+// the connection or crashed stay behind with every member offline; this deletes them once nobody has
+// been online in them for ROOM_IDLE_MS, with their preview, chat and reactions, and the chat links
+// (dmRooms, groupRooms) that point at rooms that are gone. Direct and group messages are never touched.
+
+const ROOM_IDLE_MS = 15 * 60_000;
+/** Paths per run; a big backlog is cleared over several runs. */
+const MAX_SWEEP_PATHS = 2000;
+
+async function sweepRooms(env) {
+  const db = new Database(env);
+  // Everything that hangs off a room is read before the rooms, so a room created between the reads
+  // is in the rooms read and its preview/chat/link are kept.
+  const [previews, chats, reactions, dmRooms, groupRooms] = await Promise.all([
+    db.get('previews', '?shallow=true'),
+    db.get('chats', '?shallow=true'),
+    db.get('reactions', '?shallow=true'),
+    db.get('dmRooms'),
+    db.get('groupRooms'),
+  ]);
+  const rooms = (await db.get('rooms')) || {};
+  const now = Date.now();
+  const paths = {};
+  const live = new Set();
+  for (const [code, room] of Object.entries(rooms)) {
+    if (roomIsIdle(room, now)) paths[`rooms/${code}`] = null;
+    else live.add(code);
+  }
+  for (const [name, node] of [['previews', previews], ['chats', chats], ['reactions', reactions]]) {
+    for (const code of Object.keys(node || {})) if (!live.has(code)) paths[`${name}/${code}`] = null;
+  }
+  for (const [name, node] of [['dmRooms', dmRooms], ['groupRooms', groupRooms]]) {
+    for (const [id, link] of Object.entries(node || {})) {
+      if (!link || !live.has(link.code)) paths[`${name}/${id}`] = null;
+    }
+  }
+  const keys = Object.keys(paths).slice(0, MAX_SWEEP_PATHS);
+  if (keys.length === 0) return;
+  await db.update(Object.fromEntries(keys.map((k) => [k, null])));
+  console.log('swept', keys.length, 'paths');
+}
+
+/** Nobody online, and nothing has happened in the room for ROOM_IDLE_MS. */
+function roomIsIdle(room, now) {
+  if (!room || typeof room !== 'object') return true;
+  const members = Object.values(room.members || {});
+  if (members.some((m) => m && m.online === true)) return false;
+  const times = [room.createdAt, room.state && room.state.updatedAt];
+  for (const m of members) if (m) times.push(m.lastSeen, m.joinedAt, m.reportedAt);
+  const latest = Math.max(0, ...times.filter((t) => typeof t === 'number'));
+  return now - latest > ROOM_IDLE_MS;
+}
 
 // ---- New version announcements (cron, every 30 min) ----
 //
@@ -335,12 +392,42 @@ async function friendRequest(db, from, to) {
   const req = await db.get(`friendRequests/${to}/${from}`);
   if (!req || !isRecent(req.sentAt)) return null;
   const who = req.fromDisplayName ? `${req.fromDisplayName} (@${req.fromUsername})` : `@${req.fromUsername}`;
+  if (await acceptInvited(db, from, to, req)) {
+    return {
+      title: 'New friend',
+      body: clip(`${who} joined you from your invite link`, 240),
+      channel: 'friends',
+      data: { type: 'dm', uid: from },
+    };
+  }
   return {
     title: 'Friend request',
     body: clip(`${who} wants to be friends`, 240),
     channel: 'friends',
     data: { type: 'friend_request', uid: from },
   };
+}
+
+/**
+ * A request opened from `to`'s personal invite link carries their secret token (users_private, only
+ * they and we can read it). The link is their consent, so we make the friendship right away: the
+ * same multi-path write the app's accept does. Returns true if it did.
+ */
+const INVITE_TOKEN = /^[A-Za-z0-9]{12}$/;
+async function acceptInvited(db, from, to, req) {
+  if (typeof req.via !== 'string' || !INVITE_TOKEN.test(req.via)) return false;
+  const token = await db.get(`users_private/${to}/inviteToken`);
+  if (token !== req.via) return false;
+  const since = { '.sv': 'timestamp' };
+  await db.update({
+    [`friends/${to}/${from}`]: { since },
+    [`friends/${from}/${to}`]: { since },
+    [`friendRequests/${to}/${from}`]: null,
+    [`friendRequests/${from}/${to}`]: null,
+    [`sentFriendRequests/${from}/${to}`]: null,
+    [`sentFriendRequests/${to}/${from}`]: null,
+  });
+  return true;
 }
 
 /** Music and YouTube rooms are jams; the rest are watch parties (same as ActivityApp in the app). */
@@ -508,6 +595,16 @@ class Database {
     });
     if (!res.ok) throw new Error(`database read ${res.status}`);
     return res.json();
+  }
+
+  /** Multi-path update at the root ({"a/b": value, "c": null}), all or nothing. */
+  async update(paths) {
+    const res = await fetch(this.url(''), {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${await getAccessToken(this.env)}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(paths),
+    });
+    if (!res.ok) throw new Error(`database update ${res.status}`);
   }
 
   async remove(path) {

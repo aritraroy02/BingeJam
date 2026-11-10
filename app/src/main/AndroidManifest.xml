@@ -50,7 +50,11 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="syncit-watchparty.web.app" android:pathPrefix="/join/" />
+                <data android:scheme="https" />
+                <data android:host="syncit-watchparty.web.app" />
+                <data android:pathPrefix="/join/" />
+                <!-- Personal invite links: /add/<username>/<token> (FriendLinks). -->
+                <data android:pathPrefix="/add/" />
             </intent-filter>
             <!-- Passwordless email sign-in. THE ONE PLACE the email-link host/path live in the app.
                  Firebase's default handler: https://syncit-watchparty.firebaseapp.com/__/auth/action?mode=signIn&oobCode=…
@@ -69,7 +73,9 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="syncit" android:host="join" />
+                <data android:scheme="syncit" />
+                <data android:host="join" />
+                <data android:host="add" />
             </intent-filter>
         </activity>
 

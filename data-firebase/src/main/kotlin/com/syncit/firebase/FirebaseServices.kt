@@ -8,11 +8,13 @@ import com.syncit.core.lookup.TitleLookup
 import com.syncit.core.lookup.TrendingCatalog
 import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.DirectMessages
+import com.syncit.core.social.FriendInvites
 import com.syncit.core.social.FriendsRepository
 import com.syncit.core.social.GroupChats
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
+import com.syncit.core.social.Safety
 import com.syncit.core.social.WatchInvites
 import com.syncit.core.transport.SyncTransport
 import com.syncit.core.voice.VoiceAuth
@@ -20,9 +22,11 @@ import com.syncit.firebase.social.ChatRoomLinks
 import com.syncit.firebase.social.FirebaseAvatarStore
 import com.syncit.firebase.social.FirebaseGroupChats
 import com.syncit.firebase.social.FirebaseDirectMessages
+import com.syncit.firebase.social.FirebaseFriendInvites
 import com.syncit.firebase.social.FirebaseFriendsRepository
 import com.syncit.firebase.social.FirebasePresenceRepository
 import com.syncit.firebase.social.FirebaseProfileRepository
+import com.syncit.firebase.social.FirebaseSafety
 import com.syncit.firebase.social.FirebasePushRegistry
 import com.syncit.firebase.social.FirebaseWatchInvites
 import com.syncit.firebase.social.PushRelay
@@ -63,6 +67,10 @@ class FirebaseServices private constructor(context: Context) {
 
     /** Group chats, each with its own room. */
     val groups: GroupChats = FirebaseGroupChats(session, db, pushRelay, roomLinks)
+
+    /** Personal invite links, and report/block (2026-11-10). */
+    val invites: FriendInvites = FirebaseFriendInvites(session, db, profiles, friends)
+    val safety: Safety = FirebaseSafety(session, db, groups)
     val push: PushRegistry = FirebasePushRegistry(session, db)
     val avatars: AvatarStore = avatarsImpl
     val presence: PresenceRepository = presenceImpl

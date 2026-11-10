@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -64,6 +65,10 @@ import com.syncit.app.ui.glass.rememberReduceMotion
 import com.syncit.app.ui.home.HomeScreen
 import com.syncit.app.ui.home.HomeViewModel
 import com.syncit.app.ui.home.LiveRoomsViewModel
+import com.syncit.app.ui.invite.FriendInviteScreen
+import com.syncit.app.ui.invite.FriendInviteViewModel
+import com.syncit.app.ui.invite.InviteScreen
+import com.syncit.app.ui.invite.InviteViewModel
 import com.syncit.app.ui.join.JoinPreviewScreen
 import com.syncit.app.ui.join.JoinPreviewViewModel
 import com.syncit.app.ui.onboarding.OnboardingScreen
@@ -82,11 +87,13 @@ import com.syncit.app.ui.social.SocialBanners
 import com.syncit.app.ui.social.SocialEventsViewModel
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.config.Brand
+import com.syncit.core.config.FriendLinks
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.ui.chat.ChatsScreen
@@ -128,6 +135,12 @@ sealed interface Screen {
     data object Permissions : Screen
     data object Diagnostics : Screen
     data class JoinPreview(val code: String, val autoJoin: Boolean = false) : Screen
+
+    /** Our invite link and QR (2026-11-10); [welcome] = the one-time "Bring a friend" step after setup. */
+    data class Invite(val welcome: Boolean = false) : Screen
+
+    /** A friend's invite link opened on this phone. */
+    data class FriendInvite(val username: String, val token: String) : Screen
     /** [invite]: open on "Invite friends" (rooms started from a trending title). */
     data class Room(val code: String, val waitingFor: String? = null, val invite: Boolean = false) : Screen
 }
@@ -169,6 +182,7 @@ class NavViewModel : ViewModel() {
 fun SyncItApp(
     container: AppContainer,
     pendingJoinCode: MutableState<String?>,
+    pendingFriendInvite: MutableState<FriendLinks.Invite?>,
     pendingEmailLink: MutableState<String?>,
     pendingNotification: MutableState<PushNotifications.Target?>,
 ) {
@@ -183,6 +197,17 @@ fun SyncItApp(
         prefs.pendingJoinCode = code
         if (gate == Gate.Ready && (nav.current as? Screen.JoinPreview)?.code != code) {
             nav.reset(Screen.Home, Screen.JoinPreview(code))
+        }
+    }
+
+    // A friend's invite link waits in prefs through sign-in and setup, like a room invite.
+    LaunchedEffect(pendingFriendInvite.value, gate) {
+        val invite = pendingFriendInvite.value ?: return@LaunchedEffect
+        pendingFriendInvite.value = null
+        prefs.pendingFriendInvite = FriendLinks.shareLink(invite.username, invite.token)
+        if (gate == Gate.Ready) {
+            prefs.pendingFriendInvite = null
+            nav.reset(Screen.Chats, Screen.FriendInvite(invite.username, invite.token))
         }
     }
 
@@ -205,10 +230,21 @@ fun SyncItApp(
 
     // Becoming ready (sign-in + setup finished) opens an invite that was waiting; signing out
     // forgets where we were.
+    // Setup just finished on this phone: offer "Bring a friend" once, unless an invite is waiting.
+    var previousGate by remember { mutableStateOf<Gate?>(null) }
     LaunchedEffect(gate) {
+        val justSetUp = previousGate is Gate.NeedsUsername || previousGate is Gate.NeedsActivitySetup || previousGate == Gate.NeedsPermissions
+        previousGate = gate
         if (gate == Gate.Ready) {
-            prefs.pendingJoinCode?.let { code ->
-                if ((nav.current as? Screen.JoinPreview)?.code != code) nav.reset(Screen.Home, Screen.JoinPreview(code))
+            val friendInvite = prefs.pendingFriendInvite?.let(FriendLinks::fromLink)
+            val joinCode = prefs.pendingJoinCode
+            when {
+                joinCode != null -> if ((nav.current as? Screen.JoinPreview)?.code != joinCode) nav.reset(Screen.Home, Screen.JoinPreview(joinCode))
+                friendInvite != null -> {
+                    prefs.pendingFriendInvite = null
+                    nav.reset(Screen.Chats, Screen.FriendInvite(friendInvite.username, friendInvite.token))
+                }
+                justSetUp && !container.social.isFake -> nav.reset(Screen.Home, Screen.Invite(welcome = true))
             }
         } else if (gate == Gate.SignedOut) {
             nav.reset(Screen.Home)
@@ -443,6 +479,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     friendRequests = tabBadges.friendRequests.collectAsStateWithLifecycle().value,
                     onStartRoomWith = { code, friendUid -> nav.push(Screen.Room(code, waitingFor = friendUid)) },
                     onGroupInfo = { id -> nav.push(Screen.GroupInfo(id)) },
+                    onInvite = { nav.push(Screen.Invite()) },
                 )
             }
 
@@ -495,7 +532,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
 
             Screen.Friends -> {
                 val vm: FriendsViewModel = viewModel(factory = viewModelFactory { initializer { FriendsViewModel(container) } })
-                FriendsScreen(vm, onBack = if (entry.depth > 1) nav::pop else null)
+                FriendsScreen(vm, onBack = if (entry.depth > 1) nav::pop else null, onInvite = { nav.push(Screen.Invite()) })
             }
 
             is Screen.Chat -> {
@@ -530,6 +567,7 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     onBack = if (entry.depth > 1) nav::pop else null,
                     onEditProfile = { nav.push(Screen.EditProfile) },
                     onOpenSettings = { nav.push(Screen.Settings) },
+                    onInvite = { nav.push(Screen.Invite()) },
                 )
             }
 
@@ -559,6 +597,25 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     viewModel = vm,
                     onJoined = { code -> nav.reset(Screen.Home, Screen.Room(code)) },
                     onBack = nav::pop,
+                )
+            }
+
+            is Screen.Invite -> {
+                val vm: InviteViewModel = viewModel(key = "invite", factory = viewModelFactory { initializer { InviteViewModel(container) } })
+                InviteScreen(vm, welcome = screen.welcome, onDone = { if (screen.welcome) nav.reset(Screen.Home) else nav.pop() })
+            }
+
+            is Screen.FriendInvite -> {
+                val vm: FriendInviteViewModel = viewModel(
+                    key = "friend-invite-${screen.username}-${screen.token}",
+                    factory = viewModelFactory {
+                        initializer { FriendInviteViewModel(FriendLinks.Invite(screen.username, screen.token), container) }
+                    },
+                )
+                FriendInviteScreen(
+                    vm,
+                    onClose = { nav.reset(Screen.Chats) },
+                    onMessage = { uid -> nav.reset(Screen.Chats, Screen.Chat(uid)) },
                 )
             }
 

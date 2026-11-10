@@ -1,6 +1,5 @@
 package com.syncit.app.ui.friends
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -42,7 +40,6 @@ import com.syncit.app.ui.glass.CountBadge
 import com.syncit.app.ui.glass.GlassButton
 import com.syncit.app.ui.glass.staggerIn
 import com.syncit.core.config.Brand
-import com.syncit.core.config.RoomLinks
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
@@ -56,7 +53,7 @@ import com.syncit.app.ui.theme.Glass
 
 /** [onBack] is null when Friends is a tab (no back arrow). */
 @Composable
-fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
+fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?, onInvite: () -> Unit = {}) {
     val p = Glass.palette
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
@@ -64,10 +61,10 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
     val incoming by viewModel.incoming.collectAsStateWithLifecycle()
     val outgoing by viewModel.outgoing.collectAsStateWithLifecycle()
     val blocked by viewModel.blocked.collectAsStateWithLifecycle()
+    val blockedGroups by viewModel.blockedGroups.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val myUsername by viewModel.myUsername.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
 
     GlassScreen {
@@ -131,22 +128,18 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                         modifier = Modifier.padding(horizontal = 8.dp),
                     )
                     // The other half of making friends: let them find you.
-                    myUsername?.let { username ->
+                    if (myUsername != null) {
                         GlassPanel(Modifier.fillMaxWidth().padding(top = 8.dp).staggerIn(1)) {
                             Text("Invite friends to ${Brand.NAME}", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
                             Text(
-                                "Send them your username so they can add you: @$username",
+                                "Send your link or show your QR code. When a friend opens it, you're friends straight away.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = p.textSecondary,
                             )
                             GlassButton(
-                                "Share my username",
+                                "Invite with link or QR",
                                 icon = Icons.Filled.Share,
-                                onClick = {
-                                    val text = "Add me on ${Brand.NAME}: @$username\nhttps://${RoomLinks.WEB_HOST}"
-                                    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                                    context.startActivity(Intent.createChooser(send, "Share your username"))
-                                },
+                                onClick = onInvite,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -195,6 +188,17 @@ fun FriendsScreen(viewModel: FriendsViewModel, onBack: (() -> Unit)?) {
                         for (profile in blocked) {
                             PersonRow(profile.displayName, "@${profile.username}", profile.photoUrl) {
                                 GlassSmallButton("Unblock", onClick = { viewModel.unblock(profile) }, primary = false, enabled = profile.uid !in busy)
+                            }
+                        }
+                    }
+                }
+
+                if (blockedGroups.isNotEmpty()) {
+                    SectionLabel("Blocked groups", Modifier.padding(top = 12.dp))
+                    GlassPanel(Modifier.fillMaxWidth(), spacing = 4.dp, contentPadding = PaddingValues(12.dp)) {
+                        for (g in blockedGroups) {
+                            PersonRow(g.name.ifEmpty { "Group" }, "Nobody can add you to it") {
+                                GlassSmallButton("Unblock", onClick = { viewModel.unblockGroup(g) }, primary = false, enabled = g.id !in busy)
                             }
                         }
                     }

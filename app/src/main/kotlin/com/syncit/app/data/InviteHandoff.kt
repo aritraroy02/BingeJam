@@ -2,6 +2,7 @@ package com.syncit.app.data
 
 import android.content.ClipboardManager
 import android.content.Context
+import com.syncit.core.config.FriendLinks
 import com.syncit.core.config.RoomLinks
 
 /**
@@ -16,7 +17,7 @@ object InviteHandoff {
 
     /**
      * Call when the activity has window focus (Android 10+ only lets the focused app read the
-     * clipboard). Returns the room code, or null.
+     * clipboard). Returns the invite link found (a room invite or a friend's invite link), or null.
      */
     fun takeFromClipboardOnce(context: Context, prefs: UserPrefs): String? {
         if (prefs.inviteClipboardChecked) return null
@@ -25,7 +26,7 @@ object InviteHandoff {
         val clip = runCatching { clipboard.primaryClip }.getOrNull() ?: return null
         for (i in 0 until clip.itemCount) {
             val text = runCatching { clip.getItemAt(i).coerceToText(context)?.toString() }.getOrNull()
-            RoomLinks.codeFromLink(text)?.let { return it }
+            if (RoomLinks.codeFromLink(text) != null || FriendLinks.fromLink(text) != null) return text
         }
         return null
     }

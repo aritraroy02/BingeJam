@@ -13,6 +13,10 @@
       {
         "source": "/join/**",
         "destination": "/join.html"
+      },
+      {
+        "source": "/add/**",
+        "destination": "/add.html"
       }
     ],
     "headers": [

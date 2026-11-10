@@ -1,6 +1,5 @@
 package com.syncit.app.ui.profile
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -42,8 +40,6 @@ import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.nav.LocalBottomBarInset
 import com.syncit.app.ui.social.ActivityThumb
 import com.syncit.app.ui.theme.Glass
-import com.syncit.core.config.Brand
-import com.syncit.core.config.RoomLinks
 import com.syncit.core.model.Activity
 import com.syncit.core.model.UserProfile
 import kotlinx.coroutines.flow.SharingStarted
@@ -83,9 +79,9 @@ fun ProfileScreen(
     onBack: (() -> Unit)?,
     onEditProfile: () -> Unit,
     onOpenSettings: () -> Unit,
+    onInvite: () -> Unit = {},
 ) {
     val p = Glass.palette
-    val context = LocalContext.current
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val friendCount by viewModel.friendCount.collectAsStateWithLifecycle()
     val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
@@ -137,13 +133,8 @@ fun ProfileScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     GlassButton("Edit profile", onClick = onEditProfile, style = GlassButtonStyle.Secondary, modifier = Modifier.weight(1f))
                     GlassButton(
-                        "Share profile",
-                        onClick = {
-                            val username = profile?.username ?: return@GlassButton
-                            val text = "Add me on ${Brand.NAME}: @$username\nhttps://${RoomLinks.WEB_HOST}"
-                            val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                            context.startActivity(Intent.createChooser(send, "Share your profile"))
-                        },
+                        "Invite friends",
+                        onClick = onInvite,
                         style = GlassButtonStyle.Secondary,
                         enabled = profile != null,
                         modifier = Modifier.weight(1f),

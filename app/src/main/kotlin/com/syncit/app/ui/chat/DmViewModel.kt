@@ -8,6 +8,8 @@ import com.syncit.core.model.ChatRoomLink
 import com.syncit.core.model.DirectMessage
 import com.syncit.core.model.Friend
 import com.syncit.core.model.UserProfile
+import com.syncit.core.social.ReportReason
+import com.syncit.core.social.Safety
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -93,6 +95,47 @@ class DmViewModel(val friendUid: String, private val container: AppContainer) : 
     fun joinRoom(code: String, onJoin: (code: String) -> Unit) {
         container.chatRooms.joined(code, friendUid = friendUid)
         onJoin(code)
+    }
+
+    private val _safetyBusy = MutableStateFlow(false)
+    val safetyBusy: StateFlow<Boolean> = _safetyBusy.asStateFlow()
+
+    /** Unfriends and blocks them; the chat closes (it's friends-only). */
+    fun block(onDone: () -> Unit) = safety("Couldn't block them") {
+        social.friends.block(friendUid)
+        onDone()
+    }
+
+    /**
+     * Sends a report with their last few messages here (read before blocking: the chat is
+     * friends-only, so it can't be read after). [block] blocks them too and closes the chat.
+     */
+    fun report(reason: ReportReason, details: String?, block: Boolean, onBlocked: () -> Unit) = safety("Couldn't send the report") {
+        val name = profile.value?.displayName.orEmpty()
+        val theirs = messages.value.orEmpty().filter { it.fromUid == friendUid && it.watched == null }
+        social.safety.reportUser(friendUid, name, reason, details, theirs.takeLast(Safety.MAX_EVIDENCE), blocked = block)
+        if (block) {
+            social.friends.block(friendUid)
+            onBlocked()
+        } else {
+            _error.value = "Thanks. Your report was sent."
+        }
+    }
+
+    private fun safety(failure: String, action: suspend () -> Unit) {
+        if (_safetyBusy.value) return
+        viewModelScope.launch {
+            _safetyBusy.value = true
+            try {
+                action()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _error.value = failure
+            } finally {
+                _safetyBusy.value = false
+            }
+        }
     }
 
     /** "Delete chat" for us only (from the chat's menu). */

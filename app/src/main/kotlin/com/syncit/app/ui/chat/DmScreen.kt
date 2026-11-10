@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -47,16 +48,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.syncit.app.R
 import com.syncit.app.push.PushNotifications
 import com.syncit.app.ui.glass.Avatar
+import com.syncit.app.ui.glass.GlassBottomSheet
+import com.syncit.app.ui.glass.GlassRow
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassScreen
 import com.syncit.app.ui.glass.NoticeBanner
 import com.syncit.app.ui.room.ChatInputBar
+import com.syncit.app.ui.safety.BlockDialog
+import com.syncit.app.ui.safety.ReportSheet
+import com.syncit.core.social.Safety
 import com.syncit.app.ui.room.MessageBubble
 import com.syncit.app.ui.theme.Glass
 import com.syncit.core.model.DirectMessage
@@ -76,6 +85,10 @@ fun DmScreen(
     val room by viewModel.room.collectAsStateWithLifecycle()
     val startingRoom by viewModel.startingRoom.collectAsStateWithLifecycle()
     var confirmClear by remember { mutableStateOf(false) }
+    var chatMenu by remember { mutableStateOf(false) }
+    var confirmBlock by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf(false) }
+    val safetyBusy by viewModel.safetyBusy.collectAsStateWithLifecycle()
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val friendState by viewModel.friend.collectAsStateWithLifecycle()
     val friend = friendState.friend
@@ -167,7 +180,7 @@ fun DmScreen(
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                GlassIconButton(Icons.Filled.MoreVert, "More", { confirmClear = true }, plain = true)
+                GlassIconButton(Icons.Filled.MoreVert, "More", { chatMenu = true }, plain = true)
             }
             if (confirmClear) {
                 AlertDialog(
@@ -343,6 +356,51 @@ fun DmScreen(
                 }
             },
             onDismiss = { forwardText = null },
+        )
+
+        // The chat's menu (user's request, 2026-11-10): delete, block, report, like WhatsApp.
+        val first = name.substringBefore(' ').ifEmpty { "them" }
+        GlassBottomSheet(visible = chatMenu, onDismiss = { chatMenu = false }) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                GlassRow("Delete chat", icon = Icons.Filled.Delete, onClick = {
+                    chatMenu = false
+                    confirmClear = true
+                })
+                if (!notFriends) {
+                    GlassRow("Block $first", icon = ImageVector.vectorResource(R.drawable.ic_block), onClick = {
+                        chatMenu = false
+                        confirmBlock = true
+                    })
+                }
+                GlassRow("Report $first", icon = ImageVector.vectorResource(R.drawable.ic_flag), onClick = {
+                    chatMenu = false
+                    reporting = true
+                })
+            }
+        }
+        ReportSheet(
+            visible = reporting,
+            title = "Report $name",
+            evidenceNote = "$first's last ${Safety.MAX_EVIDENCE} messages in this chat are sent with your report so it can be reviewed. $first isn't told.",
+            blockLabel = "Also block $first",
+            busy = safetyBusy,
+            onDismiss = { reporting = false },
+            onSubmit = { reason, details, block ->
+                reporting = false
+                viewModel.report(reason, details, block, onBlocked = onBack)
+            },
+        )
+    }
+    if (confirmBlock) {
+        BlockDialog(
+            title = "Block $name?",
+            message = "You won't be friends any more. They can't message you, send you requests or see your activity. You can unblock them from Friends.",
+            confirm = "Block",
+            onConfirm = {
+                confirmBlock = false
+                viewModel.block(onDone = onBack)
+            },
+            onDismiss = { confirmBlock = false },
         )
     }
 }

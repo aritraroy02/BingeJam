@@ -88,7 +88,7 @@ class FirebaseSyncTransport internal constructor(
                 // Rules only allow creating a room that doesn't exist yet, so a taken code
                 // comes back as "permission denied" and we try another.
                 rooms.child(code).setValue(room).await()
-                startPresence(code, uid)
+                startPresence(code, uid, cleanName(displayName))
                 writeInitialPreview(code, displayName)
                 return code
             } catch (e: Exception) {
@@ -109,15 +109,55 @@ class FirebaseSyncTransport internal constructor(
             if (e.isPermissionDenied()) throw RoomNotFoundException(code)
             throw e
         }
-        startPresence(code, uid)
+        startPresence(code, uid, cleanName(displayName))
     }
 
+    /**
+     * Leaves the room. The last one out also deletes it (user's request, 2026-11-10): when nobody
+     * else is online, the offline members are removed with us, then the room, its preview, chat
+     * and reactions. Rooms left behind by crashed or offline phones are swept by the push relay.
+     */
     override suspend fun leaveRoom(code: String) {
         val uid = session.currentUid ?: return
         stopPresence()
-        val memberRef = rooms.child(code).child("members").child(uid)
+        val membersRef = rooms.child(code).child("members")
+        val memberRef = membersRef.child(uid)
         memberRef.onDisconnect().cancel().await()
-        memberRef.removeValue().await()
+        // Read before leaving: once we're out we can't read the room.
+        val others = try {
+            membersRef.get().await().children.filter { it.key != uid }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        if (others == null || others.any { it.child("online").value == true }) {
+            memberRef.removeValue().await()
+            return
+        }
+        val leaving = HashMap<String, Any?>()
+        leaving[uid] = null
+        others.forEach { it.key?.let { key -> leaving[key] = null } }
+        try {
+            membersRef.updateChildren(leaving).await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Refused (e.g. someone came back online meanwhile): just leave, as before.
+            Log.d(TAG, "Offline members of $code not removed", e)
+            memberRef.removeValue().await()
+            return
+        }
+        try {
+            db.reference.updateChildren(
+                mapOf("rooms/$code" to null, "previews/$code" to null, "chats/$code" to null, "reactions/$code" to null),
+            ).await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Someone joined in the meantime (the rules only allow this once no members are left).
+            Log.d(TAG, "Room $code not deleted", e)
+        }
     }
 
     override suspend fun setInVoice(code: String, inVoice: Boolean) {
@@ -321,7 +361,7 @@ class FirebaseSyncTransport internal constructor(
      * The server runs onDisconnect itself if the app dies or loses network, so other members
      * see us go offline even if we never get to say goodbye.
      */
-    private fun startPresence(code: String, uid: String) {
+    private fun startPresence(code: String, uid: String, name: String) {
         stopPresence()
         val memberRef = rooms.child(code).child("members").child(uid)
         val connectedRef = db.getReference(".info/connected")
@@ -331,7 +371,8 @@ class FirebaseSyncTransport internal constructor(
                 memberRef.onDisconnect()
                     .updateChildren(mapOf("online" to false, "lastSeen" to ServerValue.TIMESTAMP))
                     .addOnSuccessListener {
-                        memberRef.updateChildren(mapOf("online" to true, "lastSeen" to ServerValue.TIMESTAMP))
+                        // With the name, so we're added back if the last one out removed us while offline.
+                        memberRef.updateChildren(mapOf("name" to name, "online" to true, "lastSeen" to ServerValue.TIMESTAMP))
                     }
             }
 

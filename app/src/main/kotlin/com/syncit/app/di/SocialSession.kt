@@ -67,6 +67,24 @@ class SocialSession(
         .stateIn(scope, SharingStarted.Eagerly, null)
 
     init {
+        // Invite links (2026-11-10): the relay accepts a request that carries our invite token as soon
+        // as it's sent; if it couldn't, we accept it here the next time the app runs.
+        scope.launch {
+            social.auth.state
+                .map { (it as? AuthState.SignedIn)?.uid }
+                .distinctUntilChanged()
+                .flatMapLatest { uid ->
+                    if (uid == null) {
+                        flowOf(emptySet())
+                    } else {
+                        social.friends.observeIncomingRequests()
+                            .map { list -> list.filter { it.via != null }.map { it.fromUid }.toSet() }
+                            .catch { emit(emptySet()) }
+                    }
+                }
+                .distinctUntilChanged()
+                .collect { invited -> if (invited.isNotEmpty()) runCatching { social.invites.acceptInvited() } }
+        }
         // Push token: registered for every signed-in account, even invisible ones or before the
         // activity setup (messages and friend requests aren't activity).
         scope.launch {

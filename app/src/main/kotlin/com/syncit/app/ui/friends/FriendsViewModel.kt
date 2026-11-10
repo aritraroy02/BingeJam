@@ -6,6 +6,7 @@ import com.syncit.app.di.AppContainer
 import com.syncit.app.social.UsernameRules
 import com.syncit.core.model.FriendRequest
 import com.syncit.core.model.UserProfile
+import com.syncit.core.social.BlockedGroup
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -35,6 +36,17 @@ class FriendsViewModel(container: AppContainer) : ViewModel() {
     private val friends = container.social.friends
     private val profiles = container.social.profiles
     private val auth = container.social.auth
+    private val safety = container.social.safety
+
+    /** Groups we exited and blocked (2026-11-10). */
+    val blockedGroups: StateFlow<List<BlockedGroup>> = safety.observeBlockedGroups()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun unblockGroup(group: BlockedGroup) = action(group.id, "Couldn't unblock the group") {
+        safety.unblockGroup(group.id)
+        _message.value = "Unblocked ${group.name}. Its admins can add you again."
+    }
 
     /** Our own username, for the "Share my username" button. Read-only. */
     val myUsername: StateFlow<String?> = profiles.observeMyProfile()

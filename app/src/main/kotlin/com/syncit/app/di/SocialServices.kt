@@ -4,11 +4,13 @@ import com.syncit.core.auth.AuthService
 import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.ActivityTracker
 import com.syncit.core.social.DirectMessages
+import com.syncit.core.social.FriendInvites
 import com.syncit.core.social.FriendsRepository
 import com.syncit.core.social.GroupChats
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
+import com.syncit.core.social.Safety
 import com.syncit.core.social.WatchInvites
 
 /**
@@ -29,4 +31,8 @@ class SocialServices(
     val isFake: Boolean = false,
     /** Group chats, each with its own room (off in the fakes). */
     val groups: GroupChats = GroupChats.None,
+    /** Personal invite links (off in the fakes). */
+    val invites: FriendInvites = FriendInvites.None,
+    /** Report and block groups (off in the fakes). */
+    val safety: Safety = Safety.None,
 )

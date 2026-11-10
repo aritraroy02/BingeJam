@@ -22,6 +22,7 @@ import com.syncit.app.ui.nav.SyncItApp
 import com.syncit.app.ui.splash.StartupSplash
 import com.syncit.app.ui.theme.SyncItTheme
 import com.syncit.app.ui.theme.isDark
+import com.syncit.core.config.FriendLinks
 import com.syncit.core.config.RoomLinks
 import com.syncit.media.MediaListenerService
 
@@ -29,6 +30,9 @@ class MainActivity : ComponentActivity() {
 
     /** Room code from an invite link (https or syncit://), consumed by navigation. */
     private val pendingJoinCode = mutableStateOf<String?>(null)
+
+    /** A friend's personal invite link (FriendLinks), consumed by navigation. */
+    private val pendingFriendInvite = mutableStateOf<FriendLinks.Invite?>(null)
 
     /** Passwordless sign-in link from the email (see the manifest's /__/auth/ filter). */
     private val pendingEmailLink = mutableStateOf<String?>(null)
@@ -48,7 +52,7 @@ class MainActivity : ComponentActivity() {
         // Only the launching intent: after rotation/recreation it was already handled.
         if (savedInstanceState == null) handleLink(intent)
         // Opened from the link itself, so the clipboard fallback isn't needed.
-        if (pendingJoinCode.value != null) container.prefs.inviteClipboardChecked = true
+        if (pendingJoinCode.value != null || pendingFriendInvite.value != null) container.prefs.inviteClipboardChecked = true
         // The startup animation: only on a fresh launch from the home screen, not from a link or notification.
         val playSplash = savedInstanceState == null && intent?.action == Intent.ACTION_MAIN
         val quickSplash = playSplash && !container.prefs.takeFullSplash(java.time.LocalDate.now().toEpochDay())
@@ -72,6 +76,7 @@ class MainActivity : ComponentActivity() {
                     SyncItApp(
                         container = container,
                         pendingJoinCode = pendingJoinCode,
+                        pendingFriendInvite = pendingFriendInvite,
                         pendingEmailLink = pendingEmailLink,
                         pendingNotification = pendingNotification,
                     )
@@ -97,17 +102,26 @@ class MainActivity : ComponentActivity() {
         if (auth.isEmailSignInLink(link)) {
             pendingEmailLink.value = link
         } else {
-            RoomLinks.codeFromLink(link)?.let { pendingJoinCode.value = it }
+            takeLink(link)
         }
+    }
+
+    /** A room invite or a friend's invite link; anything else is ignored. */
+    private fun takeLink(text: String) {
+        RoomLinks.codeFromLink(text)?.let {
+            pendingJoinCode.value = it
+            return
+        }
+        FriendLinks.fromLink(text)?.let { pendingFriendInvite.value = it }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         // First launch after installing from an invite page: the page left the link on the
         // clipboard. Checked once ever, and only once we have focus (required to read it).
-        if (hasFocus && pendingJoinCode.value == null) {
+        if (hasFocus && pendingJoinCode.value == null && pendingFriendInvite.value == null) {
             val prefs = (application as SyncItApplication).container.prefs
-            InviteHandoff.takeFromClipboardOnce(this, prefs)?.let { pendingJoinCode.value = it }
+            InviteHandoff.takeFromClipboardOnce(this, prefs)?.let(::takeLink)
         }
     }
 

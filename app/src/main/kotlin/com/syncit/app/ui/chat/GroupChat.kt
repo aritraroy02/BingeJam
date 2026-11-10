@@ -57,12 +57,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.syncit.app.di.AppContainer
+import com.syncit.app.R
 import com.syncit.app.push.PushNotifications
+import com.syncit.app.ui.safety.BlockDialog
+import com.syncit.app.ui.safety.ReportSheet
 import com.syncit.app.ui.glass.Avatar
 import com.syncit.app.ui.glass.GlassBottomSheet
 import com.syncit.app.ui.glass.GlassButton
@@ -84,6 +89,8 @@ import com.syncit.core.model.Friend
 import com.syncit.core.model.Group
 import com.syncit.core.model.UserProfile
 import com.syncit.core.social.GroupChats
+import com.syncit.core.social.ReportReason
+import com.syncit.core.social.Safety
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -219,6 +226,25 @@ class GroupChatViewModel(val groupId: String, private val container: AppContaine
     fun leave(onLeft: () -> Unit) = action("Couldn't leave the group", busy = true) {
         groups.leave(groupId)
         onLeft()
+    }
+
+    /** Leaves the group and stops anyone adding us back or inviting us (user's request, 2026-11-10). */
+    fun blockGroup(onLeft: () -> Unit) = action("Couldn't block the group", busy = true) {
+        social.safety.blockGroup(groupId, group.value.group?.name.orEmpty())
+        onLeft()
+    }
+
+    /** Reports the group with its last few messages from others; [block] also leaves and blocks it. */
+    fun report(reason: ReportReason, details: String?, block: Boolean, onLeft: () -> Unit) = action("Couldn't send the report", busy = true) {
+        val name = group.value.group?.name.orEmpty()
+        val others = messages.value.orEmpty().filter { it.fromUid != myUid }
+        social.safety.reportGroup(groupId, name, reason, details, others.takeLast(Safety.MAX_EVIDENCE), blocked = block)
+        if (block) {
+            social.safety.blockGroup(groupId, name)
+            onLeft()
+        } else {
+            _notice.value = "Thanks. Your report was sent."
+        }
     }
 
     private fun action(failure: String, busy: Boolean = false, block: suspend () -> Unit) {
@@ -419,6 +445,9 @@ fun GroupInfoScreen(
     var editing by rememberSaveable { mutableStateOf(false) }
     var name by remember(group?.name) { mutableStateOf(group?.name.orEmpty()) }
     var confirmLeave by remember { mutableStateOf(false) }
+    var confirmBlock by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf(false) }
+    val busy by viewModel.busy.collectAsStateWithLifecycle()
     var memberFor by remember { mutableStateOf<String?>(null) }
     var lastMember by remember { mutableStateOf<String?>(null) }
     val friendUids = friends.mapTo(HashSet()) { it.profile.uid }
@@ -556,7 +585,11 @@ fun GroupInfoScreen(
                 }
 
                 Spacer(Modifier.height(4.dp))
-                GlassButton("Leave group", onClick = { confirmLeave = true }, style = GlassButtonStyle.Danger, modifier = Modifier.fillMaxWidth())
+                GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 8.dp), spacing = 0.dp) {
+                    GlassRow("Exit group", icon = ImageVector.vectorResource(R.drawable.ic_exit), onClick = { confirmLeave = true })
+                    GlassRow("Block group", icon = ImageVector.vectorResource(R.drawable.ic_block), onClick = { confirmBlock = true })
+                    GlassRow("Report group", icon = ImageVector.vectorResource(R.drawable.ic_flag), onClick = { reporting = true })
+                }
             }
         }
         NoticeBanner(notice, onDismiss = viewModel::dismissNotice, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
@@ -593,6 +626,30 @@ fun GroupInfoScreen(
                 )
             }
         }
+    }
+    ReportSheet(
+        visible = reporting,
+        title = "Report ${group?.name.orEmpty()}",
+        evidenceNote = "The last ${Safety.MAX_EVIDENCE} messages from others in this group are sent with your report so it can be reviewed. Nobody in the group is told.",
+        blockLabel = "Also exit and block this group",
+        busy = busy,
+        onDismiss = { reporting = false },
+        onSubmit = { reason, details, block ->
+            reporting = false
+            viewModel.report(reason, details, block, onLeft)
+        },
+    )
+    if (confirmBlock) {
+        BlockDialog(
+            title = "Block ${group?.name.orEmpty()}?",
+            message = "You'll exit the group, and nobody can add you back or invite you to it. You can unblock it from Friends.",
+            confirm = "Exit and block",
+            onConfirm = {
+                confirmBlock = false
+                viewModel.blockGroup(onLeft)
+            },
+            onDismiss = { confirmBlock = false },
+        )
     }
     if (confirmLeave) {
         LeaveGroupDialog(

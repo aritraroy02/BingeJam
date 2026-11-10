@@ -299,7 +299,7 @@ object FakeSocial {
             override fun observeIncomingRequests(): Flow<List<FriendRequest>> = incoming
             override fun observeOutgoingRequests(): Flow<List<FriendRequest>> = outgoing
 
-            override suspend fun sendRequest(toUsername: String) {
+            override suspend fun sendRequest(toUsername: String, via: String?) {
                 delay(300)
                 val target = profilesRepo.findByUsername(toUsername)
                     ?: throw FriendRequestException("No one has the username @${UsernameRules.normalize(toUsername)}")

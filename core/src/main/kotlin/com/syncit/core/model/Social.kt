@@ -39,6 +39,8 @@ data class FriendRequest(
     val toUsername: String,
     val toDisplayName: String,
     val sentAt: Long,
+    /** The invite token when the request came from the receiver's invite link (FriendInvites). */
+    val via: String? = null,
 )
 
 data class Friend(

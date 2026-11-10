@@ -12,7 +12,7 @@
 <main class="card doc">
   <!-- Product name: keep in sync with core/config/Brand.kt. -->
   <h1 class="brand">BingeJam</h1>
-  <p class="eyebrow">Privacy Policy · Last updated 29 October 2026</p>
+  <p class="eyebrow">Privacy Policy · Last updated 10 November 2026</p>
   <p class="links"><a href="/terms">Terms of Service</a> · <a href="/delete-account">Delete your account</a></p>
 
   <p>BingeJam lets friends watch Netflix, JioHotstar or Prime Video together ("watch parties") and listen to
@@ -68,7 +68,12 @@
     (Realtime Database, Singapore region), so your data is processed outside India by these providers:</p>
   <ul>
     <li>your profile (username, display name, photo address, bio) and private account record (email, sign-in method);</li>
-    <li>your <b>friends</b>, friend requests you send or receive, and people you've <b>blocked</b>;</li>
+    <li>your <b>friends</b>, friend requests you send or receive, and the people and groups you've <b>blocked</b>;</li>
+    <li>a secret code for your personal <b>invite link</b>, readable only by you. A friend request sent from your
+      link carries it, so our relay can make you friends straight away; resetting the link replaces the code;</li>
+    <li><b>reports</b> you send about a person or group: the reason, any details you add, and the last 5 messages
+      from them in that chat (the report screen tells you this before you send). Only we can read reports, to
+      review them; the person or group isn't told who reported them;</li>
     <li><b>messages</b> you send to friends, readable only by you and that friend, and when you last read each chat;</li>
     <li>while you type in a chat, a short-lived <b>"typing"</b> marker that only that friend can see; it disappears a few seconds after you stop, send, leave the chat or go offline;</li>
     <li>your online status and, if you share it, your current activity (above);</li>
@@ -117,9 +122,10 @@
     <li>Account data, friends and messages: until you delete them or your account.</li>
     <li>Activity: only while you're playing; cleared when you stop, go invisible or go offline.</li>
     <li>Push tokens: until you sign out on that phone or delete your account.</li>
-    <li>Rooms: room state, chat and reactions stay with the room, readable only by its members (a room's preview by
-      anyone with its code). Deleting your account removes you from the room you're in, but not your messages in
-      room chats or older rooms; email us and we'll remove those (<a href="/delete-account">details</a>).</li>
+    <li>Rooms: room state, chat and reactions are deleted when the last person leaves the room, or within an hour
+      once nobody has been in it for 15 minutes. Until then they're readable only by its members (a room's preview
+      by anyone with its code).</li>
+    <li>Reports: until we've reviewed them and dealt with any problem they describe.</li>
   </ul>
 
   <h2>Your rights</h2>

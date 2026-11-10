@@ -74,6 +74,7 @@ internal object SocialParser {
             toUsername = s.child("toUsername").string().orEmpty(),
             toDisplayName = s.child("toDisplayName").string().orEmpty(),
             sentAt = s.child("sentAt").long() ?: 0L,
+            via = s.child("via").string(),
         )
     }
 

@@ -252,6 +252,7 @@ fun ChatsScreen(
     friendRequests: Int = 0,
     onStartRoomWith: (code: String, friendUid: String) -> Unit = { _, _ -> },
     onGroupInfo: (groupId: String) -> Unit = {},
+    onInvite: () -> Unit = {},
 ) {
     val p = Glass.palette
     val rows by viewModel.rows.collectAsStateWithLifecycle()
@@ -363,6 +364,15 @@ fun ChatsScreen(
                     onClick = {
                         plusOpen = false
                         onAddFriends()
+                    },
+                )
+                GlassRow(
+                    "Invite with link or QR",
+                    subtitle = "Whoever opens it becomes your friend",
+                    icon = ImageVector.vectorResource(R.drawable.ic_qr_code),
+                    onClick = {
+                        plusOpen = false
+                        onInvite()
                     },
                 )
                 GlassRow(
