@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "node --test --experimental-strip-types \"src/shared/**/*.test.ts\" \"src/renderer/src/data/**/*.test.ts\" \"src/renderer/src/sync/**/*.test.ts\"",
     "build:extension": "node ../extension/build.mjs",
-    "firebase-config": "node scripts/firebase-config.mjs"
+    "firebase-config": "node scripts/firebase-config.mjs",
+    "install:local": "node scripts/install-local.mjs"
   },
   "dependencies": {
     "firebase": "^13.2.0",

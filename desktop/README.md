@@ -10,6 +10,9 @@ npm install
 npm run firebase-config   # once per machine: writes the git-ignored Firebase Web config
 npm run dev               # app with hot reload
 ```
+- Install on this PC (no admin, no installer): `npm run build && npm run install:local` puts it in
+  `%LOCALAPPDATA%\Programs\BingeJam` with Start menu and desktop shortcuts; run it again to update
+  (quit the app first), `node scripts/install-local.mjs --uninstall` removes it.
 - `BJ_DEMO=1` shows the design's sample content without Firebase (store screenshots, design reviews).
 - `BJ_SNAPSHOT=C:\path\shot.png` saves a screenshot of the window after it settles and quits
   (`BJ_SNAPSHOT_DELAY` ms, default 2500). Combine with `BJ_DEMO=1` to compare with `design/*.png`.

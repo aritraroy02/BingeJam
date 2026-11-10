@@ -56,6 +56,8 @@ function createMainWindow(): void {
     minHeight: 700,
     show: false,
     title: BRAND.name,
+    // build/icon.png ships next to out/ (dev: desktop/build); without it Windows shows Electron's icon.
+    icon: join(app.getAppPath(), 'build', 'icon.png'),
     backgroundColor: '#08060B', // the design's base, so no white flash before the UI paints
     // The UI draws its own glass top area; Windows keeps its native minimise/maximise/close.
     titleBarStyle: 'hidden',
