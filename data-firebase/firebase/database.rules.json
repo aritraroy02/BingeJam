@@ -565,6 +565,7 @@
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $to && !newData.exists()",
         "$gid": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.exists() && newData.parent().parent().parent().child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin' && root.child('friends').child(auth.uid).child($to).exists() && !root.child('groups').child($gid).child('members').child($to).exists()) || (!newData.exists() && (auth.uid === $to || root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin')))",
           ".validate": "newData.hasChildren(['from', 'groupName', 'sentAt'])",
           "from": {

@@ -29,6 +29,9 @@ interface GroupChats {
     /** Groups we've been invited to and haven't answered yet (people who chose "Ask me first"). */
     fun observeInvites(): Flow<List<GroupInvite>>
 
+    /** Which of [uids] have an unanswered invite to [groupId] (readable by the group's members). */
+    fun observeInvited(groupId: String, uids: Collection<String>): Flow<Set<String>> = flowOf(emptySet())
+
     suspend fun acceptInvite(groupId: String)
 
     suspend fun declineInvite(groupId: String)

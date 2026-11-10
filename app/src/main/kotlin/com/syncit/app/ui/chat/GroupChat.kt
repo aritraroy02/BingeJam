@@ -121,6 +121,15 @@ class GroupChatViewModel(val groupId: String, private val container: AppContaine
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Friends (not yet members) with an unanswered invite here: shown as "Invited", not "Add". */
+    val invited: StateFlow<Set<String>> = combine(friends, group) { f, g ->
+        val members = g.group?.memberUids.orEmpty().toSet()
+        f.map { it.profile.uid }.filter { it !in members }.sorted()
+    }
+        .distinctUntilChanged()
+        .flatMapLatest { uids -> groups.observeInvited(groupId, uids).catch { emit(emptySet()) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
     val messages: StateFlow<List<DirectMessage>?> = groups.observeMessages(groupId)
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -362,6 +371,7 @@ internal fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: 
     val state by viewModel.group.collectAsStateWithLifecycle()
     val people by viewModel.people.collectAsStateWithLifecycle()
     val friends by viewModel.friends.collectAsStateWithLifecycle()
+    val invited by viewModel.invited.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
     val pinged by viewModel.pinged.collectAsStateWithLifecycle()
     val group = state.group
@@ -429,13 +439,17 @@ internal fun GroupInfoSheet(visible: Boolean, onDismiss: () -> Unit, viewModel: 
                             Avatar(f.profile.displayName, size = 40.dp, photoUrl = f.profile.photoUrl)
                             Spacer(Modifier.width(10.dp))
                             Text(f.profile.displayName, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, modifier = Modifier.weight(1f))
-                            GlassSmallButton("Add", onClick = { viewModel.add(listOf(f.profile.uid)) })
+                            if (f.profile.uid in invited) {
+                                GlassSmallButton("Invited", onClick = {}, primary = false, enabled = false)
+                            } else {
+                                GlassSmallButton("Add", onClick = { viewModel.add(listOf(f.profile.uid)) })
+                            }
                         }
                     }
                 } else if (group.members.size <= 1) {
                     SectionLabel("Add friends")
                     Text(
-                        "Add friends first (Add friends tab), then add them here.",
+                        "Add friends first (+ in Chats), then add them here.",
                         style = MaterialTheme.typography.bodySmall,
                         color = p.textSecondary,
                     )

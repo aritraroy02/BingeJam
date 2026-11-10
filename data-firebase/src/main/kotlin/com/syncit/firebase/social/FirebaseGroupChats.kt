@@ -21,6 +21,7 @@ import com.syncit.firebase.snapshots
 import com.syncit.firebase.string
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -144,6 +145,18 @@ class FirebaseGroupChats internal constructor(
                 )
             }?.sortedByDescending { it.sentAt }.orEmpty()
         }
+    }
+
+    override fun observeInvited(groupId: String, uids: Collection<String>): Flow<Set<String>> {
+        val list = uids.distinct()
+        if (groupId.isEmpty() || list.isEmpty()) return flowOf(emptySet())
+        return combineAll(
+            list.map { uid ->
+                db.getReference("groupInvites").child(uid).child(groupId).snapshots()
+                    .map { s -> uid.takeIf { s?.exists() == true } }
+                    .catch { emit(null) }
+            },
+        ).map { it.filterNotNull().toSet() }
     }
 
     override suspend fun acceptInvite(groupId: String) {
