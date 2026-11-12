@@ -18,6 +18,8 @@ export interface SettingsProps {
   onStartWithWindows: (on: boolean) => void
   onEditProfile?: () => void
   onViewPhoto?: () => void
+  /** Owner and developers only (App reports, 2026-11-12). */
+  onOpenAppReports?: () => void
 }
 
 /** The OS's "Animation effects" switch, live (motion in the app follows it; see global.css). */
@@ -63,6 +65,7 @@ export function Settings(p: SettingsProps): JSX.Element {
               </span>
             </div>
             {p.onEditProfile ? <Button onClick={p.onEditProfile}>Edit profile</Button> : null}
+            {p.onOpenAppReports ? <Button onClick={p.onOpenAppReports}>App reports</Button> : null}
             <Button variant="danger" onClick={p.onSignOut}>
               <Icon name="logout" size={18} />
               Sign out

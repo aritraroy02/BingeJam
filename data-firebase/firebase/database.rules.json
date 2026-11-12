@@ -738,6 +738,25 @@
       }
     },
 
+    "watchlists": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        "$key": {
+          ".validate": "$key.matches(/^(movie|tv)_[0-9]{1,12}$/) && newData.hasChildren(['id', 't', 'k', 's', 'a'])",
+          "id": { ".validate": "newData.isNumber() && newData.val() > 0" },
+          "t": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+          "y": { ".validate": "newData.isNumber()" },
+          "p": { ".validate": "newData.isString() && newData.val().length <= 500 && newData.val().beginsWith('https://image.tmdb.org/')" },
+          "r": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10" },
+          "k": { ".validate": "newData.val() === 'movie' || newData.val() === 'tv'" },
+          "s": { ".validate": "newData.val() === 'NETFLIX' || newData.val() === 'JIOHOTSTAR' || newData.val() === 'PRIME_VIDEO' || newData.val() === 'SPOTIFY' || newData.val() === 'YOUTUBE_MUSIC' || newData.val() === 'AMAZON_MUSIC' || newData.val() === 'YOUTUBE'" },
+          "a": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
     "staffKeys": {
       ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
       "$email": {
@@ -758,7 +777,7 @@
       "$id": {
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !data.exists() && newData.exists() && newData.parent().parent().child('crashLimits').child(auth.uid).val() === now",
         ".validate": "$id.matches(/^[-_A-Za-z0-9]{1,40}$/) && newData.hasChildren(['v', 'iv', 'box', 'keys', 'at', 'uploadedAt', 'uid'])",
-        "v": { ".validate": "newData.val() === 1" },
+        "v": { ".validate": "newData.val() === 1 || newData.val() === 2" },
         "iv": { ".validate": "newData.isString() && newData.val().length <= 32" },
         "box": { ".validate": "newData.isString() && newData.val().length <= 40000" },
         "keys": {

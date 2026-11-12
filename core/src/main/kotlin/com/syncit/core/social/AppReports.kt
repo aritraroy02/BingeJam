@@ -29,6 +29,8 @@ data class StaffKey(val emailKey: String, val keyId: String, val publicKey: Stri
  */
 data class SealedCrash(
     val id: String,
+    /** 1 = sent by a phone (RSA-OAEP SHA-256, MGF1 SHA-1); 2 = sent by the PC app (RSA-OAEP SHA-1). */
+    val v: Int = 1,
     val iv: String,
     val box: String,
     val keys: Map<String, String>,

@@ -16,6 +16,7 @@ import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
 import com.syncit.core.social.Safety
+import com.syncit.core.social.WatchlistStore
 import com.syncit.core.social.WatchInvites
 import com.syncit.core.transport.SyncTransport
 import com.syncit.core.voice.VoiceAuth
@@ -29,6 +30,7 @@ import com.syncit.firebase.social.FirebaseFriendsRepository
 import com.syncit.firebase.social.FirebasePresenceRepository
 import com.syncit.firebase.social.FirebaseProfileRepository
 import com.syncit.firebase.social.FirebaseSafety
+import com.syncit.firebase.social.FirebaseWatchlistStore
 import com.syncit.firebase.social.FirebasePushRegistry
 import com.syncit.firebase.social.FirebaseWatchInvites
 import com.syncit.firebase.social.PushRelay
@@ -76,6 +78,9 @@ class FirebaseServices private constructor(context: Context) {
 
     /** Crash reports, the user list and notifications for staff. */
     val appReports: AppReports = FirebaseAppReports(session, db)
+
+    /** The watchlist in the account, shared with the desktop app. */
+    val watchlist: WatchlistStore = FirebaseWatchlistStore(session, db)
     val push: PushRegistry = FirebasePushRegistry(session, db)
     val avatars: AvatarStore = avatarsImpl
     val presence: PresenceRepository = presenceImpl

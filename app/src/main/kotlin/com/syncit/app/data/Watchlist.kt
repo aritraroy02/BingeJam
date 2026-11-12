@@ -22,12 +22,17 @@ data class WatchlistItem(val title: TrendingTitle, val service: StreamingService
 
 /**
  * "Save for later" from the Watch tab's trending posters (2026-11-10: something to do before any
- * friends join). Kept on this phone only, newest first, at most [MAX] titles.
+ * friends join). Newest first, at most [MAX] titles. Since 2026-11-12 the list lives in the
+ * account (shared with the PC app, see AppContainer); this keeps a copy for offline use.
  */
 class Watchlist(context: Context) {
     private val prefs = context.getSharedPreferences("watchlist", Context.MODE_PRIVATE)
     private val _items = MutableStateFlow(load())
     val items: StateFlow<List<WatchlistItem>> = _items.asStateFlow()
+
+    /** Set while signed in: each change goes to the account too (a title added, or a key removed). */
+    @Volatile
+    var onChange: ((added: WatchlistItem?, removedKey: String?) -> Unit)? = null
 
     fun contains(title: TrendingTitle): Boolean = _items.value.any { it.key == WatchlistItem.keyOf(title) }
 
@@ -36,14 +41,17 @@ class Watchlist(context: Context) {
     fun toggle(title: TrendingTitle, service: StreamingService): Boolean {
         val key = WatchlistItem.keyOf(title)
         val current = _items.value
-        val next = if (current.any { it.key == key }) {
-            current.filterNot { it.key == key }
-        } else {
-            (listOf(WatchlistItem(title, service, System.currentTimeMillis())) + current).take(MAX)
-        }
+        val removing = current.any { it.key == key }
+        val added = if (removing) null else WatchlistItem(title, service, System.currentTimeMillis())
+        val next = if (removing) current.filterNot { it.key == key } else (listOf(added!!) + current).take(MAX)
         save(next)
-        return next.size > current.size
+        onChange?.invoke(added, if (removing) key else null)
+        return !removing
     }
+
+    /** The account's list arrived (or changed on the PC). */
+    @Synchronized
+    fun replace(items: List<WatchlistItem>) = save(items.distinctBy { it.key }.sortedByDescending { it.addedAt }.take(MAX))
 
     @Synchronized
     fun clear() = save(emptyList())

@@ -46,6 +46,10 @@ object ReportCrypto {
     private const val RSA = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding"
     private val OAEP = OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA1, PSource.PSpecified.DEFAULT)
 
+    /** Reports from the PC app (v 2): Web Crypto's RSA-OAEP with SHA-1 for both digests. */
+    private const val RSA_SHA1 = "RSA/ECB/OAEPWithSHA-1AndMGF1Padding"
+    private val OAEP_SHA1 = OAEPParameterSpec("SHA-1", "MGF1", MGF1ParameterSpec.SHA1, PSource.PSpecified.DEFAULT)
+
     class NoScreenLockException : Exception("Set a screen lock (PIN, pattern or fingerprint) on this phone first")
 
     data class Sealed(val iv: String, val box: String, val keys: Map<String, String>)
@@ -112,8 +116,9 @@ object ReportCrypto {
     fun open(sealed: SealedCrash, keyId: String): ByteArray? {
         val wrapped = sealed.keys[keyId] ?: return null
         val privateKey = keyStore().getKey(ALIAS, null) as? PrivateKey ?: return null
-        val aesKey = Cipher.getInstance(RSA).run {
-            init(Cipher.DECRYPT_MODE, privateKey, OAEP)
+        val pc = sealed.v == 2
+        val aesKey = Cipher.getInstance(if (pc) RSA_SHA1 else RSA).run {
+            init(Cipher.DECRYPT_MODE, privateKey, if (pc) OAEP_SHA1 else OAEP)
             doFinal(Base64.decode(wrapped, Base64.NO_WRAP))
         }
         val plain = Cipher.getInstance("AES/GCM/NoPadding").run {

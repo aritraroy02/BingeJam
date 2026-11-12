@@ -120,6 +120,7 @@ const STROKE: Record<string, JSX.Element> = {
       <path d="M16 3v4M8 3v4M3 10h18" />
     </>
   ),
+  bookmark: <path d="M6 3h12v18l-6-4-6 4z" />,
   copy: (
     <>
       <rect x="9" y="9" width="12" height="12" rx="2" />
@@ -176,6 +177,7 @@ const STROKE: Record<string, JSX.Element> = {
 }
 
 const FILL: Record<string, JSX.Element> = {
+  bookmarkFilled: <path d="M6 3h12v18l-6-4-6 4z" />,
   play: <path d="M7 4v16l13-8z" />,
   pause: (
     <>

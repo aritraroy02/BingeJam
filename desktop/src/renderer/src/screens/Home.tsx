@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type JSX } from 'react'
 import { Icon } from '@/ui/Icon'
 import { Avatar, Button, Segmented, SyncDots } from '@/ui/primitives'
 import { FriendList } from '@/ui/FriendList'
+import { PosterGrid } from '@/ui/Posters'
 import type { FriendVM, HomeVM, TrendingVM } from '@/ui/models'
 
 export type TrendingKind = 'movies' | 'series'
@@ -16,6 +17,9 @@ export interface HomeProps {
   onInvite: () => void
   onOpenTitle: (item: TrendingVM) => void
   onFriendAction: (friend: FriendVM) => void
+  /** Saved titles' keys ("movie_123"); with onToggleSave, posters get a bookmark (2026-11-12). */
+  saved?: ReadonlySet<string>
+  onToggleSave?: (item: TrendingVM, saved: boolean) => void
 }
 
 export function Home(p: HomeProps): JSX.Element {
@@ -72,7 +76,7 @@ export function Home(p: HomeProps): JSX.Element {
                 ]}
               />
             </div>
-            <TrendingGrid items={p.data.trending} onOpen={p.onOpenTitle} />
+            <PosterGrid items={p.data.trending} empty="Nothing trending right now." saved={p.saved} onOpen={p.onOpenTitle} onToggleSave={p.onToggleSave} />
           </section>
 
           <aside
@@ -166,39 +170,5 @@ function ContinueCard(p: HomeProps): JSX.Element {
         </div>
       </div>
     </section>
-  )
-}
-
-function TrendingGrid({ items, onOpen }: { items: TrendingVM[] | null; onOpen: (t: TrendingVM) => void }): JSX.Element {
-  if (items === null) {
-    return (
-      <div className="poster-grid" aria-busy="true">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="poster poster--loading" />
-        ))}
-      </div>
-    )
-  }
-  if (items.length === 0) return <p className="muted">Nothing trending right now.</p>
-  return (
-    <div className="poster-grid">
-      {items.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          className="poster pressable"
-          style={{ background: t.posterUrl ? `center/cover url("${t.posterUrl}")` : t.gradient }}
-          onClick={() => onOpen(t)}
-        >
-          {t.rating ? <span className="poster__rating">{t.rating.toFixed(1)}</span> : null}
-          <span className="poster__caption">
-            <span className="truncate" style={{ fontWeight: 500, fontSize: 13 }}>
-              {t.title}
-            </span>
-            <span style={{ fontSize: 11, color: 'rgba(239,233,222,0.8)' }}>{t.service}</span>
-          </span>
-        </button>
-      ))}
-    </div>
   )
 }

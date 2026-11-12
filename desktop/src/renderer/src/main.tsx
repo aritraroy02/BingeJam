@@ -6,6 +6,10 @@ import './styles/layout.css'
 import './styles/chat.css'
 import './styles/screens.css'
 import { App } from './App'
+import { installCrashCatcher } from './data/crashReports'
+
+// First, so a crash anywhere after this is reported (App reports, 2026-11-12).
+installCrashCatcher()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -49,6 +49,8 @@ export interface ShellData {
   badges: { chats?: number; friends?: number }
   /** The profile being looked at (App asks for it with profileUid); null when none or loading. */
   profile: ProfileVM | null
+  /** The watchlist in the account, shared with the phone (newest first; null while loading). */
+  watchlist: (TrendingVM & { key: string; addedAt: number })[] | null
   /** Our invite link and QR (Friends). */
   invite: InviteVM
   /** Friends with an unanswered invite to the open group (Add people shows "Invited"). */
@@ -99,6 +101,8 @@ export interface ShellActions {
   /** The chat on screen (null = none), for read receipts. */
   viewing?: (chatId: string | null) => void
   dismissNotice?: () => void
+  /** Shows a toast (App reports' own messages). */
+  showNotice?: (text: string) => void
   /** The 1:1 chat id with a friend (opens it even before the first message). */
   dmWith?: (friendUid: string) => string
   /** Home poster: open the title in its app / site. */
@@ -112,6 +116,8 @@ export interface ShellActions {
     pushToTalkKey: (key: string | null) => void
     startWithWindows: (on: boolean) => void
   }
+  /** Save a title to the watchlist, or remove it when [saved]. */
+  toggleWatchlist: (item: TrendingVM, saved: boolean) => void
   /** Our invite link: copy it, or make a new one (old links stop adding friends automatically). */
   invite: {
     copy: () => void

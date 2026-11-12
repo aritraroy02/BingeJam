@@ -150,3 +150,23 @@ export async function lookupNetflixId(title: string, durationMs: number | null):
 export function avatarUrl(uid: string): string {
   return `${RELAY_URL}/avatar/${encodeURIComponent(uid)}`
 }
+
+// ---------- App reports notifications (POST /broadcast, owner and developers) ----------
+
+/** Sends a notification to everyone (toUids null) or, for the owner, to picked people. Returns phones reached. */
+export async function broadcastNotification(title: string, body: string, toUids: string[] | null): Promise<number | null> {
+  const token = await idToken()
+  if (!token) throw new Error('Sign in first')
+  const payload: Record<string, unknown> = { title, body }
+  if (toUids) payload.to = toUids
+  const res = await transport()({
+    method: 'POST',
+    url: `${RELAY_URL}/broadcast`,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  })
+  if (res.status === 403) throw new Error("Your account isn't allowed to send notifications")
+  if (res.status < 200 || res.status > 299) throw new Error(`The relay answered ${res.status}`)
+  const sent = (JSON.parse(res.body) as { sent?: unknown }).sent
+  return typeof sent === 'number' ? sent : null
+}

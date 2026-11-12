@@ -160,6 +160,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
     },
     addToBrowser: () => undefined,
     invite: { copy: () => undefined, reset: () => undefined },
+    toggleWatchlist: () => undefined,
     groups: {
       setAdmin: (chatId, uid, admin) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).map((m) => (m.id === uid ? { ...m, admin } : m)) })),
       remove: (chatId, uid) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).filter((m) => m.id !== uid) })),
@@ -245,6 +246,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
     badges: { chats: unread || undefined, friends: friends.requests?.length || undefined },
     profile: demoProfile(profileUid, friends),
     invite: { link: 'https://syncit-watchparty.web.app/add/alex/Kq7mPz2xWb4R' },
+    watchlist: [],
     myBirthDate: '2001-03-12',
     act
   }

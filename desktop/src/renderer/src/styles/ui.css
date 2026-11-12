@@ -607,3 +607,34 @@
   outline: 2px solid var(--hairline-strong);
   outline-offset: 2px;
 }
+
+/* Poster with its watchlist bookmark (shows on hover/focus, stays when saved). */
+.poster-wrap {
+  position: relative;
+}
+.poster__save {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-btn-sm);
+  border: none;
+  background: rgba(18, 17, 16, 0.7);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.poster-wrap:hover .poster__save,
+.poster__save:focus-visible,
+.poster__save--on {
+  opacity: 1;
+}
+.poster__save--on {
+  color: var(--accent-text);
+}

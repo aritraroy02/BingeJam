@@ -24,7 +24,7 @@ internal object AccountCleanup {
     val OWN_ROOTS = listOf(
         "users", "users_private", "presence", "pushTokens",
         "friends", "friendRequests", "sentFriendRequests", "blocked", "dmReads", "dmHidden", "joinRequests", "invites",
-        "dmCleared", "userGroups", "groupReads", "groupInvites", "blockedGroups",
+        "dmCleared", "userGroups", "groupReads", "groupInvites", "blockedGroups", "watchlists",
     )
 
     /** Owner-readable lists whose keys are uids we're connected to (friends, requests, blocks, …). */

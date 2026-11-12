@@ -108,6 +108,7 @@ internal class FirebaseAppReports(
         val id = c.key ?: return null
         return SealedCrash(
             id = id,
+            v = c.child("v").long()?.toInt() ?: 1,
             iv = c.child("iv").string() ?: return null,
             box = c.child("box").string() ?: return null,
             keys = c.child("keys").children.mapNotNull { k -> k.key?.let { key -> k.string()?.let { key to it } } }.toMap(),

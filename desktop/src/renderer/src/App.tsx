@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { User } from 'firebase/auth'
 import { BRAND } from '@shared/brand'
 import { signOut, useAuth } from '@/lib/auth'
@@ -20,6 +20,10 @@ import { Streams } from '@/screens/Streams'
 import { AddToBrowser } from '@/screens/AddToBrowser'
 import { Settings } from '@/screens/Settings'
 import { Friends } from '@/screens/Friends'
+import { Watchlist } from '@/screens/Watchlist'
+import { AppReports } from '@/screens/AppReports'
+import { useStaffRole } from '@/data/appReports'
+import { setCrashScreen } from '@/data/crashReports'
 import { ProfileSetup } from '@/screens/ProfileSetup'
 
 const params = new URLSearchParams(window.location.search)
@@ -32,9 +36,10 @@ const DEMO = params.get('demo') === '1'
 type View =
   | { tab: 'home' }
   | { tab: 'chats'; room: boolean }
+  | { tab: 'watchlist' }
   | { tab: 'friends' }
   | { tab: 'streams' }
-  | { tab: 'settings'; browser: boolean }
+  | { tab: 'settings'; browser: boolean; reports?: boolean }
 
 function initialView(): { view: View; chatId: string | null; joinRoom: boolean } {
   const screen = params.get('screen')
@@ -49,6 +54,7 @@ function initialView(): { view: View; chatId: string | null; joinRoom: boolean }
       return { view: { tab: 'chats', room: true }, chatId: DEMO ? MOVIE_NIGHT : null, joinRoom: true }
     case 'streams':
     case 'friends':
+    case 'watchlist':
       return { view: { tab: screen }, chatId: null, joinRoom: false }
     case 'settings':
     case 'browser':
@@ -198,8 +204,13 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
   }, [])
 
   const tab: Tab = view.tab
+  const staffRole = useStaffRole()
+  const savedKeys = useMemo(() => new Set((data.watchlist ?? []).map((w) => w.key)), [data.watchlist])
   const header = chatId ? data.header(chatId) : null
   const inRoom = view.tab === 'chats' && view.room
+
+  // Crash reports say which screen was open.
+  useEffect(() => setCrashScreen(view.tab === 'chats' && view.room ? 'room' : view.tab), [view])
 
   // Read receipts: which chat is on screen.
   useEffect(() => {
@@ -272,6 +283,17 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onInvite={() => navigate('friends')}
           onOpenTitle={(item) => (act.openTitle ? act.openTitle(item) : navigate('chats'))}
           onFriendAction={(f) => (act.friendAction ? act.friendAction(f) : navigate('chats'))}
+          saved={savedKeys}
+          onToggleSave={act.toggleWatchlist}
+        />
+      )
+      break
+    case 'watchlist':
+      screen = (
+        <Watchlist
+          items={data.watchlist}
+          onOpen={(item) => (act.openTitle ? act.openTitle(item) : undefined)}
+          onToggleSave={act.toggleWatchlist}
         />
       )
       break
@@ -403,7 +425,9 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
       )
       break
     case 'settings':
-      screen = view.browser ? (
+      screen = view.reports ? (
+        <AppReports onBack={() => setView({ tab: 'settings', browser: false })} onNotice={(t) => act.showNotice?.(t)} />
+      ) : view.browser ? (
         <AddToBrowser setup={data.browser} onAddTo={act.addToBrowser} onBack={() => setView({ tab: 'settings', browser: false })} />
       ) : (
         <Settings
@@ -415,6 +439,7 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onPushToTalkKey={act.settings.pushToTalkKey}
           onStartWithWindows={act.settings.startWithWindows}
           onEditProfile={() => setEditing(true)}
+          onOpenAppReports={staffRole ? () => setView({ tab: 'settings', browser: false, reports: true }) : undefined}
           onViewPhoto={() => setViewingMyPhoto(true)}
         />
       )

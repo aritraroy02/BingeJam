@@ -34,6 +34,8 @@ import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUs
 import { checkUsername, createProfile, removePhoto, setBirthDate, updateProfile, uploadPhoto, useMyBirthDate } from '@/data/profile'
 import { cancelFriendRequest } from '@/data/friends'
 import { inviteLink, inviteText, myInviteToken, resetInviteToken } from '@/data/invites'
+import { toggleWatchlist, useWatchlist } from '@/data/watchlist'
+import { uploadPendingCrashes } from '@/data/crashReports'
 import { deleteMessageForEveryone, deleteMessageForMe } from '@/data/chats'
 import { removeGroupMember, setGroupAdmin, setGroupSettings, useGroupInvited } from '@/data/groups'
 import { useLive } from '@/data/live'
@@ -87,6 +89,12 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const blockedPeople = useBlockedPeople()
   const blockedGroups = useBlockedGroups()
   const myBirthDate = useMyBirthDate()
+  const watchlist = useWatchlist()
+
+  // Crash reports waiting on this PC go up (encrypted) once we're signed in.
+  useEffect(() => {
+    void uploadPendingCrashes(profile.username).catch(() => undefined)
+  }, [uid])
 
   // ---------- Invite link ----------
   const [inviteToken, setInviteToken] = useState<string | null>(null)
@@ -289,6 +297,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     badges: { chats: unread || undefined, friends: requests?.length || undefined },
     profile: profileVM,
     invited,
+    watchlist,
     invite: { link: inviteToken ? inviteLink(profile.username, inviteToken) : null },
     myBirthDate: myBirthDate.state === 'set' ? myBirthDate.value : null,
     profileBusy,
@@ -309,6 +318,11 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           fail("Couldn't add them")
         ),
       deleteChat: (id) => void (isGroupId(id) ? leaveGroup(id) : deleteChat(id)).catch(fail("Couldn't do that")),
+      toggleWatchlist: (item, saved) =>
+        void toggleWatchlist(item, saved).then(
+          (now) => setNotice(now ? 'Saved to your watchlist' : 'Removed from your watchlist'),
+          fail("Couldn't update your watchlist")
+        ),
       invite: {
         copy: () => {
           if (!inviteToken) return
@@ -410,6 +424,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       leaveRoom: () => void leaveChatRoom().catch(fail("Couldn't leave the room")),
       viewing: setViewing,
       dismissNotice: () => setNotice(null),
+      showNotice: setNotice,
       dmWith: (friendUid) => dmId(uid, friendUid),
       openTitle: (item: TrendingVM) =>
         void trendingWatchLink(item.id).then(

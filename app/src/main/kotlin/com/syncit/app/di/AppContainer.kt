@@ -3,10 +3,12 @@ package com.syncit.app.di
 import android.app.Application
 import com.syncit.app.data.UserPrefs
 import com.syncit.app.data.Watchlist
+import com.syncit.app.data.WatchlistItem
 import com.syncit.app.reports.CrashUploader
 import com.syncit.app.social.WatchTogetherRecorder
 import com.syncit.core.lookup.TitleLookup
 import com.syncit.core.model.AuthState
+import com.syncit.core.social.SavedTitle
 import com.syncit.core.lookup.TrendingCatalog
 import com.syncit.core.media.MediaControllerGateway
 import com.syncit.core.session.SyncDependencies
@@ -26,6 +28,7 @@ import com.syncit.voice.AndroidVoiceController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -74,6 +77,7 @@ class AppContainer(app: Application) : SyncDependencies {
             invites = fb.invites,
             safety = fb.safety,
             appReports = fb.appReports,
+            watchlist = fb.watchlist,
         )
     } ?: DebugSocial.createFake(now = transport.serverClock::serverNowMs)
 
@@ -93,6 +97,45 @@ class AppContainer(app: Application) : SyncDependencies {
     val voice: VoiceController = AndroidVoiceController(app, firebase?.voiceAuth)
 
     init {
+        // The watchlist lives in the account (2026-11-12) so the PC app shares it. The first time an
+        // account's list arrives, titles saved on this phone before are uploaded; after that the
+        // account is the source and this phone keeps a copy for offline use.
+        appScope.launch {
+            var mergedFor: String? = null
+            social.auth.state.map { (it as? AuthState.SignedIn)?.uid }.distinctUntilChanged().collectLatest { uid ->
+                if (uid == null) {
+                    watchlist.onChange = null
+                    // Signed out after using an account: forget its titles, so the next account
+                    // doesn't upload someone else's list.
+                    if (mergedFor != null) {
+                        watchlist.clear()
+                        mergedFor = null
+                    }
+                    return@collectLatest
+                }
+                watchlist.onChange = { added, removedKey ->
+                    appScope.launch {
+                        runCatching {
+                            added?.let { social.watchlist.put(SavedTitle(it.title, it.service, it.addedAt)) }
+                            removedKey?.let { social.watchlist.remove(it.replace(':', '_')) }
+                        }
+                    }
+                }
+                social.watchlist.observe().collect { remote ->
+                    if (remote == null) return@collect
+                    val fromAccount = remote.map { WatchlistItem(it.title, it.service, it.addedAt) }
+                    if (mergedFor != uid) {
+                        mergedFor = uid
+                        val have = fromAccount.mapTo(HashSet()) { it.key }
+                        val onlyHere = watchlist.items.value.filter { it.key !in have }
+                        onlyHere.forEach { item -> runCatching { social.watchlist.put(SavedTitle(item.title, item.service, item.addedAt)) } }
+                        watchlist.replace(fromAccount + onlyHere)
+                    } else {
+                        watchlist.replace(fromAccount)
+                    }
+                }
+            }
+        }
         appScope.launch {
             social.auth.state.map { (it as? AuthState.SignedIn)?.uid }.distinctUntilChanged().collect { uid ->
                 if (uid != null) {

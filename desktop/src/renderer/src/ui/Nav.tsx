@@ -3,11 +3,12 @@ import { BRAND } from '@shared/brand'
 import { Icon, LogoMark, type IconName } from './Icon'
 import { Avatar, Badge, LiveDot } from './primitives'
 
-export type Tab = 'home' | 'chats' | 'friends' | 'streams' | 'settings'
+export type Tab = 'home' | 'chats' | 'watchlist' | 'friends' | 'streams' | 'settings'
 
 const ITEMS: { tab: Tab; label: string; icon: IconName }[] = [
   { tab: 'home', label: 'Home', icon: 'home' },
   { tab: 'chats', label: 'Chats', icon: 'chat' },
+  { tab: 'watchlist', label: 'Watchlist', icon: 'bookmark' },
   { tab: 'friends', label: 'Friends', icon: 'friends' },
   { tab: 'streams', label: 'Streams', icon: 'streams' },
   { tab: 'settings', label: 'Settings', icon: 'settings' }

@@ -47,6 +47,17 @@ topic `all`, or up to 20 picked people, owner only), Team (owner). Relay cron de
 Rules tested locally (36 cases), relay broadcast/retention tested against the emulator. **Needs deploying with the
 user's go-ahead: rules, relay, hosting (privacy policy).**
 
+**Desktop parity (2026-11-12, unreleased; desktop/ README has the run steps).** The PC app got the phone's
+features: last-one-out room clean-up (`data/chatRooms.ts`), report/block people and groups (`data/safety.ts`,
+chat menu, Friends lists), profile dialogs + photo viewer + Edit profile incl. photo upload through a main-process
+pass-through (`relay:avatar` in `src/main/relayProxy.ts`), group admins/settings/Invited, message copy/forward/delete,
+invite link + QR (`qrcode-generator`), Watchlist (sidebar + poster bookmarks) and owner App reports (Users, Notify,
+Team; crash bodies stay phone-only). **Watchlist now lives in the account** (`watchlists/{uid}/{type_tmdbId}`,
+owner-only; phone `FirebaseWatchlistStore` + AppContainer merge, cleared on sign-out). **PC crash reports** go into
+`crashes/` with `v: 2` (RSA-OAEP SHA-1, Web Crypto) which the phone's `ReportCrypto` opens since this change, so they
+are readable after the next phone release. Rules for watchlists and v2 need deploying. This laptop's Windows
+Application Control blocks electron.exe, so the desktop app was typechecked/tested/built here but not run.
+
 **Indus only (2026-11-04):** updates come only from the Indus (PhonePe) Appstore. Every build defaults to `-Pstore=indus` (no GitHub updater; `-Pstore=github` restores it). Listing: https://indusapp.store/qcsredto. Website buttons open that link (web/download.js) and computers see web/indus-qr.svg. `release.sh` uploads to Indus only (`GITHUB_RELEASE=1` adds a GitHub release). API (base `https://developer-api.phonepeappstore.com` per the docs; the old `developer-api.indusappstore.com` still answers; header `Authorization: O-Bearer <token>`; console is now developer.phonepeappstore.com → Tools & Resources): POST `/devtools/apk/upgrade/<pkg>` (multipart `file`, `releaseNotes`; what indus-upload.sh uses), POST `/devtools/apks/upgrade/<pkg>`, POST `/devtools/aab/upgrade/<pkg>`, PUT `/devtools/app/metadata/<pkg>` (title and description only: screenshots can only be changed in the console, Edit Details), GET `/devtools/app/stats/<pkg>`, GET `/devtools/app/details/<pkg>` (listing text, screenshots), GET `/devtools/app/versions/<pkg>` (live versions only), GET `/devtools/app/app-versions/<pkg>` (every listing submission with its id and status: inreview/active/cancelled/onhold; the in-review id is what review/cancel takes), POST `/devtools/review/cancel/<pkg>` (`{"id": "<review id>"}`; use when an upload gets 409 "under review/draft", it discards the pending submission). 0.6.7 uploaded 2026-11-04 after cancelling a pending review; GitHub 0.6.6 installs were left as they are.
 
 **Indus Appstore (2026-11-02):** listed by the user; first upload (0.6.0) was put **on hold** because the in-app

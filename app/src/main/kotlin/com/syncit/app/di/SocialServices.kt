@@ -12,6 +12,7 @@ import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
 import com.syncit.core.social.PushRegistry
 import com.syncit.core.social.Safety
+import com.syncit.core.social.WatchlistStore
 import com.syncit.core.social.WatchInvites
 
 /**
@@ -38,4 +39,6 @@ class SocialServices(
     val safety: Safety = Safety.None,
     /** Crash reports, users and notifications for the owner and developers (off in the fakes). */
     val appReports: AppReports = AppReports.None,
+    /** The watchlist in the account, shared with the desktop app (off in the fakes). */
+    val watchlist: WatchlistStore = WatchlistStore.None,
 )
