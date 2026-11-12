@@ -22,11 +22,11 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
   const chromium = setup.found.find((b) => CHROMIUM.includes(b.id))?.id ?? 'chrome'
   return (
     <div className="screen">
-      <main className="scroll" style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -6, padding: 6 }}>
+      <main className="scroll" style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -6, padding: 8 }}>
         <section
           aria-labelledby="h-browser"
           className="glass glass--hero glass--raised rise"
-          style={{ '--i': 1, padding: 34, display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(255,255,255,0.06)' } as CSSProperties}
+          style={{ '--i': 1, padding: 32, display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(239,233,222,0.06)' } as CSSProperties}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button type="button" className="icon-btn-sm pressable" aria-label="Back to Settings" title="Back to Settings" onClick={onBack}>
@@ -34,14 +34,14 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
             </button>
             <span className="chip">Browser extension</span>
           </div>
-          <h1 id="h-browser" className="h1" style={{ fontSize: 40, lineHeight: 1.05, letterSpacing: -1.2 }}>
+          <h1 id="h-browser" className="h1" style={{ fontSize: 40, lineHeight: 1.05, letterSpacing: -0.4 }}>
             Add {BRAND.name} to your browser
           </h1>
-          <p style={{ margin: 0, maxWidth: 680, fontSize: 15, lineHeight: 1.55, color: 'rgba(255,255,255,0.76)' }}>
+          <p style={{ margin: 0, maxWidth: 680, fontSize: 15, lineHeight: 1.55, color: 'rgba(239,233,222,0.76)' }}>
             Netflix, Prime Video and JioHotstar play in your browser. With the extension, {BRAND.name} syncs everyone to the frame, waits for anyone
             buffering and follows the host to the next episode.
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
             {setup.found.length === 0 ? <span className="found-chip">No supported browser found</span> : null}
             {setup.found.map((b) => (
               <span key={b.id} className="found-chip">
@@ -70,7 +70,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
             </div>
             <p>Signed by Mozilla. Firefox asks once.</p>
             <div style={{ flex: 1 }} />
-            <Button size="lg" style={{ fontWeight: 700 }} onClick={() => onAddTo('firefox')}>
+            <Button size="lg" style={{ fontWeight: 500 }} onClick={() => onAddTo('firefox')}>
               Add to Firefox
             </Button>
           </section>
@@ -88,7 +88,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
               </li>
               <li>Pick the {BRAND.name} folder (path copied)</li>
             </ol>
-            <Button size="lg" style={{ fontWeight: 700 }} onClick={() => onAddTo(chromium)}>
+            <Button size="lg" style={{ fontWeight: 500 }} onClick={() => onAddTo(chromium)}>
               Open extensions page
             </Button>
           </section>
@@ -114,16 +114,16 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
       </main>
 
       <aside aria-label="Extension popup preview" className="popup-aside rise" style={{ '--i': 3 } as CSSProperties}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.74)' }}>The popup in your browser</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(239,233,222,0.74)' }}>The popup in your browser</span>
         {/* A picture of the popup: nothing in it can be focused or changed here. */}
         <div className="popup-card" inert>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="logo-tile" style={{ width: 36, height: 36, borderRadius: 12, boxShadow: '0 6px 16px rgba(255,46,77,0.45)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="logo-tile" style={{ width: 36, height: 36, borderRadius: 12 }}>
               <LogoMark size={22} />
             </div>
             <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontWeight: 800 }}>{BRAND.name}</span>
-              <span style={{ fontSize: 12, color: setup.connected ? '#A7F3D0' : 'var(--text-2)' }}>
+              <span style={{ fontWeight: 500 }}>{BRAND.name}</span>
+              <span style={{ fontSize: 12, color: setup.connected ? 'var(--text)' : 'var(--text-2)' }}>
                 {setup.connected ? 'Linked to the app' : 'Not linked yet'}
               </span>
             </span>
@@ -131,19 +131,19 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
           <div className="popup-card__room">
             {setup.popup ? (
               <>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
+                <span style={{ fontSize: 12, color: 'rgba(239,233,222,0.72)' }}>
                   Room {setup.popup.roomCode} · {setup.popup.people}
                 </span>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>{setup.popup.title}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: setup.popup.inSync ? '#A7F3D0' : '#FDE68A' }}>
+                <span style={{ fontWeight: 500, fontSize: 15 }}>{setup.popup.title}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: setup.popup.inSync ? 'var(--text)' : 'var(--warn)' }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: setup.popup.inSync ? '#34D399' : '#FBBF24' }} />
                   {setup.popup.inSync ? 'In sync' : 'Catching up'} · {setup.popup.position}
                 </span>
               </>
             ) : (
               <>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>Not in a room</span>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>Join a room in the app</span>
+                <span style={{ fontSize: 12, color: 'rgba(239,233,222,0.72)' }}>Not in a room</span>
+                <span style={{ fontWeight: 500, fontSize: 15 }}>Join a room in the app</span>
                 <span style={{ fontSize: 13, color: 'var(--text-2)' }}>The popup shows it here</span>
               </>
             )}
@@ -156,7 +156,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
               Open app
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(
               [
                 ['Wait if someone buffers', true],
@@ -164,8 +164,8 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
                 ['Follow host to next episode', false]
               ] as const
             ).map(([label, on]) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ flex: 1, color: 'rgba(255,255,255,0.86)' }}>{label}</span>
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ flex: 1, color: 'rgba(239,233,222,0.86)' }}>{label}</span>
                 <Switch checked={on} onChange={() => undefined} label={label} />
               </div>
             ))}

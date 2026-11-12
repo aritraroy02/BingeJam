@@ -40,10 +40,10 @@ export function FriendRow({
     <div className={f.action ? 'friend-row friend-row--card' : 'friend-row'}>
       <Avatar name={f.name} id={f.id} photoUrl={f.photoUrl} size={f.action ? 40 : 44} ring={f.action !== null} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <span className="truncate" style={{ fontWeight: 700 }}>
+        <span className="truncate" style={{ fontWeight: 500 }}>
           {f.name}
         </span>
-        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, color: f.streaming ? '#FECDD3' : 'var(--text-2)' }}>
+        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, color: f.streaming ? 'var(--accent-text)' : 'var(--text-2)' }}>
           {f.streaming ? <LiveDot red /> : null}
           <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{f.status}</span>
         </span>

@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type JSX, type KeyboardEvent, type PointerEvent } from 'react'
 import { Icon } from '@/ui/Icon'
-import { Avatar, Button, LiveDot } from '@/ui/primitives'
+import { Avatar, Button, LiveDot, SyncDots } from '@/ui/primitives'
 import { Composer, MessageList } from '@/ui/chat'
 import { firstName, formatClock } from '@/ui/format'
 import type { MessageVM, RoomMemberVM, RoomVM, SyncHealth, VoiceMemberVM } from '@/ui/models'
@@ -105,13 +105,13 @@ function Hero(p: RoomProps & { room: RoomVM }): JSX.Element {
     <section aria-labelledby="h-room" className="room-hero rise" style={{ '--i': 1 } as CSSProperties}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 12 }}>
         <div className="room-title-card">
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.74)' }}>{r.context}</span>
-          <h1 id="h-room" style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: -0.6 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(239,233,222,0.74)' }}>{r.context}</span>
+          <h1 id="h-room" style={{ margin: 0, fontSize: 28, fontWeight: 500, letterSpacing: -0.4 }}>
             {nothing ? 'Nothing playing yet' : r.title}
           </h1>
         </div>
         <span className={r.allInSync ? 'hero-chip hero-chip--ok' : 'hero-chip hero-chip--warn'} role="status">
-          <LiveDot />
+          {r.allInSync ? <SyncDots /> : <LiveDot />}
           {r.syncLabel}
         </span>
         <button type="button" className="hero-chip hero-chip--btn pressable" onClick={p.onInvite}>
@@ -119,9 +119,9 @@ function Hero(p: RoomProps & { room: RoomVM }): JSX.Element {
         </button>
       </div>
 
-      <div style={{ alignSelf: 'center', textAlign: 'center', maxWidth: 520, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-        <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{r.playerLabel}</p>
-        <p style={{ margin: 0, color: 'rgba(255,255,255,0.74)', lineHeight: 1.5 }}>
+      <div style={{ alignSelf: 'center', textAlign: 'center', maxWidth: 520, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>{r.playerLabel}</p>
+        <p style={{ margin: 0, color: 'rgba(239,233,222,0.74)', lineHeight: 1.5 }}>
           Everyone watches on their own account. BingeJam lines up play, pause and position through the extension.
         </p>
         <Button className="glass-btn" onClick={p.onShowPlayer}>
@@ -130,12 +130,12 @@ function Hero(p: RoomProps & { room: RoomVM }): JSX.Element {
       </div>
 
       <div className="transport">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: 'rgba(239,233,222,0.8)' }}>
           <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatClock(nothing ? null : position)}</span>
           <Progress positionMs={position} durationMs={r.durationMs} host={host} onSeekTo={p.onSeekTo} />
           <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatClock(r.durationMs)}</span>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
           <button type="button" className="transport__btn pressable" aria-label="Back 10 seconds" onClick={() => p.onSeekBy(-10000)} disabled={nothing}>
             <Icon name="back10" size={20} />
           </button>
@@ -281,7 +281,7 @@ function VoicePanel({
         <h2 id="h-voice" className="h3" style={{ flex: 1 }}>
           Voice
         </h2>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.68)' }}>{hint}</span>
+        <span style={{ fontSize: 12, color: 'rgba(239,233,222,0.68)' }}>{hint}</span>
       </div>
       {v.members.length === 0 ? (
         <p className="muted small" style={{ margin: 0 }}>
@@ -294,7 +294,7 @@ function VoicePanel({
           ))}
         </ul>
       )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {v.joined ? (
           <button
             type="button"
@@ -331,7 +331,7 @@ function VoicePerson({ member: m }: { member: VoiceMemberVM }): JSX.Element {
       <span className="voice-person__face" style={{ opacity: m.muted ? 0.6 : 1 }}>
         <Avatar name={m.name} id={m.id} photoUrl={m.photoUrl} size={54} />
       </span>
-      <span style={{ fontSize: 12, color: m.muted ? 'rgba(255,255,255,0.68)' : '#fff' }}>{m.muted && !m.isMe ? 'Muted' : label}</span>
+      <span style={{ fontSize: 12, color: m.muted ? 'rgba(239,233,222,0.68)' : '#fff' }}>{m.muted && !m.isMe ? 'Muted' : label}</span>
       <span className="sr-only">{m.muted ? `${label}, muted` : m.speaking ? `${label}, talking` : ''}</span>
     </li>
   )

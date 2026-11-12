@@ -39,14 +39,14 @@ export function Streams(p: StreamsProps): JSX.Element {
   const s = p.stream
   return (
     <div className="screen">
-      <main className="scroll" style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -6, padding: 6 }}>
+      <main className="scroll" style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -6, padding: 8 }}>
         <Stage {...p} />
-        <section aria-labelledby="h-golive" className="glass glass--strong rise" style={{ '--i': 2, padding: 22, display: 'flex', flexDirection: 'column', gap: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 24px 60px rgba(0,0,0,0.3)' } as CSSProperties}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 10 }}>
+        <section aria-labelledby="h-golive" className="glass glass--strong rise" style={{ '--i': 2, padding: 24, display: 'flex', flexDirection: 'column', gap: 16 } as CSSProperties}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 12 }}>
             <h2 id="h-golive" className="h2" style={{ flex: '1 1 auto' }}>
               Go Live
             </h2>
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)' }}>Free · straight between PCs</span>
+            <span style={{ fontSize: 13, color: 'rgba(239,233,222,0.72)' }}>Free · straight between PCs</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
             <div style={{ flex: '1 1 260px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -61,7 +61,7 @@ export function Streams(p: StreamsProps): JSX.Element {
           <div className="capacity">
             <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontWeight: 600 }}>{s.capacityTitle}</span>
-              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)' }}>{s.capacityDetail}</span>
+              <span style={{ fontSize: 13, color: 'rgba(239,233,222,0.72)' }}>{s.capacityDetail}</span>
             </div>
             {s.streaming ? (
               <Button variant="danger" size="lg" onClick={p.onStopStreaming}>
@@ -73,13 +73,13 @@ export function Streams(p: StreamsProps): JSX.Element {
               </Button>
             )}
           </div>
-          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.66)' }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(239,233,222,0.66)' }}>
             Netflix, Prime Video and JioHotstar are protected and show black if shared. Watch those together in a watch party instead.
           </p>
         </section>
       </main>
 
-      <aside aria-labelledby="h-schat" className="glass glass--strong side-panel rise" style={{ '--i': 3, flex: '1 1 320px', gap: 14 } as CSSProperties}>
+      <aside aria-labelledby="h-schat" className="glass glass--strong side-panel rise" style={{ '--i': 3, flex: '1 1 320px', gap: 16 } as CSSProperties}>
         <h2 id="h-schat" className="h3">
           Stream chat
         </h2>
@@ -129,7 +129,7 @@ function Stage(p: StreamsProps): JSX.Element {
         {p.media ? <video ref={video} autoPlay playsInline aria-label={label} /> : <PlaceholderArt />}
 
         <div className="stream-chips">
-          {host ? <span className="stream-chip stream-chip--live">LIVE</span> : null}
+          {host ? <span className="stream-chip stream-chip--live">Live</span> : null}
           {host && s.stats ? <span className="stream-chip">{s.stats}</span> : null}
           <span style={{ flex: 1 }} />
           {host ? <span className="stream-chip">{s.viewers} watching</span> : null}
@@ -144,8 +144,8 @@ function Stage(p: StreamsProps): JSX.Element {
             </span>
           )}
           <span style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: 700 }}>{host ? `${s.streaming ? 'You are' : `${firstName(host.name)} is`} live` : 'Nobody is live right now'}</span>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.82)' }}>
+            <span style={{ fontWeight: 500 }}>{host ? `${s.streaming ? 'You are' : `${firstName(host.name)} is`} live` : 'Nobody is live right now'}</span>
+            <span style={{ fontSize: 12, color: 'rgba(239,233,222,0.82)' }}>
               {host ? s.liveDetail : 'Stream a game, your screen or an app window below. Friends in your room can watch.'}
             </span>
           </span>

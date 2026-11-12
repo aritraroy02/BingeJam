@@ -92,17 +92,17 @@ export function ProfileSetup({ needProfile, needBirthDate, suggestedName, onSign
       <div className="drag-strip" />
       <main
         className="glass glass--hero glass--raised rise"
-        style={{ position: 'relative', zIndex: 1, width: 'min(520px, 100%)', padding: 40, display: 'flex', flexDirection: 'column', gap: 18 }}
+        style={{ position: 'relative', zIndex: 1, width: 'min(520px, 100%)', padding: 40, display: 'flex', flexDirection: 'column', gap: 16 }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="logo-tile" style={{ width: 48, height: 48, borderRadius: 15 }}>
+          <div className="logo-tile" style={{ width: 48, height: 48, borderRadius: 12 }}>
             <LogoMark size={30} />
           </div>
           <span className="wordmark" style={{ fontSize: 22 }}>
             {BRAND.name}
           </span>
         </div>
-        <h1 className="h1" style={{ fontSize: 30, letterSpacing: -0.8 }}>
+        <h1 className="h1" style={{ fontSize: 30, letterSpacing: -0.4 }}>
           {needProfile ? 'Set up your profile' : 'One more thing'}
         </h1>
         <p className="muted" style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
@@ -111,7 +111,7 @@ export function ProfileSetup({ needProfile, needBirthDate, suggestedName, onSign
             : `${BRAND.name} is for people 18 and older. Your date of birth stays private.`}
         </p>
 
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
           {needProfile ? (
             <>
               <label htmlFor="username" className="small" style={{ fontWeight: 600 }}>
@@ -135,7 +135,7 @@ export function ProfileSetup({ needProfile, needBirthDate, suggestedName, onSign
               <span
                 id="username-hint"
                 className="small"
-                style={{ marginTop: -4, color: check && check.state !== 'available' ? '#FECDD3' : undefined, opacity: check ? 1 : 0.7 }}
+                style={{ marginTop: -4, color: check && check.state !== 'available' ? 'var(--accent-text)' : undefined, opacity: check ? 1 : 0.7 }}
               >
                 {usernameHint}
               </span>
@@ -170,7 +170,7 @@ export function ProfileSetup({ needProfile, needBirthDate, suggestedName, onSign
                   aria-describedby="dob-hint"
                 />
               </div>
-              <span id="dob-hint" className="small" style={{ marginTop: -4, color: dobProblem ? '#FECDD3' : undefined, opacity: dobProblem ? 1 : 0.7 }}>
+              <span id="dob-hint" className="small" style={{ marginTop: -4, color: dobProblem ? 'var(--accent-text)' : undefined, opacity: dobProblem ? 1 : 0.7 }}>
                 {dobProblem ?? 'Only you can see it.'}
               </span>
             </>
@@ -185,7 +185,7 @@ export function ProfileSetup({ needProfile, needBirthDate, suggestedName, onSign
         </form>
 
         {error ? (
-          <p role="alert" style={{ margin: 0, color: '#FECDD3', fontSize: 13 }}>
+          <p role="alert" style={{ margin: 0, color: 'var(--accent-text)', fontSize: 13 }}>
             {error}
           </p>
         ) : null}

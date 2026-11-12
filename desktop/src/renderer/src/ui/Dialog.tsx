@@ -47,7 +47,7 @@ export function Dialog({
       }}
     >
       {open ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <h2 id={titleId} className="h3" style={{ fontSize: 19 }}>
             {title}
           </h2>
@@ -83,7 +83,7 @@ export function ConfirmDialog({
 }): JSX.Element {
   return (
     <Dialog open={open} title={title} description={description} onClose={onClose}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
         <Button onClick={onClose} autoFocus>
           Cancel
         </Button>

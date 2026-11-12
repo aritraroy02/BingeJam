@@ -65,17 +65,17 @@ export function SignIn(): JSX.Element {
       <div className="drag-strip" />
       <main
         className="glass glass--hero glass--raised rise"
-        style={{ position: 'relative', zIndex: 1, width: 'min(520px, 100%)', padding: 40, display: 'flex', flexDirection: 'column', gap: 18 }}
+        style={{ position: 'relative', zIndex: 1, width: 'min(520px, 100%)', padding: 40, display: 'flex', flexDirection: 'column', gap: 16 }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="logo-tile" style={{ width: 48, height: 48, borderRadius: 15 }}>
+          <div className="logo-tile" style={{ width: 48, height: 48, borderRadius: 12 }}>
             <LogoMark size={30} />
           </div>
           <span className="wordmark" style={{ fontSize: 22 }}>
             {BRAND.name}
           </span>
         </div>
-        <h1 className="h1" style={{ fontSize: 34, letterSpacing: -1 }}>
+        <h1 className="h1" style={{ fontSize: 34, letterSpacing: -0.4 }}>
           {BRAND.tagline}
         </h1>
         <p className="muted" style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
@@ -84,7 +84,7 @@ export function SignIn(): JSX.Element {
         </p>
 
         {step === 'email' ? (
-          <form onSubmit={send} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
+          <form onSubmit={send} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
             <label htmlFor="email" className="sr-only">
               Email
             </label>
@@ -107,9 +107,9 @@ export function SignIn(): JSX.Element {
             </Button>
           </form>
         ) : (
-          <form onSubmit={submitLink} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 6 }}>
-            <div className="tile" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontWeight: 700 }}>Check your inbox</span>
+          <form onSubmit={submitLink} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+            <div className="tile" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontWeight: 500 }}>Check your inbox</span>
               <span className="muted small" style={{ lineHeight: 1.5 }}>
                 We sent a sign-in link to <b className="selectable">{email}</b>. Copy the link from the email (right-click → Copy
                 link) and paste it here.
@@ -147,7 +147,7 @@ export function SignIn(): JSX.Element {
         )}
 
         {error ? (
-          <p role="alert" style={{ margin: 0, color: '#FECDD3', fontSize: 13 }}>
+          <p role="alert" style={{ margin: 0, color: 'var(--accent-text)', fontSize: 13 }}>
             {error}
           </p>
         ) : null}

@@ -51,12 +51,9 @@ export function parseTrending(body: unknown): TrendingRow[] {
   return out
 }
 
-const GRADIENTS: Partial<Record<ServiceId, string>> = {
-  NETFLIX: 'linear-gradient(170deg, #0F172A, #1E40AF 60%, #F43F5E 150%)',
-  JIOHOTSTAR: 'linear-gradient(170deg, #052E16, #15803D 55%, #FACC15 150%)',
-  PRIME_VIDEO: 'linear-gradient(170deg, #2E1065, #7E22CE 55%, #F472B6 150%)'
-}
-const FALLBACK_GRADIENT = 'linear-gradient(170deg, #1C1917, #92400E 55%, #FB923C 150%)'
+// Shown only while a poster image is missing: one warm neutral, a small tone shift (no hue gradients).
+const GRADIENTS: Partial<Record<ServiceId, string>> = {}
+const FALLBACK_GRADIENT = 'linear-gradient(180deg, #2c2a26, #1a1917)'
 
 /** TrendingVM.id = "NETFLIX:movie:12345", so a tap can ask the relay for the watch link. */
 export function trendingId(service: ServiceId, type: TitleType, tmdbId: number): string {

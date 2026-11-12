@@ -88,7 +88,7 @@ export async function sendFriendRequest(exactUsername: string): Promise<'sent' |
   if (!mine) throw new FriendRequestError('Pick a username first')
   const them = (await get(ref(db, `usernames/${usernameKey(name)}`))).val()
   if (typeof them !== 'string') throw new FriendRequestError(`No one is called @${name}`)
-  if (them === me) throw new FriendRequestError("That's you!")
+  if (them === me) throw new FriendRequestError("That's you")
   if (await exists(`friends/${me}/${them}`)) throw new FriendRequestError(`You're already friends with @${name}`)
   if (await exists(`blocked/${me}/${them}`)) throw new FriendRequestError(`You blocked @${name}. Unblock them first.`)
   // They already asked us: sending one back means yes.

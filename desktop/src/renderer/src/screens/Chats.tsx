@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type CSSProperties, type FormEvent, type JSX } from 'react'
 import { Icon } from '@/ui/Icon'
-import { Avatar, Badge, Button, LiveDot } from '@/ui/primitives'
+import { Avatar, Badge, Button, SyncDots } from '@/ui/primitives'
 import { Composer, MessageList } from '@/ui/chat'
 import { ConfirmDialog, Dialog } from '@/ui/Dialog'
 import { MenuButton, type MenuItem } from '@/ui/Menu'
@@ -152,11 +152,11 @@ function ChatList(p: ChatsProps & { onNewGroup: () => void }): JSX.Element {
       />
       <div className="scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {chats === null ? (
-          <p className="muted small" style={{ margin: '4px 10px' }}>
+          <p className="muted small" style={{ margin: '4px 12px' }}>
             Loading chats…
           </p>
         ) : chats.length === 0 ? (
-          <p className="muted small" style={{ margin: '4px 10px', lineHeight: 1.5 }}>
+          <p className="muted small" style={{ margin: '4px 12px', lineHeight: 1.5 }}>
             {q ? `No chats match “${query.trim()}”.` : 'No chats yet. Message a friend from Friends, or start a group.'}
           </p>
         ) : (
@@ -174,8 +174,8 @@ function ChatList(p: ChatsProps & { onNewGroup: () => void }): JSX.Element {
                     <span className="chat-item__name truncate">{c.name}</span>
                     {c.liveRoom ? (
                       <span className="chat-item__live">
-                        <LiveDot small />
-                        Room live · {c.liveRoom.inCount} in
+                        <SyncDots />
+                        Live · {c.liveRoom.inCount} in
                       </span>
                     ) : (
                       <span className="chat-item__preview">{c.preview}</span>
@@ -313,7 +313,7 @@ function ChatView(
 
         {h.room ? (
           <span className="room-live-chip">
-            <LiveDot />
+            <SyncDots />
             Room live · {h.room.startedAtLabel}
           </span>
         ) : null}
@@ -363,15 +363,15 @@ function ChatView(
               </span>
               {p.solo ? (
                 <>
-                  <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>Just you in {h.name} so far</span>
+                  <span style={{ color: 'var(--text)', fontWeight: 500, fontSize: 16 }}>Just you in {h.name} so far</span>
                   <span>Add friends to chat here and start the group's room together.</span>
-                  <Button size="sm" onClick={p.onOpenAddPeople} style={{ marginTop: 6 }}>
+                  <Button size="sm" onClick={p.onOpenAddPeople} style={{ marginTop: 8 }}>
                     Add people
                   </Button>
                 </>
               ) : (
                 <>
-                  <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>Say hi to {isGroup ? h.name : firstName(h.name)}</span>
+                  <span style={{ color: 'var(--text)', fontWeight: 500, fontSize: 16 }}>Say hi to {isGroup ? h.name : firstName(h.name)}</span>
                   <span>Or start a room to watch, listen or play together. The chat stays open beside it.</span>
                 </>
               )}
@@ -433,13 +433,13 @@ function RoomBanner({ room, onJoin }: { room: NonNullable<ChatHeaderVM['room']>;
         ))}
       </span>
       <span style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span style={{ fontWeight: 700 }}>
+        <span style={{ fontWeight: 500 }}>
           {names.length === 0 ? 'The room is open' : `${joinNames(names)} ${names.length === 1 ? 'is' : 'are'} in the room`}
         </span>
-        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.76)' }}>{room.summary}</span>
+        <span style={{ fontSize: 13, color: 'rgba(239,233,222,0.76)' }}>{room.summary}</span>
       </span>
       <Button
-        style={{ height: 42, padding: '0 18px', borderRadius: 14, borderColor: 'rgba(255,255,255,0.24)', background: 'rgba(255,255,255,0.12)', fontWeight: 700 }}
+        style={{ height: 40, padding: '0 16px', borderRadius: 12, borderColor: 'rgba(239,233,222,0.24)', background: 'rgba(239,233,222,0.12)', fontWeight: 500 }}
         onClick={onJoin}
       >
         {room.meInRoom ? 'Open' : 'Join'}
@@ -458,13 +458,13 @@ function NoChat({ loading, hasChats, onNewGroup }: { loading: boolean; hasChats:
           <span className="chat-empty__icon">
             <Icon name="chat" size={24} />
           </span>
-          <span style={{ color: '#fff', fontWeight: 800, fontSize: 19 }}>{hasChats ? 'Pick a chat' : 'No chats yet'}</span>
+          <span style={{ color: 'var(--text)', fontWeight: 500, fontSize: 19 }}>{hasChats ? 'Pick a chat' : 'No chats yet'}</span>
           <span>
             Every chat has its own room: watch a movie together, stream a game or your screen, and talk.
             {hasChats ? '' : ' Message a friend from Friends, or start a group.'}
           </span>
           {hasChats ? null : (
-            <Button size="sm" onClick={onNewGroup} style={{ marginTop: 6 }}>
+            <Button size="sm" onClick={onNewGroup} style={{ marginTop: 8 }}>
               New group
             </Button>
           )}
@@ -514,11 +514,11 @@ function MembersPanel({
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <Button style={{ flex: 1, height: 42, borderRadius: 14, borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)' }} onClick={onAddPeople}>
+        <Button style={{ flex: 1, height: 42, borderRadius: 12, borderColor: 'rgba(239,233,222,0.2)', background: 'rgba(239,233,222,0.08)' }} onClick={onAddPeople}>
           Add people
         </Button>
         {header.canRename ? (
-          <Button style={{ flex: 1, height: 42, borderRadius: 14, borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)' }} onClick={onRename}>
+          <Button style={{ flex: 1, height: 42, borderRadius: 12, borderColor: 'rgba(239,233,222,0.2)', background: 'rgba(239,233,222,0.08)' }} onClick={onRename}>
             Rename group
           </Button>
         ) : null}
@@ -593,7 +593,7 @@ function PeopleDialog({
       onClose={onClose}
     >
       <form
-        style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
         onSubmit={(e) => {
           e.preventDefault()
           if (!ready) return
@@ -646,7 +646,7 @@ function PeopleDialog({
             ))}
           </ul>
         </fieldset>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
           <Button onClick={onClose}>Cancel</Button>
           <Button variant="primary" type="submit" disabled={!ready}>
             {newGroup ? (picked.length === 0 ? 'Create with just me' : 'Create group') : picked.length > 1 ? `Add ${picked.length} people` : 'Add'}

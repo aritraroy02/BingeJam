@@ -9,60 +9,76 @@
 }
 
 :root {
-  /* Base and glows */
-  --bg: #08060b;
-  --glow-red: #ff2e4d;
-  --glow-violet: #7c3aed;
-  --glow-orange: #f97316;
-  --glow-magenta: #be185d;
-  --glow-green: #10b981;
+  /* Warm near-black ramp (same as the phone app and website, 2026-11-12 unslop). */
+  --bg: #121110;
+  --surface: #1a1917;
+  --raised: #24221f;
+  --raised-2: #2c2a26;
+  --hairline: rgba(239, 233, 222, 0.08);
+  --hairline-strong: rgba(239, 233, 222, 0.14);
 
-  /* Brand */
-  --accent: #e11d48;
-  --accent-2: #c2410c;
-  --accent-grad: linear-gradient(135deg, var(--accent), var(--accent-2));
-  --logo-grad: linear-gradient(140deg, #ff2e4d, #c2410c);
-  --progress-grad: linear-gradient(90deg, #ff2e4d, #fb923c);
+  /* One accent, solid. The *-grad names stay so components keep working, but they are flat now. */
+  --accent: #c8102e;
+  --accent-2: #c8102e;
+  --accent-text: #ff5468;
+  --accent-grad: var(--accent);
+  --logo-grad: var(--accent);
+  --progress-grad: var(--accent);
 
-  /* Text on glass */
-  --text: #ffffff;
-  --text-2: rgba(255, 255, 255, 0.74);
-  --text-3: rgba(255, 255, 255, 0.62);
-  --link: #fdba74;
+  /* Signature: the two friend dots (red and orange) mark anything live or in sync. */
+  --friend-a: #ff2e4d;
+  --friend-b: #ff7a45;
 
-  /* Live / online */
-  --live: #34d399;
-  --live-text: #d1fae5;
-  --live-soft: #a7f3d0;
-  --live-bg: rgba(52, 211, 153, 0.14);
-  --live-border: rgba(110, 231, 183, 0.35);
-  --warn: #fbbf24;
+  /* Old glow names, kept for any leftover use; nothing glows any more. */
+  --glow-red: var(--friend-a);
+  --glow-violet: var(--accent);
+  --glow-orange: var(--friend-b);
+  --glow-magenta: var(--accent);
+  --glow-green: var(--live);
 
-  /* Glass */
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-bg-strong: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-strong: rgba(255, 255, 255, 0.22);
-  --glass-blur: blur(28px) saturate(160%);
-  --glass-hi: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-  --field-bg: rgba(0, 0, 0, 0.22);
-  --field-border: rgba(255, 255, 255, 0.1);
-  --ring: #fdba74;
-  --avatar-ring: #1b1320;
+  /* Text */
+  --text: #efe9de;
+  --text-2: #aaa398;
+  --text-3: #948e84;
+  --link: var(--accent-text);
 
-  /* Shape */
-  --r-panel-xl: 32px;
-  --r-panel: 28px;
-  --r-bar: 24px;
-  --r-card: 20px;
-  --r-btn: 16px;
-  --r-btn-sm: 12px;
+  /* Status: online is a calm green dot, everything else stays neutral. */
+  --live: #4fb286;
+  --live-text: var(--text);
+  --live-soft: var(--text-2);
+  --live-bg: var(--raised);
+  --live-border: var(--hairline);
+  --warn: #d9a441;
+
+  /* Surfaces. Panels are solid; only floating layers (menus, dialogs, tips, things over video or
+     artwork) use --float-*. */
+  --glass-bg: var(--surface);
+  --glass-bg-strong: var(--raised);
+  --glass-border: var(--hairline);
+  --glass-border-strong: var(--hairline-strong);
+  --glass-blur: none;
+  --glass-hi: none;
+  --glass-shadow: none;
+  --float-bg: rgba(26, 25, 23, 0.84);
+  --float-blur: blur(24px) saturate(140%);
+  --float-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  --field-bg: var(--raised);
+  --field-border: var(--hairline);
+  --ring: rgba(239, 233, 222, 0.7);
+  --avatar-ring: var(--bg);
+
+  /* Shape: controls 12, cards 16, panels 20 (nested radii add up). */
+  --r-panel-xl: 20px;
+  --r-panel: 20px;
+  --r-bar: 16px;
+  --r-card: 16px;
+  --r-btn: 12px;
+  --r-btn-sm: 8px;
   --r-pill: 999px;
 
-  /* Motion: the design's easing. Only transform and opacity animate (GPU-composited). */
+  /* Motion: one easing; only transform and opacity animate. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --rise: 0.75s;
+  --rise: 0.4s;
 
   /* The app is dark only: native selects, scrollbars and date pickers follow. */
   color-scheme: dark;
@@ -115,7 +131,7 @@ button {
 
 input::placeholder,
 textarea::placeholder {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-3);
 }
 
 :focus-visible {
@@ -136,33 +152,11 @@ textarea::placeholder {
 @keyframes bj-rise {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.985);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
     transform: none;
-  }
-}
-@keyframes bj-drift {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(46px, -34px, 0) scale(1.08);
-  }
-  100% {
-    transform: translate3d(-34px, 24px, 0) scale(0.95);
-  }
-}
-@keyframes bj-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(1.35);
   }
 }
 @keyframes bj-fade {
@@ -171,16 +165,6 @@ textarea::placeholder {
   }
   to {
     opacity: 1;
-  }
-}
-/* First-time tooltip bobs gently (design: [role="tooltip"]). */
-@keyframes bj-hint {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
   }
 }
 /* Menus and dialogs pop in. */
@@ -192,17 +176,6 @@ textarea::placeholder {
   to {
     opacity: 1;
     transform: none;
-  }
-}
-/* Ring that pulses out from someone talking in voice. */
-@keyframes bj-ring {
-  from {
-    opacity: 0.7;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(1.32);
   }
 }
 /* New chat messages slide up a little. */
@@ -226,18 +199,16 @@ textarea::placeholder {
 
 .pressable {
   transition:
-    transform 0.24s var(--ease-out),
-    background-color 0.24s ease,
-    border-color 0.24s ease,
-    box-shadow 0.24s ease,
-    filter 0.24s ease;
+    transform 0.16s var(--ease-out),
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
 }
 .pressable:hover:not(:disabled) {
-  transform: translateY(-2px);
-  filter: brightness(1.1);
+  border-color: var(--hairline-strong);
 }
 .pressable:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale(0.98);
   transition-duration: 0.08s;
 }
 
@@ -250,14 +221,14 @@ textarea::placeholder {
   }
 }
 
-/* Scrollbars that sit quietly on glass. */
+/* Quiet scrollbars. */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
+  background: rgba(239, 233, 222, 0.14);
+  border-radius: 8px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }

@@ -24,8 +24,8 @@ export interface NavProps {
 /** Wide sidebar with labels: the Home layout in the design. */
 export function SideNav({ current, onNavigate, badges = {}, me, extension }: NavProps): JSX.Element {
   return (
-    <nav aria-label="Main" className="nav nav--wide glass glass--strong rise" style={{ borderRadius: 28 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 8px 22px' }}>
+    <nav aria-label="Main" className="nav nav--wide glass glass--strong rise" style={{ borderRadius: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 8px 24px' }}>
         <div className="logo-tile">
           <LogoMark />
         </div>
@@ -48,10 +48,10 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension }: Nav
       {extension ? (
         <div
           style={{
-            padding: 14,
-            borderRadius: 18,
-            background: extension.connected ? 'rgba(52,211,153,0.10)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${extension.connected ? 'rgba(110,231,183,0.28)' : 'rgba(255,255,255,0.12)'}`,
+            padding: 16,
+            borderRadius: 16,
+            background: extension.connected ? 'var(--raised)' : 'rgba(239,233,222,0.06)',
+            border: `1px solid ${extension.connected ? 'rgba(239,233,222,0.08)' : 'rgba(239,233,222,0.12)'}`,
             display: 'flex',
             flexDirection: 'column',
             gap: 4
@@ -70,12 +70,12 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension }: Nav
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
-            marginTop: 10,
-            padding: 10,
-            borderRadius: 18,
-            background: 'rgba(0,0,0,0.18)',
-            border: '1px solid rgba(255,255,255,0.08)'
+            gap: 12,
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 16,
+            background: 'var(--raised)',
+            border: '1px solid rgba(239,233,222,0.08)'
           }}
         >
           <Avatar name={me.name} id={me.uid} photoUrl={me.photoUrl} size={38} online />

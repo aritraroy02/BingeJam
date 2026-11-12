@@ -36,15 +36,15 @@ export function Settings(p: SettingsProps): JSX.Element {
   const reduced = useReducedMotion()
   return (
     <div className="screen" style={{ flexDirection: 'column' }}>
-      <div className="scroll" style={{ flex: 1, margin: -6, padding: 6, display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: 20 }}>
+      <div className="scroll" style={{ flex: 1, margin: -6, padding: 8, display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: 20 }}>
         <div style={{ flex: '999 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <section aria-labelledby="h-account" className="glass glass--hero glass--raised rise settings-account" style={{ '--i': 1 } as CSSProperties}>
             <Avatar name={s.account.name} id={s.account.uid} photoUrl={s.account.photoUrl} size={72} online />
             <div style={{ flex: '1 1 220px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="chip" style={{ marginBottom: 6 }}>
+              <span className="chip" style={{ marginBottom: 8 }}>
                 Account
               </span>
-              <h1 id="h-account" className="h2 truncate" style={{ fontSize: 28, letterSpacing: -0.6 }}>
+              <h1 id="h-account" className="h2 truncate" style={{ fontSize: 28, letterSpacing: -0.4 }}>
                 {s.account.name}
               </h1>
               <span className="muted selectable">
@@ -127,7 +127,7 @@ export function Settings(p: SettingsProps): JSX.Element {
 
 function Panel({ id, title, i, children }: { id: string; title: string; i: number; children: ReactNode }): JSX.Element {
   return (
-    <section aria-labelledby={id} className="glass rise" style={{ '--i': i, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 } as CSSProperties}>
+    <section aria-labelledby={id} className="glass rise" style={{ '--i': i, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}>
       <h2 id={id} className="h3" style={{ marginBottom: 4 }}>
         {title}
       </h2>

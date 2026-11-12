@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 
-// Icons copied from desktop/design/*.html (24×24, 2px round strokes unless noted).
+// Line icons, one set: 24×24 paths drawn at 18px with a 1.5 stroke (2026-11-12 unslop).
 const STROKE: Record<string, JSX.Element> = {
   home: <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
   chat: <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
@@ -169,7 +169,7 @@ const FILL: Record<string, JSX.Element> = {
 
 export type IconName = keyof typeof STROKE | keyof typeof FILL
 
-export function Icon({ name, size = 20, strokeWidth = 2 }: { name: IconName; size?: number; strokeWidth?: number }): JSX.Element {
+export function Icon({ name, size = 18, strokeWidth = 1.5 }: { name: IconName; size?: number; strokeWidth?: number }): JSX.Element {
   const fill = FILL[name]
   return fill ? (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type JSX } from 'react'
 import { Icon } from '@/ui/Icon'
-import { Avatar, Button, LiveDot, Segmented } from '@/ui/primitives'
+import { Avatar, Button, Segmented, SyncDots } from '@/ui/primitives'
 import { FriendList } from '@/ui/FriendList'
 import type { FriendVM, HomeVM, TrendingVM } from '@/ui/models'
 
@@ -22,7 +22,7 @@ export function Home(p: HomeProps): JSX.Element {
   const [query, setQuery] = useState('')
   return (
     <div className="screen" style={{ flexDirection: 'column' }}>
-      <header className="glass glass--bar rise" style={{ '--i': 0, display: 'flex', alignItems: 'center', gap: 12, padding: 10 } as CSSProperties}>
+      <header className="glass glass--bar rise" style={{ '--i': 0, display: 'flex', alignItems: 'center', gap: 12, padding: 12 } as CSSProperties}>
         <div className="field-wrap" style={{ flex: '1 1 300px' }}>
           <Icon name="search" size={18} />
           <label htmlFor="search" className="sr-only">
@@ -39,24 +39,24 @@ export function Home(p: HomeProps): JSX.Element {
         </div>
         {p.data.liveRoom ? (
           <Button variant="live" onClick={p.onJoinLiveRoom}>
-            <LiveDot />
+            <SyncDots />
             {p.data.liveRoom.chatName} room is live · Join
           </Button>
         ) : null}
         <Button variant="primary" onClick={p.onNewRoom}>
-          <Icon name="plus" size={18} strokeWidth={2.4} />
+          <Icon name="plus" size={18} />
           New room
         </Button>
       </header>
 
-      <div className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1, margin: '-6px', padding: '6px' }}>
+      <div className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1, margin: '-8px', padding: '8px' }}>
         {p.data.continueWatching ? <ContinueCard {...p} /> : null}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
           <section
             aria-labelledby="h-trend"
             className="glass rise"
-            style={{ '--i': 2, flex: '999 1 480px', minWidth: 0, padding: 24, display: 'flex', flexDirection: 'column', gap: 18 } as CSSProperties}
+            style={{ '--i': 2, flex: '999 1 480px', minWidth: 0, padding: 24, display: 'flex', flexDirection: 'column', gap: 16 } as CSSProperties}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <h2 id="h-trend" className="h2" style={{ flex: 1 }}>
@@ -78,7 +78,7 @@ export function Home(p: HomeProps): JSX.Element {
           <aside
             aria-labelledby="h-friends"
             className="glass rise"
-            style={{ '--i': 3, flex: '1 1 300px', minWidth: 0, padding: 22, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}
+            style={{ '--i': 3, flex: '1 1 300px', minWidth: 0, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}
           >
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
               <h2 id="h-friends" className="h2" style={{ flex: 1 }}>
@@ -100,7 +100,7 @@ function ContinueCard(p: HomeProps): JSX.Element {
     <section
       aria-labelledby="h-continue"
       className="glass glass--hero glass--raised rise"
-      style={{ '--i': 1, overflow: 'hidden', padding: 34, display: 'flex', flexWrap: 'wrap', gap: 30, alignItems: 'center' } as CSSProperties}
+      style={{ '--i': 1, overflow: 'hidden', padding: 32, display: 'flex', flexWrap: 'wrap', gap: 32, alignItems: 'center' } as CSSProperties}
     >
       <div style={{ flex: '1 1 340px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <span className="chip">Continue together</span>
@@ -111,12 +111,12 @@ function ContinueCard(p: HomeProps): JSX.Element {
           {c.subtitle}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 420 }}>
-          <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
-            <div style={{ width: `${Math.round(c.progress * 100)}%`, height: '100%', borderRadius: 3, background: 'var(--progress-grad)' }} />
+          <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(239,233,222,0.14)', overflow: 'hidden' }}>
+            <div style={{ width: `${Math.round(c.progress * 100)}%`, height: '100%', borderRadius: 2, background: 'var(--progress-grad)' }} />
           </div>
           <span className="subtle">{c.leftLabel}</span>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
           <Button variant="primary" size="lg" onClick={p.onResume}>
             <Icon name="play" size={16} />
             Resume together
@@ -133,12 +133,12 @@ function ContinueCard(p: HomeProps): JSX.Element {
             height: 214,
             borderRadius: 20,
             background: c.posterUrl ? `center/cover url("${c.posterUrl}")` : c.gradient,
-            boxShadow: '0 24px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25)',
-            border: '1px solid rgba(255,255,255,0.18)',
+            
+            border: '1px solid rgba(239,233,222,0.18)',
             display: 'flex',
             alignItems: 'flex-end',
-            padding: 14,
-            fontWeight: 800,
+            padding: 16,
+            fontWeight: 500,
             fontSize: 16,
             lineHeight: 1.15
           }}
@@ -153,10 +153,10 @@ function ContinueCard(p: HomeProps): JSX.Element {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '6px 12px 6px 6px',
+                padding: '8px 12px 8px 8px',
                 borderRadius: 999,
-                background: 'rgba(255,255,255,0.10)',
-                border: '1px solid rgba(255,255,255,0.16)'
+                background: 'rgba(239,233,222,0.10)',
+                border: '1px solid rgba(239,233,222,0.16)'
               }}
             >
               <Avatar name={person.name} id={person.id} photoUrl={person.photoUrl} size={26} />
@@ -192,10 +192,10 @@ function TrendingGrid({ items, onOpen }: { items: TrendingVM[] | null; onOpen: (
         >
           {t.rating ? <span className="poster__rating">{t.rating.toFixed(1)}</span> : null}
           <span className="poster__caption">
-            <span className="truncate" style={{ fontWeight: 700, fontSize: 13 }}>
+            <span className="truncate" style={{ fontWeight: 500, fontSize: 13 }}>
               {t.title}
             </span>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>{t.service}</span>
+            <span style={{ fontSize: 11, color: 'rgba(239,233,222,0.8)' }}>{t.service}</span>
           </span>
         </button>
       ))}

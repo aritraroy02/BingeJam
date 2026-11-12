@@ -107,7 +107,7 @@ export function MessageList({
                   <Icon name="play" size={16} />
                 </span>
                 <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <span style={{ fontWeight: 700 }}>Watched {m.title} together</span>
+                  <span style={{ fontWeight: 500 }}>Watched {m.title} together</span>
                   <span className="watched-card__detail">
                     {m.durationLabel} · {m.detail}
                   </span>

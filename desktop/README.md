@@ -23,10 +23,10 @@ npm run dev               # app with hot reload
 ## Layout
 | Path | What |
 |---|---|
-| `design/` | The mock-ups (1440×900): Home, 1:1 chat, group chat, room, Go Live, Add to browser. Source of truth for the UI |
+| `design/` | The first mock-ups (1440×900): Home, 1:1 chat, group chat, room, Go Live, Add to browser. Layout reference only: the look changed in the 2026-11-12 unslop (see `styles/`) |
 | `src/main/` | Electron main process: window, single instance, `bingejam://` links, IPC |
 | `src/preload/` | `window.bingejam` bridge (typed in `bridge.d.ts`) |
-| `src/renderer/src/styles/` | Design tokens, glass components, motion (values copied from `design/`) |
+| `src/renderer/src/styles/` | Design tokens and components, the source of truth for the look since the 2026-11-12 unslop: warm near-black ramp, one solid red accent, the two friend dots for live/in sync, glass only on floating layers. Same direction as the Android app and the website |
 | `src/renderer/src/ui/` | Icons, primitives (Button, Avatar…), navigation, backdrop, view models |
 | `src/renderer/src/screens/` | Screens; they take view models as props |
 | `src/renderer/src/lib/` | Firebase setup and sign-in (email link, same provider as the phone) |

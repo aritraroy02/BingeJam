@@ -1,21 +1,11 @@
 import type { ButtonHTMLAttributes, CSSProperties, JSX, ReactNode } from 'react'
 
-// Avatar colours from the design, picked from a stable hash of the user id so a friend
-// always gets the same colour (like the Android app's initials avatars).
-const AVATAR_GRADIENTS = [
-  ['#34D399', '#059669'],
-  ['#FB923C', '#EA580C'],
-  ['#EC4899', '#BE185D'],
-  ['#818CF8', '#4F46E5'],
-  ['#F472B6', '#DB2777'],
-  ['#38BDF8', '#0284C7'],
-  ['#FBBF24', '#D97706'],
-  ['#A78BFA', '#7C3AED']
-] as const
+// Muted warm tones for initials avatars (same five as the Android app), picked from a stable hash
+// of the user id so a friend always gets the same one. Photos carry the colour; these stay quiet.
+const AVATAR_TONES = ['#7A2E2A', '#7A5A24', '#4D5A2E', '#2F4F55', '#5B3A4A'] as const
 
-// Light tint of each gradient, for a sender's name above their chat bubble (design: Riya #A7F3D0,
-// Kabir #FED7AA, Meera #FBCFE8). Same order as AVATAR_GRADIENTS.
-const AVATAR_TINTS = ['#A7F3D0', '#FED7AA', '#FBCFE8', '#C7D2FE', '#FBCFE8', '#BAE6FD', '#FDE68A', '#DDD6FE'] as const
+// A lighter version of each tone, for a sender's name above their bubble in group chats.
+const AVATAR_TINTS = ['#E3A39D', '#E2C28C', '#BCC896', '#9CC1C7', '#D3A9BC'] as const
 
 function hash(text: string): number {
   let h = 0
@@ -51,18 +41,18 @@ export function Avatar({
   photoUrl?: string | null
   size?: number
   online?: boolean
-  /** Gradient ring for someone watching or listening right now. */
+  /** Accent ring for someone watching or listening right now. */
   ring?: boolean
   /** Group chats show two initials. */
   group?: boolean
   /** Offline people in member lists: plain grey with two initials (design: Ananya "AI"). */
   muted?: boolean
 }): JSX.Element {
-  const [from, to] = AVATAR_GRADIENTS[hash(id ?? name) % AVATAR_GRADIENTS.length]
+  const tone = AVATAR_TONES[hash(id ?? name) % AVATAR_TONES.length]
   const style = {
     '--size': `${size}px`,
-    backgroundImage: photoUrl ? `url("${photoUrl}")` : muted ? 'none' : `linear-gradient(140deg, ${from}, ${to})`,
-    backgroundColor: muted && !photoUrl ? 'rgba(255,255,255,0.14)' : undefined
+    backgroundImage: photoUrl ? `url("${photoUrl}")` : 'none',
+    backgroundColor: photoUrl ? undefined : muted ? 'var(--raised-2)' : tone
   } as CSSProperties
   const avatar = (
     <span className="avatar" style={style} aria-hidden="true">
@@ -109,6 +99,17 @@ export function Badge({ count }: { count: number }): JSX.Element | null {
   return <span className="badge">{count > 99 ? '99+' : count}</span>
 }
 
+/** Signature mark: two friend dots (red, orange) for anything live or in sync, like the phone app. */
+export function SyncDots(): JSX.Element {
+  return (
+    <span className="sync-dots" aria-hidden="true">
+      <i />
+      <i />
+    </span>
+  )
+}
+
+/** One status dot: online (green), streaming (red) or, inside a warning chip, amber. */
 export function LiveDot({ red = false, small = false }: { red?: boolean; small?: boolean }): JSX.Element {
   const classes = ['live-dot', red ? 'live-dot--red' : '', small ? 'live-dot--sm' : '']
   return <span className={classes.filter(Boolean).join(' ')} aria-hidden="true" />
@@ -125,7 +126,7 @@ export function Segmented<T extends string>({
   options: { value: T; label: string }[]
   value: T
   onChange: (value: T) => void
-  /** segmented--lg: the Go Live pickers (40px); segmented--accent: the chosen one in the brand gradient. */
+  /** segmented--lg: the Go Live pickers (40px); segmented--accent: the chosen one in the accent. */
   className?: string
 }): JSX.Element {
   return (

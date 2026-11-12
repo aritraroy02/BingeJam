@@ -27,7 +27,7 @@ export function Friends(p: FriendsProps): JSX.Element {
       <section
         aria-labelledby="h-friends-tab"
         className="glass rise"
-        style={{ '--i': 1, flex: '999 1 520px', minWidth: 0, padding: 22, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}
+        style={{ '--i': 1, flex: '999 1 520px', minWidth: 0, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
           <h2 id="h-friends-tab" className="h2" style={{ flex: 1 }}>
@@ -43,7 +43,7 @@ export function Friends(p: FriendsProps): JSX.Element {
         />
       </section>
 
-      <div className="scroll" style={{ flex: '1 1 400px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -6, padding: 6 }}>
+      <div className="scroll" style={{ flex: '1 1 400px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -6, padding: 8 }}>
         <AddFriend onAddFriend={p.onAddFriend} />
         <RequestsPanel
           title="Friend requests"
@@ -108,14 +108,14 @@ function AddFriend({ onAddFriend }: { onAddFriend: (username: string) => Promise
   }
 
   return (
-    <section aria-labelledby="h-add-friend" className="glass glass--raised rise" style={{ '--i': 2, padding: 22, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}>
+    <section aria-labelledby="h-add-friend" className="glass glass--raised rise" style={{ '--i': 2, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}>
       <h2 id="h-add-friend" className="h3">
         Add friend
       </h2>
       <p id={hintId} className="muted small" style={{ margin: 0, lineHeight: 1.5 }}>
         Usernames are private, so type their exact username. They get a request and can accept it on their phone or PC.
       </p>
-      <form onSubmit={submit} style={{ display: 'flex', gap: 10 }}>
+      <form onSubmit={submit} style={{ display: 'flex', gap: 12 }}>
         <label htmlFor={id} className="sr-only">
           Exact username
         </label>
@@ -126,7 +126,7 @@ function AddFriend({ onAddFriend }: { onAddFriend: (username: string) => Promise
           <input
             id={id}
             className="field"
-            style={{ paddingLeft: 34 }}
+            style={{ paddingLeft: 32 }}
             placeholder="exact.username"
             autoComplete="off"
             spellCheck={false}
@@ -146,7 +146,7 @@ function AddFriend({ onAddFriend }: { onAddFriend: (username: string) => Promise
         </Button>
       </form>
       {result ? (
-        <p role={result.ok ? 'status' : 'alert'} style={{ margin: 0, fontSize: 13, color: result.ok ? 'var(--live-soft)' : '#FECDD3' }}>
+        <p role={result.ok ? 'status' : 'alert'} style={{ margin: 0, fontSize: 13, color: result.ok ? 'var(--live-soft)' : 'var(--accent-text)' }}>
           {result.message}
         </p>
       ) : null}
@@ -169,7 +169,7 @@ function RequestsPanel({
 }): JSX.Element {
   const headingId = useId()
   return (
-    <section aria-labelledby={headingId} className="glass rise" style={{ '--i': i, padding: 22, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}>
+    <section aria-labelledby={headingId} className="glass rise" style={{ '--i': i, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}>
       <h2 id={headingId} className="h3">
         {title}
         {requests && requests.length > 0 ? ` · ${requests.length}` : ''}
@@ -190,7 +190,7 @@ function RequestsPanel({
               {r.sentLabel}
             </span>
           </span>
-          <span style={{ display: 'flex', gap: 6 }}>{actions(r)}</span>
+          <span style={{ display: 'flex', gap: 8 }}>{actions(r)}</span>
         </div>
       ))}
     </section>
