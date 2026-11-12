@@ -17,6 +17,8 @@ export interface FriendsProps {
   onAccept: (uid: string) => void
   onDecline: (uid: string) => void
   onCancelRequest: (uid: string) => void
+  onUnblockUser?: (uid: string) => void
+  onUnblockGroup?: (gid: string) => void
 }
 
 export function Friends(p: FriendsProps): JSX.Element {
@@ -43,7 +45,7 @@ export function Friends(p: FriendsProps): JSX.Element {
         />
       </section>
 
-      <div className="scroll" style={{ flex: '1 1 400px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -6, padding: 8 }}>
+      <div className="scroll" style={{ flex: '1 1 400px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -8, padding: 8 }}>
         <AddFriend onAddFriend={p.onAddFriend} />
         <RequestsPanel
           title="Friend requests"
@@ -74,8 +76,61 @@ export function Friends(p: FriendsProps): JSX.Element {
             )}
           />
         ) : null}
+        {p.data.blockedPeople && p.data.blockedPeople.length > 0 ? (
+          <BlockedPanel
+            title="Blocked"
+            i={5}
+            rows={p.data.blockedPeople.map((b) => ({ id: b.id, name: b.name, detail: b.username ? `@${b.username}` : '', photoUrl: b.photoUrl }))}
+            onUnblock={(id) => p.onUnblockUser?.(id)}
+          />
+        ) : null}
+        {p.data.blockedGroups && p.data.blockedGroups.length > 0 ? (
+          <BlockedPanel
+            title="Blocked groups"
+            i={6}
+            group
+            rows={p.data.blockedGroups.map((g) => ({ id: g.id, name: g.name, detail: 'Nobody can add you to it', photoUrl: null }))}
+            onUnblock={(id) => p.onUnblockGroup?.(id)}
+          />
+        ) : null}
       </div>
     </div>
+  )
+}
+
+/** People or groups you blocked, each with Unblock (2026-11-10, same as the phone's Friends screen). */
+function BlockedPanel({
+  title,
+  i,
+  rows,
+  group = false,
+  onUnblock
+}: {
+  title: string
+  i: number
+  rows: { id: string; name: string; detail: string; photoUrl: string | null }[]
+  group?: boolean
+  onUnblock: (id: string) => void
+}): JSX.Element {
+  const headingId = useId()
+  return (
+    <section aria-labelledby={headingId} className="glass rise" style={{ '--i': i, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } as CSSProperties}>
+      <h2 id={headingId} className="h3">
+        {title} · {rows.length}
+      </h2>
+      {rows.map((r) => (
+        <div key={r.id} className="member-row">
+          <Avatar name={r.name} id={r.id} photoUrl={r.photoUrl} size={40} group={group} />
+          <span className="member-row__text">
+            <span className="member-row__name truncate">{r.name}</span>
+            {r.detail ? <span className="member-row__detail">{r.detail}</span> : null}
+          </span>
+          <Button size="xs" aria-label={`Unblock ${r.name}`} onClick={() => onUnblock(r.id)}>
+            Unblock
+          </Button>
+        </div>
+      ))}
+    </section>
   )
 }
 

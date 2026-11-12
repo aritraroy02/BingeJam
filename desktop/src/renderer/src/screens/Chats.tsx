@@ -4,6 +4,7 @@ import { Avatar, Badge, Button, SyncDots } from '@/ui/primitives'
 import { Composer, MessageList } from '@/ui/chat'
 import { ConfirmDialog, Dialog } from '@/ui/Dialog'
 import { MenuButton, type MenuItem } from '@/ui/Menu'
+import { ReportDialog, type ReportReasonValue } from '@/ui/ReportDialog'
 import { firstName, joinNames } from '@/ui/format'
 import type { ChatHeaderVM, ChatSummaryVM, GroupMemberVM, MessageVM, PersonVM } from '@/ui/models'
 
@@ -38,9 +39,15 @@ export interface ChatsProps {
   onAddPeople: (memberIds: string[]) => void
   onDeleteChat: () => void
   onDismissStartRoomTip: () => void
+  /** 1:1 chats: block the friend (2026-11-10, same as the phone). */
+  onBlock?: () => void
+  /** Groups: exit and stop anyone adding you back. */
+  onBlockGroup?: () => void
+  /** Report the person or group; [block] also blocks (or, for a group, exits and blocks). */
+  onReport?: (reason: ReportReasonValue, details: string | null, block: boolean) => void
 }
 
-type DialogKind = 'newGroup' | 'addPeople' | 'delete' | null
+type DialogKind = 'newGroup' | 'addPeople' | 'delete' | 'block' | 'report' | null
 
 export function Chats(p: ChatsProps): JSX.Element {
   const [dialog, setDialog] = useState<DialogKind>(null)
@@ -67,6 +74,8 @@ export function Chats(p: ChatsProps): JSX.Element {
           renaming={renaming}
           setRenaming={setRenaming}
           onAskDelete={() => setDialog('delete')}
+          onAskBlock={p.onBlock || p.onBlockGroup ? () => setDialog('block') : undefined}
+          onAskReport={p.onReport ? () => setDialog('report') : undefined}
           solo={solo}
           onOpenAddPeople={() => setDialog('addPeople')}
         />
@@ -112,6 +121,31 @@ export function Chats(p: ChatsProps): JSX.Element {
         danger
         onConfirm={p.onDeleteChat}
         onClose={() => setDialog(null)}
+      />
+      <ConfirmDialog
+        open={dialog === 'block'}
+        title={isGroup ? `Block ${p.header?.name ?? 'this group'}?` : `Block ${p.header?.name ?? 'them'}?`}
+        description={
+          isGroup
+            ? "You'll exit the group, and nobody can add you back or invite you to it. You can unblock it from Friends."
+            : "You won't be friends any more. They can't message you, send you requests or see your activity. You can unblock them from Friends."
+        }
+        confirmLabel={isGroup ? 'Exit and block' : 'Block'}
+        danger
+        onConfirm={() => (isGroup ? p.onBlockGroup?.() : p.onBlock?.())}
+        onClose={() => setDialog(null)}
+      />
+      <ReportDialog
+        open={dialog === 'report'}
+        title={`Report ${p.header?.name ?? ''}`.trim()}
+        evidenceNote={
+          isGroup
+            ? 'The last 5 messages from others in this group are sent with your report so it can be reviewed. Nobody in the group is told.'
+            : `${firstName(p.header?.name ?? 'Their')}'s last 5 messages in this chat are sent with your report so it can be reviewed. ${firstName(p.header?.name ?? 'They')} isn't told.`
+        }
+        blockLabel={isGroup ? 'Also exit and block this group' : `Also block ${firstName(p.header?.name ?? 'them')}`}
+        onClose={() => setDialog(null)}
+        onSubmit={(reason, details, block) => p.onReport?.(reason, details, block)}
       />
     </div>
   )
@@ -241,6 +275,8 @@ function ChatView(
     renaming: boolean
     setRenaming: (v: boolean) => void
     onAskDelete: () => void
+    onAskBlock?: () => void
+    onAskReport?: () => void
     solo: boolean
     onOpenAddPeople: () => void
   }
@@ -264,7 +300,9 @@ function ChatView(
 
   const menu: MenuItem[] = [
     ...(isGroup ? [{ label: p.membersOpen ? 'Hide members' : 'Show members', icon: 'users' as const, onSelect: p.onToggleMembers }] : []),
-    { label: 'Delete chat', icon: 'trash', danger: true, onSelect: p.onAskDelete }
+    { label: 'Delete chat', icon: 'trash', danger: true, onSelect: p.onAskDelete },
+    ...(p.onAskBlock ? [{ label: isGroup ? 'Block group' : `Block ${firstName(h.name)}`, icon: 'block' as const, danger: true, onSelect: p.onAskBlock }] : []),
+    ...(p.onAskReport ? [{ label: isGroup ? 'Report group' : `Report ${firstName(h.name)}`, icon: 'flag' as const, danger: true, onSelect: p.onAskReport }] : [])
   ]
 
   const roomButtonLabel = h.room ? (h.room.meInRoom ? 'Open room' : 'Join room') : null

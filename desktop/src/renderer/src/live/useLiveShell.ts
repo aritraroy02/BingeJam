@@ -30,6 +30,8 @@ import {
   type Profile
 } from '@/data'
 import { agoShort } from '@/data/format'
+import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUser, useBlockedGroups, useBlockedPeople } from '@/data/safety'
+import { dmFriend } from '@/data/ids'
 import { isGroupId } from '@/data/ids'
 import { useProfiles } from '@/data/live'
 import { useServerNow } from '@/data/clock'
@@ -74,6 +76,8 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const chats = useChats()
   const friends = useFriends()
   const requests = useFriendRequests()
+  const blockedPeople = useBlockedPeople()
+  const blockedGroups = useBlockedGroups()
   const now = useServerNow()
 
   // ---------- The open chat ----------
@@ -217,7 +221,13 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       startWithWindows: null,
       version
     },
-    friends: { friends, requests: friendRequestVMs, sent: [] },
+    friends: {
+      friends,
+      requests: friendRequestVMs,
+      sent: [],
+      blockedPeople: blockedPeople?.map((b) => ({ id: b.uid, name: b.name, username: b.username, photoUrl: b.photoUrl })) ?? null,
+      blockedGroups
+    },
     badges: { chats: unread || undefined, friends: requests?.length || undefined },
     notice,
     act: {
@@ -236,6 +246,25 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           fail("Couldn't add them")
         ),
       deleteChat: (id) => void (isGroupId(id) ? leaveGroup(id) : deleteChat(id)).catch(fail("Couldn't do that")),
+      safety: {
+        block: (id) => {
+          const friendUid = dmFriend(id, uid)
+          if (!friendUid) return
+          void blockUser(friendUid).then(() => setNotice('Blocked'), fail("Couldn't block them"))
+        },
+        blockGroup: (id) => {
+          const name = header?.chatId === id ? header.name : 'Group'
+          void blockGroup(id, name).then(() => setNotice(`Exited and blocked ${name}`), fail("Couldn't block the group"))
+        },
+        report: (id, reason, details, block) => {
+          const name = header?.chatId === id ? header.name : ''
+          const friendUid = dmFriend(id, uid)
+          const done = friendUid ? reportUser(friendUid, name, reason, details, block) : reportGroup(id, name, reason, details, block)
+          void done.then(() => setNotice(block ? 'Reported and blocked' : 'Thanks. Your report was sent.'), fail("Couldn't send the report"))
+        },
+        unblockUser: (who) => void unblockUser(who).then(() => setNotice('Unblocked'), fail("Couldn't unblock them")),
+        unblockGroup: (gid) => void unblockGroup(gid).then(() => setNotice('Unblocked. Its admins can add you again.'), fail("Couldn't unblock the group"))
+      },
       startRoom: (id) => void enterRoom(id),
       joinRoom: (id) => void enterRoom(id),
       leaveRoom: () => void leaveChatRoom().catch(fail("Couldn't leave the room")),

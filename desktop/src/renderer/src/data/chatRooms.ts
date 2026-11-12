@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { get, onDisconnect, onValue, ref, remove, serverTimestamp, set, update } from 'firebase/database'
+import { get, onDisconnect, onValue, ref, remove, runTransaction, serverTimestamp, set, update } from 'firebase/database'
 import { db } from '@/lib/firebase'
 import { dmFriend, isRoomCode, newRoomCode } from './ids.ts'
 import { isPermissionDenied, requireUid } from './live.ts'
@@ -22,6 +22,8 @@ interface Active {
   code: string
   linkPath: string
   me: string
+  /** Our display name, so a reconnect adds us back if the last one out removed us while offline. */
+  name: string
 }
 
 let active: Active | null = null
@@ -63,7 +65,7 @@ function arm(a: Active): void {
   const member = ref(db, `rooms/${a.code}/members/${a.me}`)
   onDisconnect(member)
     .update({ online: false, lastSeen: serverTimestamp() })
-    .then(() => update(member, { online: true, lastSeen: serverTimestamp() }))
+    .then(() => update(member, { name: a.name, online: true, lastSeen: serverTimestamp() }))
     .catch(log('member presence'))
   const mark = ref(db, `${a.linkPath}/in/${a.me}`)
   onDisconnect(mark).remove().catch(log('link onDisconnect'))
@@ -141,7 +143,7 @@ export async function startOrJoinChatRoom(chatId: string, options: { reuseCode?:
   if (link) {
     try {
       await joinRoom(link.code, me, name)
-      await enter({ chatId, code: link.code, linkPath, me })
+      await enter({ chatId, code: link.code, linkPath, me, name })
       return link.code
     } catch (e) {
       // The linked room is gone: start a new one below.
@@ -156,7 +158,7 @@ export async function startOrJoinChatRoom(chatId: string, options: { reuseCode?:
     code = await createRoom(me, name)
   }
   await set(ref(db, linkPath), linkStartPayload(me, code, serverTimestamp()))
-  await enter({ chatId, code, linkPath, me })
+  await enter({ chatId, code, linkPath, me, name })
   if (friend) await inviteFriend(friend, me, code).catch(log('invite'))
   return code
 }
@@ -164,7 +166,9 @@ export async function startOrJoinChatRoom(chatId: string, options: { reuseCode?:
 /**
  * Leaves the chat room we're in (optionally only if it's [chatId]'s): off the chat's "in" list and
  * out of rooms/{code}/members, like Android's ChatRoomTracker + FirebaseSyncTransport.leaveRoom.
- * The room ends for the chat when its list is empty. Call it before signing out.
+ * The last one out also deletes the room (2026-11-10, same as the phone): when nobody else is
+ * online, offline members go with us, then the room, its preview, chat and reactions, and the
+ * chat's link if its "in" list is empty. Call it before signing out.
  */
 export async function leaveChatRoom(chatId?: string): Promise<void> {
   const a = active
@@ -172,10 +176,46 @@ export async function leaveChatRoom(chatId?: string): Promise<void> {
   stopConnection?.()
   stopConnection = null
   setActive(null)
+  const members = ref(db, `rooms/${a.code}/members`)
   const member = ref(db, `rooms/${a.code}/members/${a.me}`)
   const mark = ref(db, `${a.linkPath}/in/${a.me}`)
   await Promise.allSettled([onDisconnect(member).cancel(), onDisconnect(mark).cancel()])
-  await Promise.allSettled([remove(mark), remove(member)])
+  // Read before leaving: once we're out we can't read the room.
+  const others = await get(members)
+    .then((s) => Object.entries((s.val() ?? {}) as Record<string, { online?: unknown }>).filter(([uid]) => uid !== a.me))
+    .catch(() => null)
+  await remove(mark).catch(log('link presence'))
+  await dropLinkIfEmpty(a.linkPath, a.code)
+  if (others === null || others.some(([, m]) => m?.online === true)) {
+    await remove(member).catch(log('leave'))
+    return
+  }
+  const leaving: Record<string, null> = { [a.me]: null }
+  for (const [uid] of others) leaving[uid] = null
+  try {
+    await update(members, leaving)
+  } catch (e) {
+    // Refused (someone came back online meanwhile): just leave, as before.
+    log('remove offline members')(e)
+    await remove(member).catch(log('leave'))
+    return
+  }
+  await update(ref(db), {
+    [`rooms/${a.code}`]: null,
+    [`previews/${a.code}`]: null,
+    [`chats/${a.code}`]: null,
+    [`reactions/${a.code}`]: null
+  }).catch(log('delete room'))
+}
+
+/** Removes the chat's room link when nobody's in it (a transaction, so a room started meanwhile stays). */
+async function dropLinkIfEmpty(linkPath: string, code: string): Promise<void> {
+  await runTransaction(ref(db, linkPath), (current: { code?: unknown; in?: Record<string, unknown> } | null) => {
+    if (current === null) return current
+    if (current.code !== code) return undefined
+    if (current.in && Object.keys(current.in).length > 0) return undefined
+    return null
+  }).catch(log('drop room link'))
 }
 
 // ---------- Pings ----------

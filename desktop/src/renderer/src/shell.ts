@@ -17,6 +17,7 @@ import type {
   StreamVM,
   TrendingVM
 } from '@/ui/models'
+import type { ReportReasonValue } from '@/ui/ReportDialog'
 
 // Everything the app shell (App.tsx) needs: the view models for every screen plus what each button
 // does. Demo mode fills it from demo/useDemo.ts; the Firebase data layer fills it for real accounts.
@@ -97,6 +98,14 @@ export interface ShellActions {
     outputDevice: (id: string | null) => void
     pushToTalkKey: (key: string | null) => void
     startWithWindows: (on: boolean) => void
+  }
+  /** Report and block (2026-11-10): people from their 1:1 chat, groups from the group. */
+  safety: {
+    block: (chatId: string) => void
+    blockGroup: (chatId: string) => void
+    report: (chatId: string, reason: ReportReasonValue, details: string | null, block: boolean) => void
+    unblockUser: (uid: string) => void
+    unblockGroup: (gid: string) => void
   }
   friends: {
     add: (username: string) => Promise<AddFriendResult>

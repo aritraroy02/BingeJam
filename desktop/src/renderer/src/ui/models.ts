@@ -198,6 +198,10 @@ export interface FriendsVM {
   requests: FriendRequestVM[] | null
   /** Requests you sent that are still waiting. */
   sent: FriendRequestVM[] | null
+  /** People you blocked (unblock here). null = loading. */
+  blockedPeople?: { id: string; name: string; username: string; photoUrl: string | null }[] | null
+  /** Groups you exited and blocked. */
+  blockedGroups?: { id: string; name: string }[] | null
 }
 
 /** What "Add friend" says back: "Request sent to @riya", "No one has that username". */

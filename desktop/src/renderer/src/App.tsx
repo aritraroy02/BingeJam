@@ -301,6 +301,21 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
             act.deleteChat(chatId)
             setChatId(null)
           }}
+          onBlock={() => {
+            if (!chatId) return
+            act.safety.block(chatId)
+            setChatId(null)
+          }}
+          onBlockGroup={() => {
+            if (!chatId) return
+            act.safety.blockGroup(chatId)
+            setChatId(null)
+          }}
+          onReport={(reason, details, block) => {
+            if (!chatId) return
+            act.safety.report(chatId, reason, details, block)
+            if (block) setChatId(null)
+          }}
           onDismissStartRoomTip={() => {
             setTipOff(true)
             try {
@@ -327,6 +342,8 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onAccept={act.friends.accept}
           onDecline={act.friends.decline}
           onCancelRequest={act.friends.cancel}
+          onUnblockUser={act.safety.unblockUser}
+          onUnblockGroup={act.safety.unblockGroup}
         />
       )
       break

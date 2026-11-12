@@ -159,6 +159,13 @@ export function useDemo(): ShellData {
       send: (text) => setStreamChat((m) => [...m, myText(text)])
     },
     addToBrowser: () => undefined,
+    safety: {
+      block: (chatId) => setChats((cs) => cs.filter((c) => c.chatId !== chatId)),
+      blockGroup: (chatId) => setChats((cs) => cs.filter((c) => c.chatId !== chatId)),
+      report: () => undefined,
+      unblockUser: () => undefined,
+      unblockGroup: () => undefined
+    },
     settings: {
       signOut: () => undefined,
       inputDevice: (inputId) => setSettings((s) => ({ ...s, voice: { ...s.voice, inputId } })),

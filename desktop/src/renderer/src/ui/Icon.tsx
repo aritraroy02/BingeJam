@@ -120,6 +120,18 @@ const STROKE: Record<string, JSX.Element> = {
       <path d="M16 3v4M8 3v4M3 10h18" />
     </>
   ),
+  block: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M5.6 5.6l12.8 12.8" />
+    </>
+  ),
+  flag: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 4h11l-2 4 2 4H5" />
+    </>
+  ),
   users: (
     <>
       <circle cx="9" cy="8" r="4" />
