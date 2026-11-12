@@ -99,6 +99,10 @@ export interface ChatHeaderVM {
   } | null
   /** Group only. */
   canRename?: boolean
+  /** Group only: false when only admins may send and we're not one. */
+  canSend?: boolean
+  /** Group only: our role and the group's settings (Group info, 2026-11-10). */
+  group?: { amAdmin: boolean; onlyAdminsSend: boolean; onlyAdminsEdit: boolean }
 }
 
 export interface GroupMemberVM extends PersonVM {
@@ -108,6 +112,10 @@ export interface GroupMemberVM extends PersonVM {
   isMe: boolean
   /** Not in the room: can be pinged, or was pinged recently ("Pinged · 1 min"). */
   ping: 'can' | { pingedLabel: string } | null
+  /** Group admin (a quiet "Admin" tag). */
+  admin?: boolean
+  /** Created the group: nobody can remove them or dismiss them as admin. */
+  creator?: boolean
 }
 
 // ---------- Inside a room ----------

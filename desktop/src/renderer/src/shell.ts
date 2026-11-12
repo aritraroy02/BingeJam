@@ -48,6 +48,8 @@ export interface ShellData {
   badges: { chats?: number; friends?: number }
   /** The profile being looked at (App asks for it with profileUid); null when none or loading. */
   profile: ProfileVM | null
+  /** Friends with an unanswered invite to the open group (Add people shows "Invited"). */
+  invited?: string[]
   /** Our private date of birth ("YYYY-MM-DD"), for Edit profile. */
   myBirthDate: string | null
   /** Edit profile is saving or a picture is uploading. */
@@ -106,6 +108,18 @@ export interface ShellActions {
     outputDevice: (id: string | null) => void
     pushToTalkKey: (key: string | null) => void
     startWithWindows: (on: boolean) => void
+  }
+  /** Group admins and settings (2026-11-10). */
+  groups: {
+    setAdmin: (chatId: string, uid: string, admin: boolean) => void
+    remove: (chatId: string, uid: string) => void
+    settings: (chatId: string, onlyAdminsSend: boolean, onlyAdminsEdit: boolean) => void
+  }
+  /** Message actions (2026-11-12): forward to friends, delete in 1:1 chats. */
+  messages: {
+    forward: (text: string, friendIds: string[]) => void
+    deleteForMe: (chatId: string, messageId: string) => void
+    deleteForEveryone: (chatId: string, messageId: string) => void
   }
   /** Someone's profile dialog (2026-11-12). */
   profile: {

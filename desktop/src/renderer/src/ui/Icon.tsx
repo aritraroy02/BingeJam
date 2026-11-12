@@ -120,6 +120,19 @@ const STROKE: Record<string, JSX.Element> = {
       <path d="M16 3v4M8 3v4M3 10h18" />
     </>
   ),
+  copy: (
+    <>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </>
+  ),
+  forward: (
+    <>
+      <path d="M15 5l6 6-6 6" />
+      <path d="M21 11H9a6 6 0 0 0-6 6v2" />
+    </>
+  ),
+  star: <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" />,
   block: (
     <>
       <circle cx="12" cy="12" r="9" />

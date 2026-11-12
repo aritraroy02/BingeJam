@@ -33,6 +33,8 @@ import { agoShort } from '@/data/format'
 import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUser, unfriend, useBlockedGroups, useBlockedPeople } from '@/data/safety'
 import { checkUsername, createProfile, removePhoto, setBirthDate, updateProfile, uploadPhoto, useMyBirthDate } from '@/data/profile'
 import { cancelFriendRequest } from '@/data/friends'
+import { deleteMessageForEveryone, deleteMessageForMe } from '@/data/chats'
+import { removeGroupMember, setGroupAdmin, setGroupSettings, useGroupInvited } from '@/data/groups'
 import { useLive } from '@/data/live'
 import { dmFriend } from '@/data/ids'
 import { isGroupId } from '@/data/ids'
@@ -125,6 +127,9 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const header = useChatHeader(chatId)
   const messages = useChatMessages(chatId)
   const members = useGroupMembers(chatId && isGroupId(chatId) ? chatId : null)
+  const friendIds = useMemo(() => (friends ?? []).map((f) => f.id), [friends])
+  const invitedSet = useGroupInvited(chatId && isGroupId(chatId) && !dmFriend(chatId, uid) ? chatId : null, friendIds)
+  const invited = useMemo(() => [...invitedSet], [invitedSet])
 
   // Read receipts: whenever the chat on screen gets new messages.
   useEffect(() => {
@@ -271,6 +276,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     },
     badges: { chats: unread || undefined, friends: requests?.length || undefined },
     profile: profileVM,
+    invited,
     myBirthDate: myBirthDate.state === 'set' ? myBirthDate.value : null,
     profileBusy,
     notice,
@@ -290,6 +296,24 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           fail("Couldn't add them")
         ),
       deleteChat: (id) => void (isGroupId(id) ? leaveGroup(id) : deleteChat(id)).catch(fail("Couldn't do that")),
+      groups: {
+        setAdmin: (id, who, admin) =>
+          void setGroupAdmin(id, who, admin).then(
+            () => setNotice(admin ? 'Made group admin' : 'Dismissed as admin'),
+            fail(admin ? "Couldn't make them admin" : "Couldn't dismiss them as admin")
+          ),
+        remove: (id, who) => void removeGroupMember(id, who).then(() => setNotice('Removed from the group'), fail("Couldn't remove them")),
+        settings: (id, send, editInfo) => void setGroupSettings(id, send, editInfo).catch(fail("Couldn't change the group settings"))
+      },
+      messages: {
+        forward: (text, ids) =>
+          void Promise.all(ids.map((friendUid) => sendMessage(dmId(uid, friendUid), text, true))).then(
+            () => setNotice(ids.length === 1 ? 'Forwarded' : `Forwarded to ${ids.length} friends`),
+            fail("Couldn't forward it")
+          ),
+        deleteForMe: (id, messageId) => void deleteMessageForMe(id, messageId).catch(fail("Couldn't delete it")),
+        deleteForEveryone: (id, messageId) => void deleteMessageForEveryone(id, messageId).catch(fail("Couldn't delete it"))
+      },
       profile: {
         add: (username) =>
           void sendFriendRequest(username).then(

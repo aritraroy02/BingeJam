@@ -39,7 +39,7 @@ test('latest skips deleted-for-me and anything before "delete chat"; unread coun
 
 test('chats list: DMs with messages or a live room, groups, newest first', () => {
   const room: RoomLink = { code: 'ABCDEF', startedBy: 'f2', startedAt: NOW - 60_000, inRoom: ['f2', 'x'] }
-  const group: Group = { id: '-g', name: 'College Gang', createdBy: 'me', createdAt: NOW - 5 * DAY, members: [{ uid: 'me', admin: true, joinedAt: 1 }] }
+  const group: Group = { id: '-g', name: 'College Gang', createdBy: 'me', createdAt: NOW - 5 * DAY, members: [{ uid: 'me', admin: true, joinedAt: 1 }], onlyAdminsSend: false, onlyAdminsEdit: false }
   const vms = buildChatSummaries(
     [
       { chatId: 'f1_me', friend: { id: 'f1', name: 'Riya' }, latest: text('m', 'me', NOW - 2 * 3_600_000, 'Count me in'), unread: 0, room: null },

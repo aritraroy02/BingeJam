@@ -12,7 +12,7 @@ export interface MenuItem {
  * The ⋮ button with a small glass menu under it. Arrow keys move, Escape closes and returns focus,
  * a click outside closes.
  */
-export function MenuButton({ label, items }: { label: string; items: MenuItem[] }): JSX.Element {
+export function MenuButton({ label, items, small = false }: { label: string; items: MenuItem[]; small?: boolean }): JSX.Element {
   const [open, setOpen] = useState(false)
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
@@ -54,14 +54,14 @@ export function MenuButton({ label, items }: { label: string; items: MenuItem[] 
       <button
         ref={button}
         type="button"
-        className="btn btn--icon pressable"
+        className={small ? 'btn btn--icon btn--sm pressable' : 'btn btn--icon pressable'}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((v) => !v)}
       >
-        <Icon name="more" size={20} />
+        <Icon name="more" size={small ? 16 : 18} />
       </button>
       {open ? (
         <div ref={list} id={id} role="menu" aria-label={label} className="menu" onKeyDown={onKeyDown}>

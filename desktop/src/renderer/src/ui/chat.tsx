@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from 'react'
+import { MenuButton, type MenuItem } from './Menu'
 import type { MessageVM } from './models'
 import { Icon } from './Icon'
 import { avatarTint } from './primitives'
@@ -18,7 +19,8 @@ export function MessageList({
   showSenders,
   label,
   empty,
-  compact = false
+  compact = false,
+  actions
 }: {
   messages: MessageVM[] | null
   /** Which chat this is: a new key scrolls to the bottom and skips the entry animation. */
@@ -30,6 +32,8 @@ export function MessageList({
   empty?: ReactNode
   /** Side panels (room, stream): no padding, narrower gaps, wider bubbles. */
   compact?: boolean
+  /** Copy / Forward / Delete for a text message (a ⋮ next to it, shown on hover and focus). */
+  actions?: (m: Extract<MessageVM, { kind: 'text' }>) => MenuItem[]
 }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
@@ -118,10 +122,11 @@ export function MessageList({
             const prev = all[i - 1]
             const sameSender = prev?.kind === 'text' && prev.senderId === m.senderId
             const name = showSenders && !m.fromMe && !sameSender ? (m.senderName ?? null) : null
-            return (
+            const items = actions?.(m) ?? []
+            const bubble = (
               <div
                 key={m.id}
-                className={`${m.fromMe ? 'bubble bubble--out' : 'bubble'}${m.deleted ? ' bubble--deleted' : ''}${anim}`}
+                className={`${m.fromMe ? 'bubble bubble--out' : 'bubble'}${m.deleted ? ' bubble--deleted' : ''}${items.length > 0 ? '' : anim}`}
                 title={formatTimeOfDay(m.sentAt)}
               >
                 {name ? (
@@ -131,6 +136,15 @@ export function MessageList({
                 ) : null}
                 {m.forwarded && !m.deleted ? <div className="bubble__forwarded">Forwarded</div> : null}
                 {m.deleted ? 'This message was deleted' : m.text}
+              </div>
+            )
+            if (items.length === 0) return bubble
+            return (
+              <div key={m.id} className={`msg-row${m.fromMe ? ' msg-row--out' : ''}${anim}`}>
+                {bubble}
+                <span className="msg-row__menu">
+                  <MenuButton label="Message options" items={items} small />
+                </span>
               </div>
             )
           }

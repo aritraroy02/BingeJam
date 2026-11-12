@@ -209,6 +209,8 @@ export interface Group {
   createdAt: number
   /** Oldest first. */
   members: GroupMember[]
+  onlyAdminsSend: boolean
+  onlyAdminsEdit: boolean
 }
 
 export function parseGroup(id: string, v: unknown): Group | null {
@@ -218,7 +220,17 @@ export function parseGroup(id: string, v: unknown): Group | null {
   const members = Object.entries(obj(o.members) ?? {})
     .map(([uid, m]) => ({ uid, admin: obj(m)?.role === 'admin', joinedAt: num(obj(m)?.joinedAt) ?? 0 }))
     .sort((a, b) => a.joinedAt - b.joinedAt)
-  return { id, name, createdBy: str(o.createdBy) ?? '', createdAt: num(o.createdAt) ?? 0, members }
+  const settings = obj(o.settings)
+  return {
+    id,
+    name,
+    createdBy: str(o.createdBy) ?? '',
+    createdAt: num(o.createdAt) ?? 0,
+    members,
+    // groups/{gid}/settings (2026-11-10): who may send and who may edit the group's info. Missing = everyone.
+    onlyAdminsSend: settings?.send === 'admins',
+    onlyAdminsEdit: settings?.edit === 'admins'
+  }
 }
 
 /** dmRooms/{dmId} or groupRooms/{gid}. Null unless live (someone in the "in" list). */

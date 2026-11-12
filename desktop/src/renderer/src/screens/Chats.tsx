@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type CSSProperties, type FormEvent, type JSX } from 'react'
 import { Icon } from '@/ui/Icon'
-import { Avatar, Badge, Button, SyncDots } from '@/ui/primitives'
+import { Avatar, Badge, Button, Switch, SyncDots } from '@/ui/primitives'
 import { Composer, MessageList } from '@/ui/chat'
 import { ConfirmDialog, Dialog } from '@/ui/Dialog'
 import { MenuButton, type MenuItem } from '@/ui/Menu'
@@ -47,14 +47,28 @@ export interface ChatsProps {
   onReport?: (reason: ReportReasonValue, details: string | null, block: boolean) => void
   /** Someone's profile (the DM header, a group member). */
   onOpenProfile?: (uid: string) => void
+  /** Group admins (2026-11-10): make or dismiss an admin, remove someone, the two settings. */
+  onSetAdmin?: (uid: string, admin: boolean) => void
+  onRemoveMember?: (uid: string) => void
+  onGroupSettings?: (onlyAdminsSend: boolean, onlyAdminsEdit: boolean) => void
+  /** Friends with an unanswered invite to the open group ("Invited" in Add people). */
+  invited?: readonly string[]
+  /** Message actions (2026-11-12): forward a text to friends, delete in a 1:1 chat. */
+  onForward?: (text: string, friendIds: string[]) => void
+  onDeleteForMe?: (messageId: string) => void
+  onDeleteForEveryone?: (messageId: string) => void
 }
 
 type DialogKind = 'newGroup' | 'addPeople' | 'delete' | 'block' | 'report' | null
+
+type TextMessage = Extract<MessageVM, { kind: 'text' }>
 
 export function Chats(p: ChatsProps): JSX.Element {
   const [dialog, setDialog] = useState<DialogKind>(null)
   const [membersOpen, setMembersOpen] = useState(true)
   const [renaming, setRenaming] = useState(false)
+  const [forwarding, setForwarding] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<TextMessage | null>(null)
   const isGroup = p.header?.kind === 'group'
   const showMembers = isGroup && membersOpen
   // A group can start with nobody but its creator: "Just you · add people".
@@ -76,6 +90,8 @@ export function Chats(p: ChatsProps): JSX.Element {
           renaming={renaming}
           setRenaming={setRenaming}
           onAskDelete={() => setDialog('delete')}
+          onForwardMessage={p.onForward ? (m) => setForwarding(m.text) : undefined}
+          onDeleteMessage={p.onDeleteForMe ? (m) => setDeleting(m) : undefined}
           onAskBlock={p.onBlock || p.onBlockGroup ? () => setDialog('block') : undefined}
           onAskReport={p.onReport ? () => setDialog('report') : undefined}
           solo={solo}
@@ -91,6 +107,9 @@ export function Chats(p: ChatsProps): JSX.Element {
           members={p.members}
           onPing={p.onPing}
           onOpenProfile={p.onOpenProfile}
+          onSetAdmin={p.onSetAdmin}
+          onRemoveMember={p.onRemoveMember}
+          onGroupSettings={p.onGroupSettings}
           onAddPeople={() => setDialog('addPeople')}
           onRename={() => setRenaming(true)}
         />
@@ -109,6 +128,7 @@ export function Chats(p: ChatsProps): JSX.Element {
         mode="addPeople"
         friends={p.friends}
         exclude={(p.members ?? []).map((m) => m.id)}
+        invited={p.invited}
         onClose={() => setDialog(null)}
         onDone={(_, ids) => p.onAddPeople(ids)}
       />
@@ -138,6 +158,38 @@ export function Chats(p: ChatsProps): JSX.Element {
         onConfirm={() => (isGroup ? p.onBlockGroup?.() : p.onBlock?.())}
         onClose={() => setDialog(null)}
       />
+      <ForwardDialog
+        open={forwarding !== null}
+        friends={p.friends}
+        onClose={() => setForwarding(null)}
+        onSend={(ids) => forwarding !== null && p.onForward?.(forwarding, ids)}
+      />
+      <Dialog open={deleting !== null} title="Delete message?" onClose={() => setDeleting(null)}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {deleting?.fromMe && !deleting.deleted && p.onDeleteForEveryone ? (
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (deleting) p.onDeleteForEveryone?.(deleting.id)
+                setDeleting(null)
+              }}
+            >
+              Delete for everyone
+            </Button>
+          ) : null}
+          <Button
+            onClick={() => {
+              if (deleting) p.onDeleteForMe?.(deleting.id)
+              setDeleting(null)
+            }}
+          >
+            Delete for me
+          </Button>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>
+            Cancel
+          </Button>
+        </div>
+      </Dialog>
       <ReportDialog
         open={dialog === 'report'}
         title={`Report ${p.header?.name ?? ''}`.trim()}
@@ -280,6 +332,8 @@ function ChatView(
     onAskDelete: () => void
     onAskBlock?: () => void
     onAskReport?: () => void
+    onForwardMessage?: (m: TextMessage) => void
+    onDeleteMessage?: (m: TextMessage) => void
     solo: boolean
     onOpenAddPeople: () => void
   }
@@ -400,6 +454,11 @@ function ChatView(
         {h.room ? <RoomBanner room={h.room} onJoin={p.onJoinRoom} /> : null}
         <MessageList
           messages={p.messages}
+          actions={(m) => [
+            ...(!m.deleted ? [{ label: 'Copy', icon: 'copy' as const, onSelect: () => void navigator.clipboard.writeText(m.text).catch(() => undefined) }] : []),
+            ...(!m.deleted && p.onForwardMessage ? [{ label: 'Forward', icon: 'forward' as const, onSelect: () => p.onForwardMessage?.(m) }] : []),
+            ...(!isGroup && p.onDeleteMessage ? [{ label: 'Delete', icon: 'trash' as const, danger: true, onSelect: () => p.onDeleteMessage?.(m) }] : [])
+          ]}
           resetKey={h.chatId}
           showSenders={isGroup}
           label={`Messages with ${h.name}`}
@@ -427,7 +486,8 @@ function ChatView(
         />
         <Composer
           label={`Message ${isGroup ? h.name : firstName(h.name)}`}
-          placeholder={`Message ${isGroup ? h.name : firstName(h.name)}`}
+          placeholder={isGroup && h.canSend === false ? 'Only admins can send messages' : `Message ${isGroup ? h.name : firstName(h.name)}`}
+          disabled={isGroup && h.canSend === false}
           onSend={p.onSend}
           onTyping={p.onTyping}
           onAttach={isGroup ? undefined : p.onAttach}
@@ -528,6 +588,9 @@ function MembersPanel({
   members,
   onPing,
   onOpenProfile,
+  onSetAdmin,
+  onRemoveMember,
+  onGroupSettings,
   onAddPeople,
   onRename
 }: {
@@ -535,9 +598,23 @@ function MembersPanel({
   members: GroupMemberVM[] | null
   onPing: (uid: string) => void
   onOpenProfile?: (uid: string) => void
+  onSetAdmin?: (uid: string, admin: boolean) => void
+  onRemoveMember?: (uid: string) => void
+  onGroupSettings?: (onlyAdminsSend: boolean, onlyAdminsEdit: boolean) => void
   onAddPeople: () => void
   onRename: () => void
 }): JSX.Element {
+  const amAdmin = header.group?.amAdmin === true
+  // Admins manage everyone but themselves and the creator (same as the rules and the phone).
+  const menuFor = (m: GroupMemberVM): MenuItem[] => {
+    const items: MenuItem[] = []
+    if (onOpenProfile && !m.isMe) items.push({ label: 'View profile', icon: 'friends', onSelect: () => onOpenProfile(m.id) })
+    if (amAdmin && !m.isMe && !m.creator) {
+      if (onSetAdmin) items.push({ label: m.admin ? 'Dismiss as admin' : 'Make group admin', icon: 'star', onSelect: () => onSetAdmin(m.id, !m.admin) })
+      if (onRemoveMember) items.push({ label: 'Remove from group', icon: 'trash', danger: true, onSelect: () => onRemoveMember(m.id) })
+    }
+    return items
+  }
   const inRoom = (members ?? []).filter((m) => m.inRoom)
   const out = (members ?? []).filter((m) => !m.inRoom)
   const live = header.room !== null
@@ -552,22 +629,39 @@ function MembersPanel({
           <>
             <span className="section-label section-label--live">In the room</span>
             {inRoom.map((m) => (
-              <MemberRow key={m.id} member={m} onPing={onPing} onOpen={onOpenProfile} />
+              <MemberRow key={m.id} member={m} onPing={onPing} onOpen={onOpenProfile} menu={menuFor(m)} />
             ))}
             <div className="divider" />
           </>
         ) : null}
         {live && out.length > 0 ? <span className="section-label">Not in the room</span> : null}
         {out.map((m) => (
-          <MemberRow key={m.id} member={m} onPing={onPing} onOpen={onOpenProfile} />
+          <MemberRow key={m.id} member={m} onPing={onPing} onOpen={onOpenProfile} menu={menuFor(m)} />
         ))}
       </div>
+      {amAdmin && onGroupSettings && header.group ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="divider" />
+          <span className="section-label">Group settings</span>
+          <label className="setting-switch">
+            <span>Only admins can send messages</span>
+            <Switch label="Only admins can send messages" checked={header.group.onlyAdminsSend} onChange={(v) => onGroupSettings(v, header.group?.onlyAdminsEdit ?? false)} />
+          </label>
+          <label className="setting-switch">
+            <span>Only admins can edit group info</span>
+            <Switch label="Only admins can edit group info" checked={header.group.onlyAdminsEdit} onChange={(v) => onGroupSettings(header.group?.onlyAdminsSend ?? false, v)} />
+          </label>
+          <span className="subtle">Admins add and remove people and make others admin. Nobody can remove the group&apos;s creator.</span>
+        </div>
+      ) : null}
       <div style={{ display: 'flex', gap: 8 }}>
-        <Button style={{ flex: 1, height: 42, borderRadius: 12, borderColor: 'rgba(239,233,222,0.2)', background: 'rgba(239,233,222,0.08)' }} onClick={onAddPeople}>
-          Add people
-        </Button>
+        {amAdmin ? (
+          <Button style={{ flex: 1, height: 40 }} onClick={onAddPeople}>
+            Add people
+          </Button>
+        ) : null}
         {header.canRename ? (
-          <Button style={{ flex: 1, height: 42, borderRadius: 12, borderColor: 'rgba(239,233,222,0.2)', background: 'rgba(239,233,222,0.08)' }} onClick={onRename}>
+          <Button style={{ flex: 1, height: 40 }} onClick={onRename}>
             Rename group
           </Button>
         ) : null}
@@ -581,12 +675,15 @@ export function MemberRow({
   member: m,
   onPing,
   onOpen,
+  menu = [],
   size = 38
 }: {
   member: GroupMemberVM
   onPing: (uid: string) => void
   /** Their profile (not for "You"). */
   onOpen?: (uid: string) => void
+  /** Group info actions for this member (admins). */
+  menu?: MenuItem[]
   size?: number
 }): JSX.Element {
   return (
@@ -595,7 +692,10 @@ export function MemberRow({
         <Avatar name={m.name} id={m.id} photoUrl={m.photoUrl} size={size} muted={m.online === false} />
       </button>
       <span className="member-row__text">
-        <span className="member-row__name truncate">{m.isMe ? 'You' : m.name}</span>
+        <span className="member-row__name truncate">
+          {m.isMe ? 'You' : m.name}
+          {m.admin ? <span className="admin-tag">Admin</span> : null}
+        </span>
         <span className="member-row__detail truncate">{m.detail}</span>
       </span>
       {m.ping === 'can' ? (
@@ -607,7 +707,51 @@ export function MemberRow({
           {m.ping.pingedLabel}
         </Button>
       ) : null}
+      {menu.length > 0 ? <MenuButton label={`Options for ${m.name}`} items={menu} small /> : null}
     </div>
+  )
+}
+
+/** Forward a message to friends (1:1 chats), like the phone. */
+function ForwardDialog({ open, friends, onClose, onSend }: { open: boolean; friends: PersonVM[] | null; onClose: () => void; onSend: (ids: string[]) => void }): JSX.Element {
+  const [picked, setPicked] = useState<string[]>([])
+  useEffect(() => {
+    if (open) setPicked([])
+  }, [open])
+  return (
+    <Dialog open={open} title="Forward to" onClose={onClose}>
+      {friends === null ? <p className="muted small">Loading friends…</p> : null}
+      <ul className="pick-list">
+        {(friends ?? []).map((f) => (
+          <li key={f.id}>
+            <label className="pick-row">
+              <Avatar name={f.name} id={f.id} photoUrl={f.photoUrl} size={34} />
+              <span style={{ flex: 1, minWidth: 0 }} className="truncate">
+                {f.name}
+              </span>
+              <input
+                type="checkbox"
+                checked={picked.includes(f.id)}
+                onChange={(e) => setPicked((cur) => (e.target.checked ? [...cur, f.id] : cur.filter((id) => id !== f.id)))}
+              />
+            </label>
+          </li>
+        ))}
+      </ul>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="primary"
+          disabled={picked.length === 0}
+          onClick={() => {
+            onSend(picked)
+            onClose()
+          }}
+        >
+          {picked.length > 1 ? `Send to ${picked.length}` : 'Send'}
+        </Button>
+      </div>
+    </Dialog>
   )
 }
 
@@ -618,6 +762,7 @@ function PeopleDialog({
   mode,
   friends,
   exclude,
+  invited = [],
   onClose,
   onDone
 }: {
@@ -625,6 +770,8 @@ function PeopleDialog({
   mode: 'newGroup' | 'addPeople'
   friends: PersonVM[] | null
   exclude: string[]
+  /** Already invited and not answered yet: shown as "Invited", not pickable. */
+  invited?: readonly string[]
   onClose: () => void
   onDone: (name: string, memberIds: string[]) => void
 }): JSX.Element {
@@ -698,11 +845,15 @@ function PeopleDialog({
                   <span style={{ flex: 1, minWidth: 0 }} className="truncate">
                     {f.name}
                   </span>
-                  <input
-                    type="checkbox"
-                    checked={picked.includes(f.id)}
-                    onChange={(e) => setPicked((cur) => (e.target.checked ? [...cur, f.id] : cur.filter((id) => id !== f.id)))}
-                  />
+                  {invited.includes(f.id) ? (
+                    <span className="subtle">Invited</span>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={picked.includes(f.id)}
+                      onChange={(e) => setPicked((cur) => (e.target.checked ? [...cur, f.id] : cur.filter((id) => id !== f.id)))}
+                    />
+                  )}
                 </label>
               </li>
             ))}

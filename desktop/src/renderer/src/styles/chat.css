@@ -514,3 +514,55 @@ button.chat-header__subtitle:hover {
     display: none;
   }
 }
+
+/* A bubble with its ⋮ (Copy, Forward, Delete): the button shows on hover and keyboard focus. */
+.msg-row {
+  align-self: flex-start;
+  max-width: 76%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.msg-row--out {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+.msg-row > .bubble {
+  align-self: auto;
+  max-width: none;
+}
+.msg-row__menu {
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.msg-row:hover .msg-row__menu,
+.msg-row:focus-within .msg-row__menu {
+  opacity: 1;
+}
+.msg-row__menu .menu {
+  right: auto;
+  left: 0;
+}
+.msg-row--out .msg-row__menu .menu {
+  left: auto;
+  right: 0;
+}
+/* Group info: a quiet admin tag next to a member's name. */
+.admin-tag {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--raised-2);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Group settings: a label with its switch on the right. */
+.setting-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}

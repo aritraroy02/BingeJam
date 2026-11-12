@@ -159,6 +159,21 @@ export function useDemo(profileUid: string | null = null): ShellData {
       send: (text) => setStreamChat((m) => [...m, myText(text)])
     },
     addToBrowser: () => undefined,
+    groups: {
+      setAdmin: (chatId, uid, admin) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).map((m) => (m.id === uid ? { ...m, admin } : m)) })),
+      remove: (chatId, uid) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).filter((m) => m.id !== uid) })),
+      settings: (chatId, onlyAdminsSend, onlyAdminsEdit) =>
+        setHeaders((all) => {
+          const h = all[chatId]
+          return h ? { ...all, [chatId]: { ...h, group: { amAdmin: true, onlyAdminsSend, onlyAdminsEdit } } } : all
+        })
+    },
+    messages: {
+      forward: () => undefined,
+      deleteForMe: (chatId, messageId) => setMessages((all) => ({ ...all, [chatId]: (all[chatId] ?? []).filter((m) => m.id !== messageId) })),
+      deleteForEveryone: (chatId, messageId) =>
+        setMessages((all) => ({ ...all, [chatId]: (all[chatId] ?? []).map((m) => (m.id === messageId && m.kind === 'text' ? { ...m, deleted: true, text: '' } : m)) }))
+    },
     profile: {
       add: () => undefined,
       accept: () => undefined,

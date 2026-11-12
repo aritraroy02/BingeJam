@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { limitToLast, onDisconnect, onValue, orderByChild, push, ref, remove, serverTimestamp, set, startAt } from 'firebase/database'
+import { limitToLast, onDisconnect, onValue, orderByChild, push, ref, remove, serverTimestamp, set, startAt, update } from 'firebase/database'
 import type { ChatHeaderVM, ChatSummaryVM, MessageVM, PersonVM } from '@/ui/models'
 import { db } from '@/lib/firebase'
 import {
@@ -235,7 +235,7 @@ export class NotFriendsError extends Error {
 }
 
 /** Sends a text (trimmed, ≤ 1000 chars), then asks the relay to notify their phones. */
-export async function sendMessage(chatId: string, text: string): Promise<void> {
+export async function sendMessage(chatId: string, text: string, forwarded = false): Promise<void> {
   const me = requireUid()
   const trimmed = text.trim().slice(0, MAX_TEXT)
   if (!trimmed) return
@@ -244,7 +244,7 @@ export async function sendMessage(chatId: string, text: string): Promise<void> {
     stopTyping(chatId, me)
     const target = push(ref(db, `dms/${chatId}`))
     try {
-      await set(target, { from: me, text: trimmed, sentAt: serverTimestamp() })
+      await set(target, forwarded ? { from: me, text: trimmed, sentAt: serverTimestamp(), forwarded: true } : { from: me, text: trimmed, sentAt: serverTimestamp() })
     } catch (e) {
       if (isPermissionDenied(e)) throw new NotFriendsError('You can only message friends')
       throw e
@@ -421,8 +421,32 @@ export function useChatHeader(chatId: string | null): ChatHeaderVM | null {
       people: group.members.filter((m) => m.uid !== me).slice(0, 3).map((m) => people.get(m.uid) ?? personOf(null, m.uid)),
       subtitle: groupSubtitle(group.members.length, room),
       room: roomVM,
-      // Any member may rename (rules: groups/$gid/name).
-      canRename: group.members.some((m) => m.uid === me)
+      // Members rename unless only admins may edit the group's info (rules: groups/$gid/name).
+      canRename: group.members.some((m) => m.uid === me && (m.admin || !group.onlyAdminsEdit)),
+      canSend: group.members.some((m) => m.uid === me && (m.admin || !group.onlyAdminsSend)),
+      group: {
+        amAdmin: group.members.some((m) => m.uid === me && m.admin),
+        onlyAdminsSend: group.onlyAdminsSend,
+        onlyAdminsEdit: group.onlyAdminsEdit
+      }
     }
   }, [me, friend, group, room, uids, profiles, extras, snaps, now, chatId])
+}
+
+// ---------- Message actions (2026-11-12, same as the phone's long-press menu) ----------
+
+/** Hides a message (or card) for us only, on all our devices; the friend still sees it. 1:1 chats only. */
+export async function deleteMessageForMe(chatId: string, messageId: string): Promise<void> {
+  const me = requireUid()
+  if (!dmFriend(chatId, me)) throw new Error('Only in 1:1 chats')
+  await set(ref(db, `dmHidden/${me}/${chatId}/${messageId}`), true)
+}
+
+/** Our own message: clears its text and marks it deleted for both of us (the node stays). Can't be undone. */
+export async function deleteMessageForEveryone(chatId: string, messageId: string): Promise<void> {
+  const me = requireUid()
+  const friend = dmFriend(chatId, me)
+  if (!friend) throw new Error('Only in 1:1 chats')
+  await update(ref(db, `dms/${chatId}/${messageId}`), { deleted: true, text: null, forwarded: null })
+  void notifyRelay({ type: 'dm_deleted', to: friend, messageId })
 }

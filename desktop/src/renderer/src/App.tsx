@@ -345,6 +345,13 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
             if (block) setChatId(null)
           }}
           onOpenProfile={onProfileUid}
+          onSetAdmin={(uid, admin) => chatId && act.groups.setAdmin(chatId, uid, admin)}
+          onRemoveMember={(uid) => chatId && act.groups.remove(chatId, uid)}
+          onGroupSettings={(send, editInfo) => chatId && act.groups.settings(chatId, send, editInfo)}
+          invited={data.invited}
+          onForward={act.messages.forward}
+          onDeleteForMe={(id) => chatId && act.messages.deleteForMe(chatId, id)}
+          onDeleteForEveryone={(id) => chatId && act.messages.deleteForEveryone(chatId, id)}
           onDismissStartRoomTip={() => {
             setTipOff(true)
             try {

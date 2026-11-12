@@ -38,6 +38,7 @@ export function useGroupMembers(gid: string | null): GroupMemberVM[] | null {
     if (!me || !gid || !groupSnap || !group) return null
     const talking = parseVoiceMembers(voice?.val)
     void pings // re-render when we ping someone
+    const admins = new Set(group.members.filter((m) => m.admin).map((m) => m.uid))
     return buildGroupMembers(
       group.members.map((m) => ({
         uid: m.uid,
@@ -50,7 +51,7 @@ export function useGroupMembers(gid: string | null): GroupMemberVM[] | null {
       me,
       room,
       now
-    )
+    ).map((vm) => ({ ...vm, admin: admins.has(vm.id), creator: vm.id === group.createdBy }))
   }, [me, groupSnap, group, profiles, presences, voice, room, pings, now, gid])
 }
 
@@ -166,4 +167,25 @@ export async function acceptGroupInvite(gid: string): Promise<void> {
 export async function declineGroupInvite(gid: string): Promise<void> {
   const me = requireUid()
   await remove(ref(db, `groupInvites/${me}/${gid}`))
+}
+
+// ---------- Admins and settings (2026-11-10, same as the phone's Group info) ----------
+
+/** Makes [uid] an admin or dismisses them. The rules refuse it for the creator and for non-admins. */
+export async function setGroupAdmin(gid: string, uid: string, admin: boolean): Promise<void> {
+  requireUid()
+  await set(ref(db, `groups/${gid}/members/${uid}/role`), admin ? 'admin' : 'member')
+}
+
+/** Who may send messages and who may edit the group's info ("all" or "admins"). Admins only. */
+export async function setGroupSettings(gid: string, onlyAdminsSend: boolean, onlyAdminsEdit: boolean): Promise<void> {
+  requireUid()
+  await set(ref(db, `groups/${gid}/settings`), { send: onlyAdminsSend ? 'admins' : 'all', edit: onlyAdminsEdit ? 'admins' : 'all' })
+}
+
+/** Which of [uids] have an unanswered invite to [gid] ("Invited" in Add people). Members may read these. */
+export function useGroupInvited(gid: string | null, uids: readonly string[]): ReadonlySet<string> {
+  const specs = useMemo((): LiveSpec[] => (gid ? uids.map((uid) => ({ key: uid, path: `groupInvites/${uid}/${gid}` })) : []), [gid, uids])
+  const snaps = useLiveMany(specs)
+  return useMemo(() => new Set(uids.filter((uid) => snaps.get(uid)?.exists === true)), [uids, snaps])
 }
