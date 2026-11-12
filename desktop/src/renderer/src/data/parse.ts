@@ -289,12 +289,14 @@ export interface FriendRequest {
   fromUsername: string
   fromDisplayName: string
   sentAt: number
+  /** The invite token when the request came from our invite link. */
+  via: string | null
 }
 
 export function parseFriendRequest(fromUid: string, v: unknown): FriendRequest | null {
   const o = obj(v)
   if (!o) return null
-  return { fromUid, fromUsername: str(o.fromUsername) ?? '', fromDisplayName: str(o.fromDisplayName) ?? '', sentAt: num(o.sentAt) ?? 0 }
+  return { fromUid, fromUsername: str(o.fromUsername) ?? '', fromDisplayName: str(o.fromDisplayName) ?? '', sentAt: num(o.sentAt) ?? 0, via: str(o.via) ?? null }
 }
 
 export interface GroupInvite {

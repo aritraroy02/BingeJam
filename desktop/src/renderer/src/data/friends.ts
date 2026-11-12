@@ -40,6 +40,8 @@ export function useFriends(): FriendVM[] | null {
 
 export interface FriendRequestVM {
   fromUid: string
+  /** The invite token, when it came from someone's invite link. */
+  via: string | null
   name: string
   username: string
   photoUrl: string | null
@@ -59,7 +61,7 @@ export function useFriendRequests(): FriendRequestVM[] | null {
     () =>
       requests?.map((r: FriendRequest) => {
         const p = profiles.get(r.fromUid)
-        return { fromUid: r.fromUid, name: p?.displayName ?? r.fromDisplayName, username: p?.username ?? r.fromUsername, photoUrl: p?.photoUrl ?? null, sentAt: r.sentAt }
+        return { fromUid: r.fromUid, via: r.via, name: p?.displayName ?? r.fromDisplayName, username: p?.username ?? r.fromUsername, photoUrl: p?.photoUrl ?? null, sentAt: r.sentAt }
       }) ?? null,
     [requests, profiles]
   )
@@ -80,7 +82,7 @@ async function exists(path: string): Promise<boolean> {
  * By exact username only (usernames/{key}; prefix listing is denied). If they already asked us,
  * this accepts. Then the relay notifies their phone.
  */
-export async function sendFriendRequest(exactUsername: string): Promise<'sent' | 'accepted' | 'alreadyPending'> {
+export async function sendFriendRequest(exactUsername: string, via?: string): Promise<'sent' | 'accepted' | 'alreadyPending'> {
   const me = requireUid()
   const name = normalizeUsername(exactUsername)
   if (!isValidUsername(name)) throw new FriendRequestError(`No one is called @${name}`)
@@ -96,7 +98,13 @@ export async function sendFriendRequest(exactUsername: string): Promise<'sent' |
     await acceptFriendRequest(them)
     return 'accepted'
   }
-  if (await exists(`friendRequests/${them}/${me}`)) return 'alreadyPending'
+  // Already pending: nothing to do, unless we now have their invite token. Requests can't be edited,
+  // so the old one is withdrawn and sent again with it (same as the phone).
+  const pending = await get(ref(db, `friendRequests/${them}/${me}`))
+  if (pending.exists()) {
+    if (!via || (pending.val() as { via?: unknown })?.via === via) return 'alreadyPending'
+    await cancelFriendRequest(them)
+  }
   const theirs = parseProfile(them, (await get(ref(db, `users/${them}`))).val())
   if (!theirs) throw new FriendRequestError(`No one is called @${name}`)
   try {
@@ -106,7 +114,8 @@ export async function sendFriendRequest(exactUsername: string): Promise<'sent' |
         fromDisplayName: mine.displayName,
         toUsername: theirs.username,
         toDisplayName: theirs.displayName,
-        sentAt: serverTimestamp()
+        sentAt: serverTimestamp(),
+        ...(via ? { via } : {})
       },
       [`sentFriendRequests/${me}/${them}`]: true
     })

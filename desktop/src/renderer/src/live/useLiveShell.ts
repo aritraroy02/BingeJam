@@ -33,6 +33,7 @@ import { agoShort } from '@/data/format'
 import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUser, unfriend, useBlockedGroups, useBlockedPeople } from '@/data/safety'
 import { checkUsername, createProfile, removePhoto, setBirthDate, updateProfile, uploadPhoto, useMyBirthDate } from '@/data/profile'
 import { cancelFriendRequest } from '@/data/friends'
+import { inviteLink, inviteText, myInviteToken, resetInviteToken } from '@/data/invites'
 import { deleteMessageForEveryone, deleteMessageForMe } from '@/data/chats'
 import { removeGroupMember, setGroupAdmin, setGroupSettings, useGroupInvited } from '@/data/groups'
 import { useLive } from '@/data/live'
@@ -86,6 +87,17 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const blockedPeople = useBlockedPeople()
   const blockedGroups = useBlockedGroups()
   const myBirthDate = useMyBirthDate()
+
+  // ---------- Invite link ----------
+  const [inviteToken, setInviteToken] = useState<string | null>(null)
+  useEffect(() => {
+    void myInviteToken().then(setInviteToken, () => undefined)
+  }, [uid])
+  // Fallback for the relay: a request carrying our token becomes a friendship (FriendInvites.acceptInvited).
+  useEffect(() => {
+    if (!inviteToken || !requests) return
+    for (const r of requests) if (r.via === inviteToken) void acceptFriendRequest(r.fromUid).catch(() => undefined)
+  }, [inviteToken, requests])
   const [profileBusy, setProfileBusy] = useState(false)
 
   // ---------- The profile dialog ----------
@@ -277,6 +289,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     badges: { chats: unread || undefined, friends: requests?.length || undefined },
     profile: profileVM,
     invited,
+    invite: { link: inviteToken ? inviteLink(profile.username, inviteToken) : null },
     myBirthDate: myBirthDate.state === 'set' ? myBirthDate.value : null,
     profileBusy,
     notice,
@@ -296,6 +309,17 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           fail("Couldn't add them")
         ),
       deleteChat: (id) => void (isGroupId(id) ? leaveGroup(id) : deleteChat(id)).catch(fail("Couldn't do that")),
+      invite: {
+        copy: () => {
+          if (!inviteToken) return
+          void navigator.clipboard.writeText(inviteText(profile.username, inviteToken)).then(() => setNotice('Invite link copied'), fail("Couldn't copy it"))
+        },
+        reset: () =>
+          void resetInviteToken().then((t) => {
+            setInviteToken(t)
+            setNotice('New link ready. Old links now send you a request instead.')
+          }, fail("Couldn't reset your link"))
+      },
       groups: {
         setAdmin: (id, who, admin) =>
           void setGroupAdmin(id, who, admin).then(
@@ -446,9 +470,11 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       },
       friends: {
         add: async (username) => {
-          const name = username.trim().replace(/^@/, '')
+          // "username#token" comes from a pasted invite link: the token makes it an instant friendship.
+          const [raw, via] = username.trim().replace(/^@/, '').split('#')
+          const name = raw
           try {
-            const r = await sendFriendRequest(name)
+            const r = await sendFriendRequest(name, via || undefined)
             return {
               ok: true,
               message: r === 'accepted' ? `You and @${name} are friends now` : r === 'alreadyPending' ? `Already sent to @${name}` : `Request sent to @${name}`

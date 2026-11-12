@@ -159,6 +159,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
       send: (text) => setStreamChat((m) => [...m, myText(text)])
     },
     addToBrowser: () => undefined,
+    invite: { copy: () => undefined, reset: () => undefined },
     groups: {
       setAdmin: (chatId, uid, admin) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).map((m) => (m.id === uid ? { ...m, admin } : m)) })),
       remove: (chatId, uid) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).filter((m) => m.id !== uid) })),
@@ -243,6 +244,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
     friends,
     badges: { chats: unread || undefined, friends: friends.requests?.length || undefined },
     profile: demoProfile(profileUid, friends),
+    invite: { link: 'https://syncit-watchparty.web.app/add/alex/Kq7mPz2xWb4R' },
     myBirthDate: '2001-03-12',
     act
   }

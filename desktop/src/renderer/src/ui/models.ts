@@ -195,6 +195,11 @@ export interface BrowserSetupVM {
 
 // ---------- Friends tab ----------
 
+/** Our personal invite link (2026-11-12): null while it loads. */
+export interface InviteVM {
+  link: string | null
+}
+
 /** How we stand with someone whose profile is open (2026-11-12). */
 export type ProfileRelation = 'me' | 'friend' | 'incoming' | 'requested' | 'blocked' | 'none'
 

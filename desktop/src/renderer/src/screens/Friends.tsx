@@ -3,13 +3,20 @@ import { Icon } from '@/ui/Icon'
 import { Avatar, Button } from '@/ui/primitives'
 import { FriendList } from '@/ui/FriendList'
 import { normalizeUsername, usernameProblem } from '@/data/usernames'
-import type { AddFriendResult, FriendRequestVM, FriendVM, FriendsVM } from '@/ui/models'
+import type { AddFriendResult, FriendRequestVM, FriendVM, FriendsVM, InviteVM } from '@/ui/models'
+import { QrCode } from '@/ui/QrCode'
+import { ConfirmDialog } from '@/ui/Dialog'
+import { parseInviteLink } from '@/data/invites'
 
 // Friends (not in the mock-ups): your friends with what they're doing, requests, and "Add friend by
 // exact username". Usernames are private, so there's no search: only an exact match finds someone.
 
 export interface FriendsProps {
   data: FriendsVM
+  /** Our invite link and its QR. */
+  invite?: InviteVM
+  onCopyInvite?: () => void
+  onResetInvite?: () => void
   onFriendAction: (friend: FriendVM) => void
   onMessage: (friend: FriendVM) => void
   /** The relay / database answer, shown under the field. */
@@ -48,6 +55,7 @@ export function Friends(p: FriendsProps): JSX.Element {
       </section>
 
       <div className="scroll" style={{ flex: '1 1 400px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20, margin: -8, padding: 8 }}>
+        {p.invite ? <InvitePanel invite={p.invite} onCopy={p.onCopyInvite} onReset={p.onResetInvite} /> : null}
         <AddFriend onAddFriend={p.onAddFriend} />
         <RequestsPanel
           title="Friend requests"
@@ -136,6 +144,43 @@ function BlockedPanel({
   )
 }
 
+/** Our personal link and QR (2026-11-12): whoever opens it on their phone becomes our friend. */
+function InvitePanel({ invite, onCopy, onReset }: { invite: InviteVM; onCopy?: () => void; onReset?: () => void }): JSX.Element {
+  const headingId = useId()
+  const [confirmReset, setConfirmReset] = useState(false)
+  return (
+    <section aria-labelledby={headingId} className="glass rise" style={{ '--i': 2, padding: 24, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' } as CSSProperties}>
+      {invite.link ? <QrCode text={invite.link} size={152} label="QR code for your invite link" /> : <div className="tile" style={{ width: 152, height: 152 }} />}
+      <div style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <h2 id={headingId} className="h3">
+          Invite friends
+        </h2>
+        <p className="muted small" style={{ margin: 0, lineHeight: 1.5 }}>
+          Scan with a phone camera or send the link. Whoever opens it becomes your friend straight away.
+        </p>
+        <span className="subtle selectable truncate">{invite.link ?? 'Loading your link…'}</span>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <Button size="sm" variant="primary" disabled={!invite.link} onClick={onCopy}>
+            Copy link
+          </Button>
+          <Button size="sm" variant="ghost" disabled={!invite.link} onClick={() => setConfirmReset(true)}>
+            Reset link
+          </Button>
+        </div>
+      </div>
+      <ConfirmDialog
+        open={confirmReset}
+        title="Reset your invite link?"
+        description="Links and QR codes you've shared stop adding friends automatically. People who open them can still send you a request."
+        confirmLabel="Reset"
+        danger
+        onConfirm={() => onReset?.()}
+        onClose={() => setConfirmReset(false)}
+      />
+    </section>
+  )
+}
+
 function AddFriend({ onAddFriend }: { onAddFriend: (username: string) => Promise<AddFriendResult> }): JSX.Element {
   const id = useId()
   const hintId = useId()
@@ -145,8 +190,10 @@ function AddFriend({ onAddFriend }: { onAddFriend: (username: string) => Promise
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
-    const name = normalizeUsername(value)
-    const problem = usernameProblem(name)
+    // A pasted invite link works too: "add/<username>/<token>" (the token makes it instant).
+    const link = parseInviteLink(value)
+    const name = link ? `${link.username}#${link.token}` : normalizeUsername(value)
+    const problem = link ? null : usernameProblem(name)
     if (problem) {
       setResult({ ok: false, message: problem })
       return

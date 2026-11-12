@@ -367,6 +367,9 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
       screen = (
         <Friends
           data={data.friends}
+          invite={data.invite}
+          onCopyInvite={act.invite.copy}
+          onResetInvite={act.invite.reset}
           onFriendAction={(f) => (act.friendAction ? act.friendAction(f) : navigate('chats'))}
           onMessage={(f) => {
             const chat = data.chats?.find((c) => c.kind === 'dm' && c.people[0]?.id === f.id)

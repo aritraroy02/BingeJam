@@ -9,6 +9,7 @@ import type {
   GroupMemberVM,
   HomeVM,
   MessageVM,
+  InviteVM,
   PersonVM,
   ProfileVM,
   RoomVM,
@@ -48,6 +49,8 @@ export interface ShellData {
   badges: { chats?: number; friends?: number }
   /** The profile being looked at (App asks for it with profileUid); null when none or loading. */
   profile: ProfileVM | null
+  /** Our invite link and QR (Friends). */
+  invite: InviteVM
   /** Friends with an unanswered invite to the open group (Add people shows "Invited"). */
   invited?: string[]
   /** Our private date of birth ("YYYY-MM-DD"), for Edit profile. */
@@ -108,6 +111,11 @@ export interface ShellActions {
     outputDevice: (id: string | null) => void
     pushToTalkKey: (key: string | null) => void
     startWithWindows: (on: boolean) => void
+  }
+  /** Our invite link: copy it, or make a new one (old links stop adding friends automatically). */
+  invite: {
+    copy: () => void
+    reset: () => void
   }
   /** Group admins and settings (2026-11-10). */
   groups: {
