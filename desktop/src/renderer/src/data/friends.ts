@@ -172,3 +172,9 @@ export async function requestToJoin(hostUid: string): Promise<void> {
   }
   void notifyRelay({ type: 'join_request', to: hostUid })
 }
+
+/** Withdraws a request we sent (FirebaseFriendsRepository.cancel). */
+export async function cancelFriendRequest(toUid: string): Promise<void> {
+  const me = requireUid()
+  await update(ref(db), { [`friendRequests/${toUid}/${me}`]: null, [`sentFriendRequests/${me}/${toUid}`]: null })
+}

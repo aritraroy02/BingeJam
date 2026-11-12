@@ -17,6 +17,8 @@ export interface BingeJamBridge {
     headers: Record<string, string>
     body?: string
   }): Promise<{ status: number; body: string }>
+  /** Uploads (PUT, image bytes ≤ 1 MB) or removes (DELETE) our profile picture on the relay. */
+  relayAvatar(request: { method: 'PUT' | 'DELETE'; token: string; bytes?: Uint8Array }): Promise<{ status: number; body: string }>
   /** bingejam://… links that arrive while the app is running. Returns an unsubscribe function. */
   onDeepLink(listener: (link: string) => void): () => void
   /** The browser extension link (src/main/extension). Tab ids are the app's own, unique across browsers. */

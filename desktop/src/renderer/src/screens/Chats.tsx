@@ -45,6 +45,8 @@ export interface ChatsProps {
   onBlockGroup?: () => void
   /** Report the person or group; [block] also blocks (or, for a group, exits and blocks). */
   onReport?: (reason: ReportReasonValue, details: string | null, block: boolean) => void
+  /** Someone's profile (the DM header, a group member). */
+  onOpenProfile?: (uid: string) => void
 }
 
 type DialogKind = 'newGroup' | 'addPeople' | 'delete' | 'block' | 'report' | null
@@ -88,6 +90,7 @@ export function Chats(p: ChatsProps): JSX.Element {
           header={p.header}
           members={p.members}
           onPing={p.onPing}
+          onOpenProfile={p.onOpenProfile}
           onAddPeople={() => setDialog('addPeople')}
           onRename={() => setRenaming(true)}
         />
@@ -310,7 +313,13 @@ function ChatView(
   return (
     <main aria-labelledby={titleId} className="chat-main rise" style={{ '--i': 2 } as CSSProperties}>
       <header className="chat-header">
-        <ChatAvatar kind={h.kind} name={h.name} id={h.chatId} people={h.people} large online={!isGroup && friend?.online === true} />
+        {!isGroup && friend && p.onOpenProfile ? (
+          <button type="button" className="person-open" aria-label={`${h.name}'s profile`} onClick={() => p.onOpenProfile?.(friend.id)}>
+            <ChatAvatar kind={h.kind} name={h.name} id={h.chatId} people={h.people} large online={friend.online === true} />
+          </button>
+        ) : (
+          <ChatAvatar kind={h.kind} name={h.name} id={h.chatId} people={h.people} large online={!isGroup && friend?.online === true} />
+        )}
         <div className="chat-header__title">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             {p.renaming ? (
@@ -518,12 +527,14 @@ function MembersPanel({
   header,
   members,
   onPing,
+  onOpenProfile,
   onAddPeople,
   onRename
 }: {
   header: ChatHeaderVM
   members: GroupMemberVM[] | null
   onPing: (uid: string) => void
+  onOpenProfile?: (uid: string) => void
   onAddPeople: () => void
   onRename: () => void
 }): JSX.Element {
@@ -541,14 +552,14 @@ function MembersPanel({
           <>
             <span className="section-label section-label--live">In the room</span>
             {inRoom.map((m) => (
-              <MemberRow key={m.id} member={m} onPing={onPing} />
+              <MemberRow key={m.id} member={m} onPing={onPing} onOpen={onOpenProfile} />
             ))}
             <div className="divider" />
           </>
         ) : null}
         {live && out.length > 0 ? <span className="section-label">Not in the room</span> : null}
         {out.map((m) => (
-          <MemberRow key={m.id} member={m} onPing={onPing} />
+          <MemberRow key={m.id} member={m} onPing={onPing} onOpen={onOpenProfile} />
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -566,10 +577,23 @@ function MembersPanel({
 }
 
 /** A member with Ping / "Pinged · 1 min" (group panel and the room's "Not here yet"). */
-export function MemberRow({ member: m, onPing, size = 38 }: { member: GroupMemberVM; onPing: (uid: string) => void; size?: number }): JSX.Element {
+export function MemberRow({
+  member: m,
+  onPing,
+  onOpen,
+  size = 38
+}: {
+  member: GroupMemberVM
+  onPing: (uid: string) => void
+  /** Their profile (not for "You"). */
+  onOpen?: (uid: string) => void
+  size?: number
+}): JSX.Element {
   return (
     <div className="member-row">
-      <Avatar name={m.name} id={m.id} photoUrl={m.photoUrl} size={size} muted={m.online === false} />
+      <button type="button" className="person-open" disabled={!onOpen || m.isMe} aria-label={onOpen && !m.isMe ? `${m.name}'s profile` : undefined} onClick={() => onOpen?.(m.id)}>
+        <Avatar name={m.name} id={m.id} photoUrl={m.photoUrl} size={size} muted={m.online === false} />
+      </button>
       <span className="member-row__text">
         <span className="member-row__name truncate">{m.isMe ? 'You' : m.name}</span>
         <span className="member-row__detail truncate">{m.detail}</span>

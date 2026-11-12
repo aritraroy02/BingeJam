@@ -8,12 +8,15 @@ export function FriendList({
   friends,
   onAction,
   onMessage,
+  onOpen,
   empty = 'Add friends by their username to watch together.'
 }: {
   friends: FriendVM[] | null
   onAction: (f: FriendVM) => void
   /** Friends tab: a message button on every row. */
   onMessage?: (f: FriendVM) => void
+  /** Click a friend's picture or name: their profile. */
+  onOpen?: (f: FriendVM) => void
   empty?: ReactNode
 }): JSX.Element {
   if (friends === null) return <p className="muted small">Loading friends…</p>
@@ -21,7 +24,7 @@ export function FriendList({
   return (
     <div className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {friends.map((f) => (
-        <FriendRow key={f.id} friend={f} onAction={onAction} onMessage={onMessage} />
+        <FriendRow key={f.id} friend={f} onAction={onAction} onMessage={onMessage} onOpen={onOpen} />
       ))}
     </div>
   )
@@ -30,15 +33,25 @@ export function FriendList({
 export function FriendRow({
   friend: f,
   onAction,
-  onMessage
+  onMessage,
+  onOpen
 }: {
   friend: FriendVM
   onAction: (f: FriendVM) => void
   onMessage?: (f: FriendVM) => void
+  onOpen?: (f: FriendVM) => void
 }): JSX.Element {
   return (
     <div className={f.action ? 'friend-row friend-row--card' : 'friend-row'}>
-      <Avatar name={f.name} id={f.id} photoUrl={f.photoUrl} size={f.action ? 40 : 44} ring={f.action !== null} />
+      <button
+        type="button"
+        className="person-open"
+        disabled={!onOpen}
+        aria-label={onOpen ? `${f.name}'s profile` : undefined}
+        onClick={() => onOpen?.(f)}
+      >
+        <Avatar name={f.name} id={f.id} photoUrl={f.photoUrl} size={f.action ? 40 : 44} ring={f.action !== null} />
+      </button>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <span className="truncate" style={{ fontWeight: 500 }}>
           {f.name}

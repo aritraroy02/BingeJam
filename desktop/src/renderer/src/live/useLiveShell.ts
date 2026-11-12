@@ -30,7 +30,10 @@ import {
   type Profile
 } from '@/data'
 import { agoShort } from '@/data/format'
-import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUser, useBlockedGroups, useBlockedPeople } from '@/data/safety'
+import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUser, unfriend, useBlockedGroups, useBlockedPeople } from '@/data/safety'
+import { checkUsername, createProfile, removePhoto, setBirthDate, updateProfile, uploadPhoto, useMyBirthDate } from '@/data/profile'
+import { cancelFriendRequest } from '@/data/friends'
+import { useLive } from '@/data/live'
 import { dmFriend } from '@/data/ids'
 import { isGroupId } from '@/data/ids'
 import { useProfiles } from '@/data/live'
@@ -39,7 +42,7 @@ import { signOut } from '@/lib/auth'
 import type { ShellData } from '@/shell'
 import { useRoomSync } from '@/sync/appRoom'
 import { buildRoomVM, livePositionMs } from '@/sync/roomVm'
-import type { BrowserId, FriendVM, GroupMemberVM, TrendingVM } from '@/ui/models'
+import type { BrowserId, FriendVM, GroupMemberVM, ProfileVM, TrendingVM } from '@/ui/models'
 import { useDetectedBrowsers, useExtensionStatus } from './extension'
 import { useVoiceDevices } from './voiceDevices'
 
@@ -63,9 +66,11 @@ export interface LiveShellInput {
   version: string
   /** Stops this PC's presence; awaited before signing out (the removal needs our token). */
   stopPresence: () => Promise<void>
+  /** Whose profile dialog is open. */
+  profileUid: string | null
 }
 
-export function useLiveShell({ profile, chatId, trendingKind, version, stopPresence }: LiveShellInput): ShellData {
+export function useLiveShell({ profile, chatId, trendingKind, version, stopPresence, profileUid }: LiveShellInput): ShellData {
   const uid = profile.uid
   const [notice, setNotice] = useState<string | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
@@ -78,6 +83,42 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const requests = useFriendRequests()
   const blockedPeople = useBlockedPeople()
   const blockedGroups = useBlockedGroups()
+  const myBirthDate = useMyBirthDate()
+  const [profileBusy, setProfileBusy] = useState(false)
+
+  // ---------- The profile dialog ----------
+  const viewed = useProfiles(useMemo(() => (profileUid ? [profileUid] : []), [profileUid]))
+  const sentToViewed = useLive(profileUid ? `sentFriendRequests/${uid}/${profileUid}` : null)
+  const friendSince = useLive(profileUid ? `friends/${uid}/${profileUid}/since` : null)
+  const profileVM = useMemo((): ProfileVM | null => {
+    if (!profileUid || !viewed.has(profileUid)) return null
+    const p = viewed.get(profileUid)
+    if (!p) return { id: profileUid, name: 'Unknown', username: '', bio: null, photoUrl: null, relation: 'none', missing: true }
+    const friend = friends?.find((f) => f.id === profileUid)
+    const relation: ProfileVM['relation'] =
+      profileUid === uid
+        ? 'me'
+        : blockedPeople?.some((b) => b.uid === profileUid)
+          ? 'blocked'
+          : friend
+            ? 'friend'
+            : requests?.some((r) => r.fromUid === profileUid)
+              ? 'incoming'
+              : sentToViewed?.exists
+                ? 'requested'
+                : 'none'
+    const since = typeof friendSince?.val === 'number' ? new Date(friendSince.val) : null
+    return {
+      id: profileUid,
+      name: p.displayName,
+      username: p.username,
+      bio: p.bio,
+      photoUrl: p.photoUrl,
+      relation,
+      status: friend ? friend.status : null,
+      since: since ? `Friends since ${since.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : null
+    }
+  }, [profileUid, viewed, friends, blockedPeople, requests, sentToViewed, friendSince, uid])
   const now = useServerNow()
 
   // ---------- The open chat ----------
@@ -215,7 +256,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           : null
     },
     settings: {
-      account: { uid, name: profile.displayName, username: profile.username, email: null, photoUrl: profile.photoUrl },
+      account: { uid, name: profile.displayName, username: profile.username, email: null, photoUrl: profile.photoUrl, bio: profile.bio },
       extension: { connected: linked.length > 0, detail: browser ? `Linked in ${browser}` : 'Add it from Settings' },
       voice: voice.vm,
       startWithWindows: null,
@@ -229,6 +270,9 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       blockedGroups
     },
     badges: { chats: unread || undefined, friends: requests?.length || undefined },
+    profile: profileVM,
+    myBirthDate: myBirthDate.state === 'set' ? myBirthDate.value : null,
+    profileBusy,
     notice,
     act: {
       send: (id, text) => void sendMessage(id, text).catch(fail("Couldn't send that")),
@@ -246,6 +290,54 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           fail("Couldn't add them")
         ),
       deleteChat: (id) => void (isGroupId(id) ? leaveGroup(id) : deleteChat(id)).catch(fail("Couldn't do that")),
+      profile: {
+        add: (username) =>
+          void sendFriendRequest(username).then(
+            (r) => setNotice(r === 'accepted' ? "You're friends now" : `Request sent to @${username}`),
+            fail("Couldn't send the request")
+          ),
+        accept: (who) => void acceptFriendRequest(who).then(() => setNotice("You're friends now"), fail("Couldn't accept")),
+        cancel: (who) => void cancelFriendRequest(who).then(() => setNotice('Request cancelled'), fail("Couldn't cancel")),
+        unblock: (who) => void unblockUser(who).then(() => setNotice('Unblocked'), fail("Couldn't unblock them")),
+        unfriend: (who) => void unfriend(who).then(() => setNotice('Removed from your friends'), fail("Couldn't remove them")),
+        block: (who) => void blockUser(who).then(() => setNotice('Blocked'), fail("Couldn't block them")),
+        report: (who, name, reason, details, block) =>
+          void reportUser(who, name, reason, details, block).then(
+            () => setNotice(block ? 'Reported and blocked' : 'Thanks. Your report was sent.'),
+            fail("Couldn't send the report")
+          )
+      },
+      editProfile: {
+        save: async (v) => {
+          setProfileBusy(true)
+          try {
+            const username = v.username.trim()
+            if (username !== profile.username) {
+              const check = await checkUsername(username)
+              if (check.state === 'invalid') throw new Error(check.reason)
+              if (check.state === 'taken') throw new Error(`@${username} is taken`)
+              await createProfile(username, v.name)
+            }
+            await updateProfile(v.name, v.bio)
+            const current = myBirthDate.state === 'set' ? myBirthDate.value : ''
+            if (v.birthDate && v.birthDate !== current) await setBirthDate(v.birthDate)
+            setNotice('Profile saved')
+            return true
+          } catch (e) {
+            fail("Couldn't save your profile")(e)
+            return false
+          } finally {
+            setProfileBusy(false)
+          }
+        },
+        pickPhoto: (file) => {
+          setProfileBusy(true)
+          void uploadPhoto(file)
+            .then(() => setNotice('Picture updated'), fail("Couldn't change your picture"))
+            .finally(() => setProfileBusy(false))
+        },
+        removePhoto: () => void removePhoto().then(() => setNotice('Picture removed'), fail("Couldn't remove your picture"))
+      },
       safety: {
         block: (id) => {
           const friendUid = dmFriend(id, uid)
@@ -343,7 +435,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
         },
         accept: (who) => void acceptFriendRequest(who).catch(fail("Couldn't accept")),
         decline: (who) => void declineFriendRequest(who).catch(fail("Couldn't decline")),
-        cancel: () => undefined
+        cancel: (who) => void cancelFriendRequest(who).catch(fail("Couldn't cancel"))
       }
     }
   }

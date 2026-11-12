@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ChatHeaderVM, ChatSummaryVM, GroupMemberVM, MessageVM, RoomVM, SettingsVM, StreamVM, FriendsVM } from '@/ui/models'
+import type { ChatHeaderVM, ChatSummaryVM, GroupMemberVM, MessageVM, RoomVM, SettingsVM, StreamVM, FriendsVM, ProfileVM } from '@/ui/models'
 import type { ShellData } from '@/shell'
 import {
   DEMO_BROWSER,
@@ -30,7 +30,7 @@ function myText(text: string): MessageVM {
   return { kind: 'text', id: newId('m'), fromMe: true, senderId: DEMO_ME.uid, senderName: 'You', text, sentAt: Date.now() }
 }
 
-export function useDemo(): ShellData {
+export function useDemo(profileUid: string | null = null): ShellData {
   const [chats, setChats] = useState<ChatSummaryVM[]>(DEMO_CHATS)
   const [headers, setHeaders] = useState<Record<string, ChatHeaderVM>>(DEMO_HEADERS)
   const [messages, setMessages] = useState<Record<string, MessageVM[]>>(DEMO_MESSAGES)
@@ -159,6 +159,20 @@ export function useDemo(): ShellData {
       send: (text) => setStreamChat((m) => [...m, myText(text)])
     },
     addToBrowser: () => undefined,
+    profile: {
+      add: () => undefined,
+      accept: () => undefined,
+      cancel: () => undefined,
+      unblock: () => undefined,
+      unfriend: () => undefined,
+      block: () => undefined,
+      report: () => undefined
+    },
+    editProfile: {
+      save: async () => true,
+      pickPhoto: () => undefined,
+      removePhoto: () => undefined
+    },
     safety: {
       block: (chatId) => setChats((cs) => cs.filter((c) => c.chatId !== chatId)),
       blockGroup: (chatId) => setChats((cs) => cs.filter((c) => c.chatId !== chatId)),
@@ -213,6 +227,16 @@ export function useDemo(): ShellData {
     settings,
     friends,
     badges: { chats: unread || undefined, friends: friends.requests?.length || undefined },
+    profile: demoProfile(profileUid, friends),
+    myBirthDate: '2001-03-12',
     act
   }
+}
+
+/** A demo friend's profile for the profile dialog. */
+function demoProfile(uid: string | null, friends: FriendsVM): ProfileVM | null {
+  if (!uid) return null
+  const f = friends.friends?.find((x) => x.id === uid)
+  if (!f) return { id: uid, name: 'Someone', username: 'someone', bio: null, photoUrl: null, relation: 'none' }
+  return { id: f.id, name: f.name, username: f.username ?? '', bio: 'Here for the plot twists', photoUrl: f.photoUrl ?? null, relation: 'friend', status: f.status, since: 'Friends since Mar 2026' }
 }

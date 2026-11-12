@@ -7,6 +7,7 @@ const bridge: BingeJamBridge = {
   version: () => ipcRenderer.invoke('app:version'),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
   relayFetch: (request) => ipcRenderer.invoke('relay:fetch', request),
+  relayAvatar: (request) => ipcRenderer.invoke('relay:avatar', request),
   onDeepLink: (listener) => subscribe('app:deep-link', listener),
   extension: {
     status: () => ipcRenderer.invoke('extension:status'),

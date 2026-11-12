@@ -187,6 +187,27 @@ export interface BrowserSetupVM {
 
 // ---------- Friends tab ----------
 
+/** How we stand with someone whose profile is open (2026-11-12). */
+export type ProfileRelation = 'me' | 'friend' | 'incoming' | 'requested' | 'blocked' | 'none'
+
+/** Someone's profile page (a dialog on desktop). */
+export interface ProfileVM {
+  id: string
+  name: string
+  username: string
+  bio: string | null
+  photoUrl: string | null
+  relation: ProfileRelation
+  /** "Online", "Last seen 2 h ago" (friends only). */
+  status?: string | null
+  /** "Friends since Mar 2026". */
+  since?: string | null
+  /** What they're playing, for friends. */
+  activity?: string | null
+  /** The account was deleted. */
+  missing?: boolean
+}
+
 export interface FriendRequestVM extends PersonVM {
   /** "2 h ago" */
   sentLabel: string
@@ -218,7 +239,7 @@ export interface DeviceOptionVM {
 }
 
 export interface SettingsVM {
-  account: { uid: string; name: string; username: string; email: string | null; photoUrl: string | null }
+  account: { uid: string; name: string; username: string; email: string | null; photoUrl: string | null; bio?: string | null }
   extension: { connected: boolean; detail: string }
   voice: {
     /** navigator.mediaDevices.enumerateDevices(); empty = only the system default. */

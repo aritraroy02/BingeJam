@@ -16,6 +16,8 @@ export interface SettingsProps {
   /** The key's label ("V", "F13"); null = open mic (no push-to-talk). */
   onPushToTalkKey: (key: string | null) => void
   onStartWithWindows: (on: boolean) => void
+  onEditProfile?: () => void
+  onViewPhoto?: () => void
 }
 
 /** The OS's "Animation effects" switch, live (motion in the app follows it; see global.css). */
@@ -39,7 +41,15 @@ export function Settings(p: SettingsProps): JSX.Element {
       <div className="scroll" style={{ flex: 1, margin: -6, padding: 8, display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: 20 }}>
         <div style={{ flex: '999 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <section aria-labelledby="h-account" className="glass glass--hero glass--raised rise settings-account" style={{ '--i': 1 } as CSSProperties}>
-            <Avatar name={s.account.name} id={s.account.uid} photoUrl={s.account.photoUrl} size={72} online />
+            <button
+              type="button"
+              className="person-open"
+              disabled={!s.account.photoUrl || !p.onViewPhoto}
+              aria-label={s.account.photoUrl ? 'View your profile picture' : undefined}
+              onClick={p.onViewPhoto}
+            >
+              <Avatar name={s.account.name} id={s.account.uid} photoUrl={s.account.photoUrl} size={72} online />
+            </button>
             <div style={{ flex: '1 1 220px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span className="chip" style={{ marginBottom: 8 }}>
                 Account
@@ -52,6 +62,7 @@ export function Settings(p: SettingsProps): JSX.Element {
                 {s.account.email ? ` · ${s.account.email}` : ''}
               </span>
             </div>
+            {p.onEditProfile ? <Button onClick={p.onEditProfile}>Edit profile</Button> : null}
             <Button variant="danger" onClick={p.onSignOut}>
               <Icon name="logout" size={18} />
               Sign out

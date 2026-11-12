@@ -131,3 +131,71 @@ export async function setBirthDate(value: string): Promise<void> {
   await writePrivateProfile()
   await set(ref(db, `users_private/${uid}/dob`), value)
 }
+
+// ---------- Edit profile (2026-11-12, same as the phone's Edit profile) ----------
+
+const MAX_BIO = 160
+
+/** Name and bio; username changes go through createProfile (it swaps the usernames entry atomically). */
+export async function updateProfile(displayName: string, bio: string | null): Promise<void> {
+  const uid = requireUid()
+  const clean = cleanDisplayName(displayName)
+  if (!clean) throw new Error('Enter a name')
+  const b = bio?.trim().slice(0, MAX_BIO) || null
+  await update(ref(db, `users/${uid}`), { displayName: clean, bio: b })
+}
+
+/** The relay keeps stills up to 300 KB and GIFs up to 1 MB. */
+const MAX_STILL_BYTES = 300_000
+const MAX_GIF_BYTES = 1_048_576
+const MAX_SIDE = 512
+
+/** A GIF stays as it is (animated); anything else becomes a JPEG of at most 512 px and 300 KB. */
+async function preparePhoto(file: File): Promise<Uint8Array> {
+  if (file.type === 'image/gif') {
+    if (file.size > MAX_GIF_BYTES) throw new Error('GIFs can be up to 1 MB')
+    return new Uint8Array(await file.arrayBuffer())
+  }
+  const bitmap = await createImageBitmap(file).catch(() => {
+    throw new Error("That file isn't a picture")
+  })
+  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  for (const quality of [0.86, 0.75, 0.6, 0.45]) {
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+    if (blob && blob.size <= MAX_STILL_BYTES) return new Uint8Array(await blob.arrayBuffer())
+  }
+  throw new Error('That picture is too big')
+}
+
+function avatarError(status: number, body: string): Error {
+  if (status === 429 || body.includes('too_soon')) return new Error('Wait a few seconds before changing it again')
+  if (status === 413) return new Error('That picture is too big')
+  if (status === 415) return new Error("That file isn't a picture")
+  return new Error(`The picture didn't upload (${status})`)
+}
+
+/** Uploads a new profile picture to the relay and puts it on our profile. */
+export async function uploadPhoto(file: File): Promise<void> {
+  const uid = requireUid()
+  const token = await auth.currentUser?.getIdToken()
+  if (!token) throw new Error('Sign in first')
+  const bytes = await preparePhoto(file)
+  const res = await window.bingejam.relayAvatar({ method: 'PUT', token, bytes })
+  if (res.status < 200 || res.status > 299) throw avatarError(res.status, res.body)
+  const url = (JSON.parse(res.body) as { url?: unknown }).url
+  if (typeof url !== 'string' || !acceptablePhoto(uid, url)) throw new Error("The picture didn't upload")
+  await set(ref(db, `users/${uid}/photoUrl`), url)
+}
+
+/** Takes the picture off our profile and deletes our upload (a Google photo isn't stored by us). */
+export async function removePhoto(): Promise<void> {
+  const uid = requireUid()
+  await set(ref(db, `users/${uid}/photoUrl`), null)
+  const token = await auth.currentUser?.getIdToken()
+  if (token) await window.bingejam.relayAvatar({ method: 'DELETE', token }).catch(() => undefined)
+}

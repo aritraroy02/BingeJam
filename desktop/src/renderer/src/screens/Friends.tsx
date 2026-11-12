@@ -19,6 +19,7 @@ export interface FriendsProps {
   onCancelRequest: (uid: string) => void
   onUnblockUser?: (uid: string) => void
   onUnblockGroup?: (gid: string) => void
+  onOpenProfile?: (uid: string) => void
 }
 
 export function Friends(p: FriendsProps): JSX.Element {
@@ -41,6 +42,7 @@ export function Friends(p: FriendsProps): JSX.Element {
           friends={friends}
           onAction={p.onFriendAction}
           onMessage={p.onMessage}
+          onOpen={p.onOpenProfile ? (f) => p.onOpenProfile?.(f.id) : undefined}
           empty="No friends yet. Ask friends for their exact username and add them on the right."
         />
       </section>

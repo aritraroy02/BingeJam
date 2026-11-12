@@ -589,3 +589,21 @@
 .avatar-ring > .avatar {
   border: 2px solid var(--avatar-ring);
 }
+
+/* A picture that opens a profile (2026-11-12). */
+.person-open {
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  display: inline-flex;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.person-open:disabled {
+  cursor: default;
+}
+.person-open:not(:disabled):hover .avatar {
+  outline: 2px solid var(--hairline-strong);
+  outline-offset: 2px;
+}

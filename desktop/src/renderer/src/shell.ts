@@ -10,6 +10,7 @@ import type {
   HomeVM,
   MessageVM,
   PersonVM,
+  ProfileVM,
   RoomVM,
   SettingsVM,
   StreamQuality,
@@ -18,6 +19,7 @@ import type {
   TrendingVM
 } from '@/ui/models'
 import type { ReportReasonValue } from '@/ui/ReportDialog'
+import type { EditProfileValues } from '@/ui/ProfileDialogs'
 
 // Everything the app shell (App.tsx) needs: the view models for every screen plus what each button
 // does. Demo mode fills it from demo/useDemo.ts; the Firebase data layer fills it for real accounts.
@@ -44,6 +46,12 @@ export interface ShellData {
   settings: SettingsVM
   friends: FriendsVM
   badges: { chats?: number; friends?: number }
+  /** The profile being looked at (App asks for it with profileUid); null when none or loading. */
+  profile: ProfileVM | null
+  /** Our private date of birth ("YYYY-MM-DD"), for Edit profile. */
+  myBirthDate: string | null
+  /** Edit profile is saving or a picture is uploading. */
+  profileBusy?: boolean
   /** A short message for the person ("Invite link copied", an error); shown as a toast. */
   notice?: string | null
   act: ShellActions
@@ -98,6 +106,22 @@ export interface ShellActions {
     outputDevice: (id: string | null) => void
     pushToTalkKey: (key: string | null) => void
     startWithWindows: (on: boolean) => void
+  }
+  /** Someone's profile dialog (2026-11-12). */
+  profile: {
+    add: (username: string) => void
+    accept: (uid: string) => void
+    cancel: (uid: string) => void
+    unblock: (uid: string) => void
+    unfriend: (uid: string) => void
+    block: (uid: string) => void
+    report: (uid: string, name: string, reason: ReportReasonValue, details: string | null, block: boolean) => void
+  }
+  /** Our own profile: Edit profile in Settings. save() resolves true when everything was saved. */
+  editProfile: {
+    save: (values: EditProfileValues) => Promise<boolean>
+    pickPhoto: (file: File) => void
+    removePhoto: () => void
   }
   /** Report and block (2026-11-10): people from their 1:1 chat, groups from the group. */
   safety: {

@@ -10,6 +10,7 @@ import type { ShellData } from '@/shell'
 import { Backdrop, type BackdropPreset } from '@/ui/Backdrop'
 import { LogoMark } from '@/ui/Icon'
 import { Button } from '@/ui/primitives'
+import { EditProfileDialog, PhotoViewer, ProfileDialog } from '@/ui/ProfileDialogs'
 import { RailNav, SideNav, type Tab } from '@/ui/Nav'
 import { Home, type TrendingKind } from '@/screens/Home'
 import { SignIn } from '@/screens/SignIn'
@@ -82,7 +83,18 @@ export function App(): JSX.Element {
 function DemoShell(): JSX.Element {
   const [chatId, setChatId] = useState<string | null>(START.chatId)
   const [trendingKind, setTrendingKind] = useState<TrendingKind>('movies')
-  return <Shell data={useDemo()} chatId={chatId} onChatId={setChatId} trendingKind={trendingKind} onTrendingKind={setTrendingKind} />
+  const [profileUid, setProfileUid] = useState<string | null>(null)
+  return (
+    <Shell
+      data={useDemo(profileUid)}
+      chatId={chatId}
+      onChatId={setChatId}
+      trendingKind={trendingKind}
+      onTrendingKind={setTrendingKind}
+      profileUid={profileUid}
+      onProfileUid={setProfileUid}
+    />
+  )
 }
 
 /**
@@ -126,11 +138,22 @@ function LiveShell({ profile, stopPresence }: { profile: Profile; stopPresence: 
   const [version, setVersion] = useState('')
   const [chatId, setChatId] = useState<string | null>(START.chatId)
   const [trendingKind, setTrendingKind] = useState<TrendingKind>('movies')
+  const [profileUid, setProfileUid] = useState<string | null>(null)
   useEffect(() => {
     void window.bingejam.version().then(setVersion)
   }, [])
-  const data = useLiveShell({ profile, chatId, trendingKind, version, stopPresence })
-  return <Shell data={data} chatId={chatId} onChatId={setChatId} trendingKind={trendingKind} onTrendingKind={setTrendingKind} />
+  const data = useLiveShell({ profile, chatId, trendingKind, version, stopPresence, profileUid })
+  return (
+    <Shell
+      data={data}
+      chatId={chatId}
+      onChatId={setChatId}
+      trendingKind={trendingKind}
+      onTrendingKind={setTrendingKind}
+      profileUid={profileUid}
+      onProfileUid={setProfileUid}
+    />
+  )
 }
 
 function ProfileError({ onSignOut }: { onSignOut: () => void }): JSX.Element {
@@ -157,11 +180,16 @@ interface ShellProps {
   onChatId: (id: string | null) => void
   trendingKind: TrendingKind
   onTrendingKind: (kind: TrendingKind) => void
+  /** Whose profile dialog is open (null = none). */
+  profileUid: string | null
+  onProfileUid: (uid: string | null) => void
 }
 
-function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind: setTrendingKind }: ShellProps): JSX.Element {
+function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind: setTrendingKind, profileUid, onProfileUid }: ShellProps): JSX.Element {
   const [view, setView] = useState<View>(START.view)
   const [tipOff, setTipOff] = useState(tipDismissed)
+  const [editing, setEditing] = useState(false)
+  const [viewingMyPhoto, setViewingMyPhoto] = useState(false)
   const act = data.act
 
   // `?screen=room`: join the demo room once on start.
@@ -316,6 +344,7 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
             act.safety.report(chatId, reason, details, block)
             if (block) setChatId(null)
           }}
+          onOpenProfile={onProfileUid}
           onDismissStartRoomTip={() => {
             setTipOff(true)
             try {
@@ -344,6 +373,7 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onCancelRequest={act.friends.cancel}
           onUnblockUser={act.safety.unblockUser}
           onUnblockGroup={act.safety.unblockGroup}
+          onOpenProfile={onProfileUid}
         />
       )
       break
@@ -374,6 +404,8 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onOutputDevice={act.settings.outputDevice}
           onPushToTalkKey={act.settings.pushToTalkKey}
           onStartWithWindows={act.settings.startWithWindows}
+          onEditProfile={() => setEditing(true)}
+          onViewPhoto={() => setViewingMyPhoto(true)}
         />
       )
       break
@@ -385,6 +417,34 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
       <div className="drag-strip" />
       {tab === 'home' ? <SideNav {...nav} /> : <RailNav {...nav} />}
       {screen}
+      <ProfileDialog
+        profile={profileUid ? data.profile : null}
+        onClose={() => onProfileUid(null)}
+        onMessage={(uid) => {
+          onProfileUid(null)
+          const chat = data.chats?.find((c) => c.kind === 'dm' && c.people[0]?.id === uid)
+          if (chat) openChat(chat.chatId)
+          else if (act.dmWith) openChat(act.dmWith(uid))
+        }}
+        onAdd={act.profile.add}
+        onAccept={act.profile.accept}
+        onCancelRequest={act.profile.cancel}
+        onUnblock={act.profile.unblock}
+        onUnfriend={act.profile.unfriend}
+        onBlock={act.profile.block}
+        onReport={act.profile.report}
+      />
+      <EditProfileDialog
+        open={editing}
+        initial={{ name: data.me.name, username: data.me.username, bio: data.settings.account.bio ?? '', birthDate: data.myBirthDate ?? '' }}
+        photoUrl={data.me.photoUrl}
+        busy={data.profileBusy === true}
+        onClose={() => setEditing(false)}
+        onSave={(values) => void act.editProfile.save(values).then((ok) => ok && setEditing(false))}
+        onPickPhoto={act.editProfile.pickPhoto}
+        onRemovePhoto={act.editProfile.removePhoto}
+      />
+      <PhotoViewer photoUrl={viewingMyPhoto ? data.me.photoUrl : null} name={data.me.name} onClose={() => setViewingMyPhoto(false)} />
       {data.notice ? (
         <div role="status" className="glass glass--strong toast" onClick={() => act.dismissNotice?.()}>
           {data.notice}
