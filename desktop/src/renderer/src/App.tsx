@@ -211,6 +211,7 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
   }, [])
 
   const tab: Tab = view.tab
+  const wideNav = useWideNav()
   const staffRole = useStaffRole()
   const savedKeys = useMemo(() => new Set((data.watchlist ?? []).map((w) => w.key)), [data.watchlist])
   const header = chatId ? data.header(chatId) : null
@@ -504,7 +505,7 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
     <div className="app">
       <Backdrop preset={backdrop} />
       <div className="drag-strip" />
-      {tab === 'home' ? <SideNav {...nav} /> : <RailNav {...nav} />}
+      {wideNav ? <SideNav {...nav} /> : <RailNav {...nav} />}
       {screen}
       <ProfileDialog
         profile={profileUid ? data.profile : null}
@@ -564,4 +565,17 @@ function Splash(): JSX.Element {
       </div>
     </div>
   )
+}
+
+/** The full sidebar on every screen when there's room for it; the icon rail on narrow windows. */
+function useWideNav(): boolean {
+  const query = '(min-width: 1280px)'
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = (): void => setWide(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return wide
 }

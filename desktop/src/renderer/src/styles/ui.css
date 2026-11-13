@@ -404,7 +404,7 @@
 /* ---------- Navigation: wide sidebar (Home) and slim rail (everything else) ---------- */
 .nav {
   position: relative;
-  z-index: 1;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   -webkit-app-region: drag; /* the empty parts of the nav move the window */
@@ -704,4 +704,12 @@
 .status-dot--invisible {
   background: transparent;
   border: 2px solid var(--text-3);
+}
+
+/* Status menu from the icon rail: opens to the right of the picture. */
+.status-menu--side {
+  left: calc(100% + 14px);
+  right: auto;
+  bottom: 0;
+  width: 280px;
 }

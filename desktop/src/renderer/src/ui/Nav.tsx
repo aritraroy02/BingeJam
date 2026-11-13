@@ -86,11 +86,14 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension, onSta
 function AccountCard({
   me,
   onStatus,
-  onShareActivity
+  onShareActivity,
+  compact = false
 }: {
   me: NonNullable<NavProps['me']>
   onStatus?: NavProps['onStatus']
   onShareActivity?: NavProps['onShareActivity']
+  /** The icon rail: just the picture; the menu opens to the right. */
+  compact?: boolean
 }): JSX.Element {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
@@ -112,9 +115,9 @@ function AccountCard({
   }, [open])
   const line = me.activity ?? STATUS_LABEL[status]
   return (
-    <div ref={box} style={{ position: 'relative', marginTop: 12 }}>
+    <div ref={box} style={{ position: 'relative', marginTop: compact ? 0 : 12 }}>
       {open && onStatus ? (
-        <div className="status-menu" role="menu" aria-label="Your status">
+        <div className={compact ? 'status-menu status-menu--side' : 'status-menu'} role="menu" aria-label="Your status">
           {(['online', 'dnd', 'invisible'] as const).map((s) => (
             <button
               key={s}
@@ -147,6 +150,20 @@ function AccountCard({
           ) : null}
         </div>
       ) : null}
+      {compact ? (
+        <button
+          type="button"
+          className="rail-item pressable"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={`${me.name}, ${STATUS_LABEL[status]}. Change status`}
+          title={`${me.name} · ${line}`}
+          onClick={() => setOpen((v) => !v)}
+          disabled={!onStatus}
+        >
+          <Avatar name={me.name} id={me.uid} photoUrl={me.photoUrl} size={36} online={status !== 'invisible'} dnd={status === 'dnd'} />
+        </button>
+      ) : (
       <button
         type="button"
         className="nav-account pressable"
@@ -183,12 +200,13 @@ function AccountCard({
           </span>
         </span>
       </button>
+      )}
     </div>
   )
 }
 
 /** Slim icon rail: chats, rooms, streams and settings screens in the design. */
-export function RailNav({ current, onNavigate, badges = {} }: NavProps): JSX.Element {
+export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--rail glass glass--strong rise">
       <button type="button" className="logo-tile pressable" aria-label={`${BRAND.name} home`} onClick={() => onNavigate('home')} style={{ border: 'none' }}>
@@ -208,6 +226,8 @@ export function RailNav({ current, onNavigate, badges = {} }: NavProps): JSX.Ele
           <Badge count={badges[it.tab] ?? 0} />
         </button>
       ))}
+      <div style={{ flex: 1 }} />
+      {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} compact /> : null}
     </nav>
   )
 }
