@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { BRAND } from '@shared/brand'
 import { Icon, LogoMark, type IconName } from './Icon'
 import { Avatar, Badge, LiveDot, Switch } from './primitives'
@@ -156,9 +156,11 @@ function AccountCard({
         onClick={() => setOpen((v) => !v)}
         disabled={!onStatus}
         style={{
-          all: 'unset',
           boxSizing: 'border-box',
           width: '100%',
+          font: 'inherit',
+          color: 'inherit',
+          textAlign: 'left',
           cursor: onStatus ? 'pointer' : 'default',
           display: 'flex',
           alignItems: 'center',
@@ -166,8 +168,10 @@ function AccountCard({
           padding: 12,
           borderRadius: 16,
           background: 'var(--raised)',
-          border: '1px solid rgba(var(--ink), 0.08)'
-        }}
+          border: '1px solid rgba(var(--ink), 0.08)',
+          // The sidebar drags the window; the card must stay clickable.
+          WebkitAppRegion: 'no-drag'
+        } as CSSProperties}
       >
         <Avatar name={me.name} id={me.uid} photoUrl={me.photoUrl} size={38} online={status !== 'invisible'} dnd={status === 'dnd'} />
         <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>

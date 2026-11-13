@@ -411,7 +411,9 @@
 }
 .nav a,
 .nav button,
-.nav .nav-account {
+.nav .nav-account,
+.nav .status-menu,
+.nav .status-menu * {
   -webkit-app-region: no-drag;
 }
 .nav--wide {
@@ -654,8 +656,8 @@
   gap: 2px;
   padding: 6px;
   border-radius: var(--r-card);
-  background: var(--float-bg);
-  backdrop-filter: var(--float-blur);
+  /* Solid: it sits over the extension card. */
+  background: var(--surface);
   box-shadow: var(--float-shadow);
   border: 1px solid var(--hairline-strong);
   animation: bj-rise var(--rise) var(--ease-out) both;
