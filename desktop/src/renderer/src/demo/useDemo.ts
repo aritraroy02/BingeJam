@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAppearance } from '@/live/appearance'
 import type { ChatHeaderVM, ChatSummaryVM, GroupMemberVM, MessageVM, RoomVM, SettingsVM, StreamVM, FriendsVM, ProfileVM } from '@/ui/models'
 import type { ShellData } from '@/shell'
 import {
@@ -227,6 +228,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
   }
 
   const unread = chats.reduce((n, c) => n + c.unread, 0)
+  const appearance = useAppearance()
   return {
     me: DEMO_ME,
     home: DEMO_HOME,
@@ -248,7 +250,20 @@ export function useDemo(profileUid: string | null = null): ShellData {
     invite: { link: 'https://syncit-watchparty.web.app/add/alex/Kq7mPz2xWb4R' },
     watchlist: [],
     myBirthDate: '2001-03-12',
-    act
+    prefs: { theme: appearance.theme, density: appearance.density, closeToTray: true, globalShortcuts: true, notifications: true },
+    alerts: DEMO_ALERTS,
+    act: {
+      ...act,
+      preferences: {
+        theme: appearance.setTheme,
+        density: appearance.setDensity,
+        closeToTray: () => undefined,
+        globalShortcuts: () => undefined,
+        notifications: () => undefined
+      },
+      alerts: { join: () => undefined, declineInvite: () => undefined, letIn: () => undefined, declineJoin: () => undefined },
+      room: { ...act.room, react: () => undefined, toggleMini: () => undefined }
+    }
   }
 }
 
@@ -259,3 +274,11 @@ function demoProfile(uid: string | null, friends: FriendsVM): ProfileVM | null {
   if (!f) return { id: uid, name: 'Someone', username: 'someone', bio: null, photoUrl: null, relation: 'none' }
   return { id: f.id, name: f.name, username: f.username ?? '', bio: 'Here for the plot twists', photoUrl: f.photoUrl ?? null, relation: 'friend', status: f.status, since: 'Friends since Mar 2026' }
 }
+
+/** BJ_ALERTS=1 shows the invite / join-request banners in demo snapshots. */
+const DEMO_ALERTS = new URLSearchParams(window.location.search).get('alerts') === '1'
+  ? {
+      invites: [{ fromUid: 'riya', name: 'Riya', photoUrl: null, detail: 'Watch Midnight Signal together' }],
+      joins: [{ fromUid: 'kabir', name: 'Kabir', photoUrl: null, detail: 'Into the room you are in' }]
+    }
+  : { invites: [], joins: [] }

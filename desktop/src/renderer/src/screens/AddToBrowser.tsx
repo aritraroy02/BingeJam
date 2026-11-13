@@ -26,7 +26,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
         <section
           aria-labelledby="h-browser"
           className="glass glass--hero glass--raised rise"
-          style={{ '--i': 1, padding: 32, display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(239,233,222,0.06)' } as CSSProperties}
+          style={{ '--i': 1, padding: 32, display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(var(--ink), 0.06)' } as CSSProperties}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button type="button" className="icon-btn-sm pressable" aria-label="Back to Settings" title="Back to Settings" onClick={onBack}>
@@ -37,7 +37,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
           <h1 id="h-browser" className="h1" style={{ fontSize: 40, lineHeight: 1.05, letterSpacing: -0.4 }}>
             Add {BRAND.name} to your browser
           </h1>
-          <p style={{ margin: 0, maxWidth: 680, fontSize: 15, lineHeight: 1.55, color: 'rgba(239,233,222,0.76)' }}>
+          <p style={{ margin: 0, maxWidth: 680, fontSize: 15, lineHeight: 1.55, color: 'rgba(var(--ink), 0.76)' }}>
             Netflix, Prime Video and JioHotstar play in your browser. With the extension, {BRAND.name} syncs everyone to the frame, waits for anyone
             buffering and follows the host to the next episode.
           </p>
@@ -114,7 +114,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
       </main>
 
       <aside aria-label="Extension popup preview" className="popup-aside rise" style={{ '--i': 3 } as CSSProperties}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(239,233,222,0.74)' }}>The popup in your browser</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(var(--ink), 0.74)' }}>The popup in your browser</span>
         {/* A picture of the popup: nothing in it can be focused or changed here. */}
         <div className="popup-card" inert>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -131,7 +131,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
           <div className="popup-card__room">
             {setup.popup ? (
               <>
-                <span style={{ fontSize: 12, color: 'rgba(239,233,222,0.72)' }}>
+                <span style={{ fontSize: 12, color: 'rgba(var(--ink), 0.72)' }}>
                   Room {setup.popup.roomCode} · {setup.popup.people}
                 </span>
                 <span style={{ fontWeight: 500, fontSize: 15 }}>{setup.popup.title}</span>
@@ -142,7 +142,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
               </>
             ) : (
               <>
-                <span style={{ fontSize: 12, color: 'rgba(239,233,222,0.72)' }}>Not in a room</span>
+                <span style={{ fontSize: 12, color: 'rgba(var(--ink), 0.72)' }}>Not in a room</span>
                 <span style={{ fontWeight: 500, fontSize: 15 }}>Join a room in the app</span>
                 <span style={{ fontSize: 13, color: 'var(--text-2)' }}>The popup shows it here</span>
               </>
@@ -165,7 +165,7 @@ export function AddToBrowser({ setup, onAddTo, onBack }: AddToBrowserProps): JSX
               ] as const
             ).map(([label, on]) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ flex: 1, color: 'rgba(239,233,222,0.86)' }}>{label}</span>
+                <span style={{ flex: 1, color: 'rgba(var(--ink), 0.86)' }}>{label}</span>
                 <Switch checked={on} onChange={() => undefined} label={label} />
               </div>
             ))}

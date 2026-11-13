@@ -21,6 +21,16 @@ import type {
 } from '@/ui/models'
 import type { ReportReasonValue } from '@/ui/ReportDialog'
 import type { EditProfileValues } from '@/ui/ProfileDialogs'
+import type { InviteAlertVM, JoinAlertVM } from '@/ui/Alerts'
+import type { Density, ThemeMode } from '@/live/appearance'
+
+/** Something outside the shell (a notification click, an invite link) wants a screen opened. */
+export interface NavRequest {
+  /** Changes on every request, so the same target can be asked for twice. */
+  id: number
+  to: 'room' | 'chat' | 'friends' | 'home'
+  chatId?: string
+}
 
 // Everything the app shell (App.tsx) needs: the view models for every screen plus what each button
 // does. Demo mode fills it from demo/useDemo.ts; the Firebase data layer fills it for real accounts.
@@ -61,6 +71,21 @@ export interface ShellData {
   profileBusy?: boolean
   /** A short message for the person ("Invite link copied", an error); shown as a toast. */
   notice?: string | null
+  /** Room invites and join requests, shown over every screen. */
+  alerts?: { invites: InviteAlertVM[]; joins: JoinAlertVM[] }
+  /** Database connection, for the "You're offline" banner. */
+  connection?: 'online' | 'offline' | 'back'
+  navRequest?: NavRequest | null
+  /** The mini room window is open. */
+  miniOpen?: boolean
+  /** Settings → Appearance and Windows (real accounts). */
+  prefs?: {
+    theme: ThemeMode
+    density: Density
+    closeToTray: boolean | null
+    globalShortcuts: boolean | null
+    notifications: boolean
+  }
   act: ShellActions
 }
 
@@ -89,6 +114,24 @@ export interface ShellActions {
     showPlayer: () => void
     toggleMute: () => void
     joinVoice: () => void
+    /** Open / close the always-on-top mini room window. */
+    toggleMini?: () => void
+    /** An emoji reaction everyone in the room sees (reactions/{code}). */
+    react?: (emoji: string) => void
+  }
+  /** Room invites ("Join" / "Not now") and join requests ("Let in" / "Not now"). */
+  alerts?: {
+    join: (fromUid: string) => void
+    declineInvite: (fromUid: string) => void
+    letIn: (fromUid: string) => void
+    declineJoin: (fromUid: string) => void
+  }
+  preferences?: {
+    theme: (t: ThemeMode) => void
+    density: (d: Density) => void
+    closeToTray: (on: boolean) => void
+    globalShortcuts: (on: boolean) => void
+    notifications: (on: boolean) => void
   }
   stream: {
     source: (s: StreamSource) => void

@@ -187,3 +187,18 @@ export async function cancelFriendRequest(toUid: string): Promise<void> {
   const me = requireUid()
   await update(ref(db), { [`friendRequests/${toUid}/${me}`]: null, [`sentFriendRequests/${me}/${toUid}`]: null })
 }
+
+/** sentFriendRequests/{me}: requests we sent that are still waiting (Friends → Sent, with Cancel). */
+export function useSentFriendRequests(): { id: string; name: string; username: string; photoUrl: string | null; sentLabel: string }[] | null {
+  const me = useUid()
+  const snap = useLive(me ? `sentFriendRequests/${me}` : null)
+  const uids = useMemo(() => (snap ? parseKeys(snap.children) : []), [snap])
+  const profiles = useProfiles(uids)
+  return useMemo(() => {
+    if (!snap) return null
+    return uids.flatMap((uid) => {
+      const p = profiles.get(uid)
+      return p ? [{ id: uid, name: p.displayName, username: p.username, photoUrl: p.photoUrl, sentLabel: 'Waiting' }] : []
+    })
+  }, [snap, uids, profiles])
+}

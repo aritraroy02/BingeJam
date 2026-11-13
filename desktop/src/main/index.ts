@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import { BRAND } from '@shared/brand'
 import { registerRelayProxy } from './relayProxy'
 import { setupExtensionLink } from './extension'
+import { setupDesktop, shouldCloseToTray, startedHidden } from './desktop'
+import { setupMini, toggleMini } from './mini'
 
 // BingeJam desktop: one window, one instance. Firebase (auth + Realtime Database) runs in the
 // renderer like the web SDK expects; the main process owns the window, OS integration and IPC.
@@ -12,6 +14,10 @@ const APP_ID = 'com.bingejam.desktop'
 const PROTOCOL = 'bingejam' // bingejam://… links (email sign-in hand-off, invites) open the app
 
 let mainWindow: BrowserWindow | null = null
+/** Set by Quit (tray / menu): closing the window then really quits instead of hiding to the tray. */
+let quitting = false
+/** A bingejam:// link the app was started with, handed to the UI once it asks (app:take-deep-link). */
+let pendingLink: string | null = process.argv.find((a) => a.startsWith(`${PROTOCOL}://`)) ?? null
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -20,7 +26,10 @@ if (!app.requestSingleInstanceLock()) {
     // A second launch (or a bingejam:// link) focuses the running window instead.
     focusMainWindow()
     const link = argv.find((a) => a.startsWith(`${PROTOCOL}://`))
-    if (link) mainWindow?.webContents.send('app:deep-link', link)
+    if (link) {
+      if (mainWindow) mainWindow.webContents.send('app:deep-link', link)
+      else pendingLink = link
+    }
   })
   app.whenReady().then(onReady)
 }
@@ -36,6 +45,8 @@ function onReady(): void {
   registerIpc()
   registerRelayProxy()
   setupExtensionLink({ window: () => mainWindow, focus: focusMainWindow })
+  setupDesktop({ window: () => mainWindow, focus: focusMainWindow, quit: quitApp, toggleMini })
+  setupMini({ main: () => mainWindow, load: loadUi })
   createMainWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
@@ -72,7 +83,16 @@ function createMainWindow(): void {
     }
   })
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
+  // Started by Windows at sign-in: stay in the tray until opened.
+  mainWindow.once('ready-to-show', () => {
+    if (!startedHidden()) mainWindow?.show()
+  })
+  mainWindow.on('close', (event) => {
+    if (!quitting && shouldCloseToTray()) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -93,14 +113,10 @@ function createMainWindow(): void {
   const query: Record<string, string> = process.env['BJ_DEMO'] === '1' ? { demo: '1' } : {}
   // BJ_SCREEN=chats|group|room|streams|browser|settings|friends|setup: open that screen (snapshots).
   if (process.env['BJ_SCREEN']) query.screen = process.env['BJ_SCREEN']
-  const devUrl = process.env['ELECTRON_RENDERER_URL']
-  if (!app.isPackaged && devUrl) {
-    const url = new URL(devUrl)
-    for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v)
-    void mainWindow.loadURL(url.toString())
-  } else {
-    void mainWindow.loadFile(join(__dirname, '../renderer/index.html'), { query })
-  }
+  // BJ_THEME=light|dark and BJ_ALERTS=1 for snapshots.
+  if (process.env['BJ_THEME']) query.theme = process.env['BJ_THEME']
+  if (process.env['BJ_ALERTS']) query.alerts = '1'
+  loadUi(mainWindow, query)
 
   // BJ_SNAPSHOT=<file.png>: save a screenshot once the entry animations have settled, then quit.
   // Lets a script compare the app with desktop/design/*.png without anyone at the screen.
@@ -116,8 +132,31 @@ function createMainWindow(): void {
   }
 }
 
+function loadUi(win: BrowserWindow, query: Record<string, string>): void {
+  const devUrl = process.env['ELECTRON_RENDERER_URL']
+  if (!app.isPackaged && devUrl) {
+    const url = new URL(devUrl)
+    for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v)
+    void win.loadURL(url.toString())
+  } else {
+    void win.loadFile(join(__dirname, '../renderer/index.html'), { query })
+  }
+}
+
+function quitApp(): void {
+  quitting = true
+  app.quit()
+}
+
+app.on('before-quit', () => {
+  quitting = true
+})
+
 function focusMainWindow(): void {
-  if (!mainWindow) return
+  if (!mainWindow) {
+    createMainWindow()
+    return
+  }
   if (mainWindow.isMinimized()) mainWindow.restore()
   mainWindow.show()
   mainWindow.focus()
@@ -134,6 +173,11 @@ function isSafeExternalUrl(url: string): boolean {
 
 function registerIpc(): void {
   ipcMain.handle('app:version', () => app.getVersion())
+  ipcMain.handle('app:take-deep-link', () => {
+    const link = pendingLink
+    pendingLink = null
+    return link
+  })
   ipcMain.handle('shell:open-external', (_event, url: unknown) => {
     if (typeof url === 'string' && isSafeExternalUrl(url)) return shell.openExternal(url)
     return undefined

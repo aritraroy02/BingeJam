@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { LINKS } from '@shared/brand'
 import type { ServiceId } from '@shared/player'
 import {
@@ -50,6 +50,16 @@ import { buildRoomVM, livePositionMs } from '@/sync/roomVm'
 import type { BrowserId, FriendVM, GroupMemberVM, ProfileVM, TrendingVM } from '@/ui/models'
 import { useDetectedBrowsers, useExtensionStatus } from './extension'
 import { useVoiceDevices } from './voiceDevices'
+import { useAppearance } from './appearance'
+import { useConnection, useDesktopPrefs, useNotifier } from './desktopIntegration'
+import type { NavRequest } from '@/shell'
+import type { MiniRoomState } from '@shared/desktop'
+import { acceptJoin, declineInvite, declineJoin, dismissInvite, useJoinRequests, useRoomInvites } from '@/data/watchInvites'
+import { sendRoomMessage, sendRoomReaction, useRoomChat } from '@/data/roomChat'
+import { joinRoomByCode } from '@/data/chatRooms'
+import { parseInviteLink } from '@/data/invites'
+import { isRoomCode } from '@/data/ids'
+import { useSentFriendRequests } from '@/data/friends'
 
 // Real data for every screen (the signed-in counterpart of demo/useDemo.ts). Screens stay
 // props-only; this hook is the only place that knows about Firebase, the extension and the room.
@@ -80,6 +90,10 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const [notice, setNotice] = useState<string | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
   const [roomStarting, setRoomStarting] = useState(false)
+  const [navRequest, setNavRequest] = useState<NavRequest | null>(null)
+  const navId = useRef(0)
+  const go = (to: NavRequest['to'], chatId?: string): void => setNavRequest({ id: ++navId.current, to, chatId })
+  const [miniOpen, setMiniOpen] = useState(false)
 
   // ---------- Lists ----------
   const home = useHome(trendingKind)
@@ -90,6 +104,12 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const blockedGroups = useBlockedGroups()
   const myBirthDate = useMyBirthDate()
   const watchlist = useWatchlist()
+  const sent = useSentFriendRequests()
+  const invites = useRoomInvites()
+  const joinRequests = useJoinRequests()
+  const appearance = useAppearance()
+  const desktop = useDesktopPrefs()
+  const connection = useConnection()
 
   // Crash reports waiting on this PC go up (encrypted) once we're signed in.
   useEffect(() => {
@@ -162,10 +182,13 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const browser = linked[0]?.browser ?? null
   const detected = useDetectedBrowsers(linked.map((c) => c.browser).join(','))
   const room = useRoomSync(uid)
-  const roomChat = room.active?.chatId ?? null
+  // "room:<code>" = a room joined by its code alone (no chat behind it).
+  const roomChat = room.active && !room.active.chatId.startsWith('room:') ? room.active.chatId : null
+  const roomCode = room.active?.code ?? null
   const roomHeader = useChatHeader(roomChat)
   const roomMembers = useGroupMembers(roomChat && isGroupId(roomChat) ? roomChat : null)
-  const roomMessages = useChatMessages(roomChat)
+  // The room's own chat (chats/{code}), shared with phones in the room.
+  const roomMessages = useRoomChat(roomCode)
   const roomPhotos = useProfiles(useMemo(() => room.state.members.map((m) => m.uid), [room.state.members]))
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -201,6 +224,20 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   // ---------- Settings ----------
   const voice = useVoiceDevices()
 
+  // ---------- Notifications + taskbar badge ----------
+  useNotifier({ enabled: desktop.notifications, chats, requests, invites, joinRequests, viewing })
+  useEffect(
+    () =>
+      window.bingejam.desktop.onNotifyClick((action) => {
+        const [kind, arg] = [action.slice(0, action.indexOf(':')), action.slice(action.indexOf(':') + 1)]
+        if (action === 'friends') go('friends')
+        else if (kind === 'chat') go('chat', arg)
+        else if (kind === 'invite') joinInvite(arg)
+        else go('home') // join requests: the banner is on every screen
+      }),
+    [invites]
+  )
+
   // ---------- Actions ----------
   function fail(fallback: string): (e: unknown) => void {
     return (e) => {
@@ -223,6 +260,67 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     void window.bingejam.extension.send({ kind: 'command', message: { tabId, command: cmd, commandId: `ui-${performance.now().toFixed(0)}` } })
   }
 
+  /** Accept a room invite: join its room (linked to our 1:1 chat with them) and open it. */
+  function joinInvite(fromUid: string): void {
+    const v = invites?.find((x) => x.fromUid === fromUid)
+    if (!v) return
+    setRoomStarting(true)
+    go('room', dmId(uid, fromUid))
+    void joinRoomByCode(v.roomCode, dmId(uid, fromUid))
+      .then(() => dismissInvite(fromUid))
+      .catch((e: unknown) => {
+        fail("Couldn't join the room")(e)
+        if (e instanceof Error && e.message === 'That room has ended') void dismissInvite(fromUid).catch(() => undefined)
+      })
+      .finally(() => setRoomStarting(false))
+  }
+
+  /** Let a friend in: into the room we're in, or a new room in our 1:1 chat. */
+  function letIn(fromUid: string): void {
+    void (async () => {
+      const code = room.active?.code ?? (await startOrJoinChatRoom(dmId(uid, fromUid)))
+      await acceptJoin(fromUid, code)
+      if (!room.active) go('room', dmId(uid, fromUid))
+      setNotice('Let in. They join in a moment.')
+    })().catch(fail("Couldn't let them in"))
+  }
+
+  /** bingejam://join/CODE (a /join link) and bingejam://add/<username>/<token> (an invite link). */
+  function openLink(link: string): void {
+    let url: URL
+    try {
+      url = new URL(link)
+    } catch {
+      return
+    }
+    const parts = `${url.host}${url.pathname}`.split('/').filter(Boolean)
+    if (parts[0] === 'join' && parts[1] && isRoomCode(parts[1].toUpperCase())) {
+      const code = parts[1].toUpperCase()
+      const from = invites?.find((v) => v.roomCode === code)?.fromUid
+      setRoomStarting(true)
+      go('room', from ? dmId(uid, from) : undefined)
+      void joinRoomByCode(code, from ? dmId(uid, from) : null)
+        .catch(fail("Couldn't join the room"))
+        .finally(() => setRoomStarting(false))
+    } else if (parts[0] === 'add' && parts[1]) {
+      const parsed = parseInviteLink(`https://x/add/${parts.slice(1).join('/')}`)
+      const name = parsed?.username ?? parts[1]
+      void sendFriendRequest(name, parsed?.token).then(
+        (r) => {
+          setNotice(r === 'accepted' ? `You and @${name} are friends now` : `Request sent to @${name}`)
+          go('friends')
+        },
+        fail("Couldn't add them")
+      )
+    }
+  }
+  const openLinkRef = useRef(openLink)
+  openLinkRef.current = openLink
+  useEffect(() => {
+    void window.bingejam.takeDeepLink().then((l) => l && openLinkRef.current(l))
+    return window.bingejam.onDeepLink((l) => openLinkRef.current(l))
+  }, [])
+
   async function enterRoom(id: string): Promise<void> {
     setRoomStarting(true)
     try {
@@ -233,6 +331,64 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       setRoomStarting(false)
     }
   }
+
+  // ---------- Mini window + shortcuts in any app ----------
+  const roomActions = useRef({ togglePlay: () => {}, syncToMe: () => {}, seekBy: (_d: number) => {}, send: (_t: string) => {}, react: (_e: string) => {}, toggleMute: () => {} })
+  roomActions.current = {
+    togglePlay: () => command(room.state.playing ? 'pause' : 'play'),
+    syncToMe: () => command({ seekTo: livePositionMs(room.state, performance.now()) }),
+    seekBy: (d) => command({ seekTo: livePositionMs(room.state, performance.now()) + d }),
+    send: (t) => roomCode && void sendRoomMessage(roomCode, profile.displayName, t).catch(fail("Couldn't send that")),
+    react: (e) => roomCode && void sendRoomReaction(roomCode, profile.displayName, e).catch(fail("Couldn't react")),
+    toggleMute: () => setNotice('Join voice in the room first')
+  }
+  useEffect(() => window.bingejam.mini.onOpen(setMiniOpen), [])
+  useEffect(
+    () =>
+      window.bingejam.mini.onAction((a) => {
+        const r = roomActions.current
+        if (a.kind === 'togglePlay') r.togglePlay()
+        else if (a.kind === 'syncToMe') r.syncToMe()
+        else if (a.kind === 'seekBy') r.seekBy(a.deltaMs)
+        else if (a.kind === 'send') r.send(a.text)
+        else if (a.kind === 'react') r.react(a.emoji)
+        else if (a.kind === 'toggleMute') r.toggleMute()
+      }),
+    []
+  )
+  useEffect(
+    () =>
+      window.bingejam.desktop.onGlobalShortcut((id) => {
+        if (!room.active && id !== 'toggleMute') return
+        const r = roomActions.current
+        if (id === 'playPause') r.togglePlay()
+        else if (id === 'syncToMe') r.syncToMe()
+        else if (id === 'toggleMute') r.toggleMute()
+      }),
+    [room.active]
+  )
+  // What the mini window shows (it closes when we leave the room).
+  const miniState = useMemo((): MiniRoomState | null => {
+    if (!roomVM || !room.active) return null
+    return {
+      code: room.active.code,
+      title: roomVM.title,
+      service: roomVM.service,
+      playing: roomVM.playing,
+      positionMs: roomVM.positionMs,
+      durationMs: roomVM.durationMs,
+      syncLabel: roomVM.syncLabel,
+      allInSync: roomVM.allInSync,
+      hasTab: room.state.tabId !== null,
+      muted: roomVM.voice.muted,
+      inVoice: roomVM.voice.joined,
+      members: roomVM.members.map((m) => ({ id: m.id, name: m.name, label: m.syncLabel, health: m.health, isMe: m.isMe })),
+      chat: (roomMessages ?? []).slice(-30).flatMap((m) => (m.kind === 'text' ? [{ id: m.id, name: m.senderName ?? '', text: m.text, fromMe: m.fromMe }] : []))
+    }
+  }, [roomVM, room.active, room.state.tabId, roomMessages])
+  useEffect(() => {
+    window.bingejam.mini.state(miniState)
+  }, [miniState])
 
   const friendRequestVMs = useMemo(
     () => requests?.map((r) => ({ id: r.fromUid, name: r.name, username: r.username, photoUrl: r.photoUrl, sentLabel: agoShort(Math.max(0, now - r.sentAt)) })) ?? null,
@@ -252,6 +408,30 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     room: roomVM,
     roomStarting,
     roomChat: roomMessages,
+    navRequest,
+    miniOpen,
+    connection,
+    alerts: {
+      invites: (invites ?? []).map((v) => ({
+        fromUid: v.fromUid,
+        name: v.fromName,
+        photoUrl: friends?.find((f) => f.id === v.fromUid)?.photoUrl ?? null,
+        detail: v.title ? `Watch ${v.title} together` : 'Join their room'
+      })),
+      joins: (joinRequests ?? []).map((j) => ({
+        fromUid: j.fromUid,
+        name: j.fromName,
+        photoUrl: friends?.find((f) => f.id === j.fromUid)?.photoUrl ?? null,
+        detail: room.active ? 'Into the room you are in' : 'A new room with them'
+      }))
+    },
+    prefs: {
+      theme: appearance.theme,
+      density: appearance.density,
+      closeToTray: desktop.prefs?.closeToTray ?? null,
+      globalShortcuts: desktop.prefs?.globalShortcuts ?? null,
+      notifications: desktop.notifications
+    },
     stream: {
       liveHost: null,
       liveDetail: '',
@@ -284,13 +464,13 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       account: { uid, name: profile.displayName, username: profile.username, email: null, photoUrl: profile.photoUrl, bio: profile.bio },
       extension: { connected: linked.length > 0, detail: browser ? `Linked in ${browser}` : 'Add it from Settings' },
       voice: voice.vm,
-      startWithWindows: null,
+      startWithWindows: desktop.startWithWindows,
       version
     },
     friends: {
       friends,
       requests: friendRequestVMs,
-      sent: [],
+      sent: sent ?? null,
       blockedPeople: blockedPeople?.map((b) => ({ id: b.uid, name: b.name, username: b.username, photoUrl: b.photoUrl })) ?? null,
       blockedGroups
     },
@@ -419,6 +599,19 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
         unblockUser: (who) => void unblockUser(who).then(() => setNotice('Unblocked'), fail("Couldn't unblock them")),
         unblockGroup: (gid) => void unblockGroup(gid).then(() => setNotice('Unblocked. Its admins can add you again.'), fail("Couldn't unblock the group"))
       },
+      alerts: {
+        join: joinInvite,
+        declineInvite: (from) => void declineInvite(from).catch(fail("Couldn't answer")),
+        letIn,
+        declineJoin: (from) => void declineJoin(from).catch(fail("Couldn't answer"))
+      },
+      preferences: {
+        theme: appearance.setTheme,
+        density: appearance.setDensity,
+        closeToTray: (on) => desktop.setPrefs({ closeToTray: on }),
+        globalShortcuts: (on) => desktop.setPrefs({ globalShortcuts: on }),
+        notifications: desktop.setNotifications
+      },
       startRoom: (id) => void enterRoom(id),
       joinRoom: (id) => void enterRoom(id),
       leaveRoom: () => void leaveChatRoom().catch(fail("Couldn't leave the room")),
@@ -436,7 +629,9 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           void requestToJoin(f.id).then(() => setNotice(`Asked ${f.name} to let you in`), fail("Couldn't ask to join"))
       },
       room: {
-        send: (text) => roomChat && void sendMessage(roomChat, text).catch(fail("Couldn't send that")),
+        send: (text) => roomCode && void sendRoomMessage(roomCode, profile.displayName, text).catch(fail("Couldn't send that")),
+        react: (emoji) => roomCode && void sendRoomReaction(roomCode, profile.displayName, emoji).catch(fail("Couldn't react")),
+        toggleMini: () => window.bingejam.mini.open(!miniOpen),
         togglePlay: () => command(room.state.playing ? 'pause' : 'play'),
         seekBy: (delta) => command({ seekTo: livePositionMs(room.state, performance.now()) + delta }),
         seekTo: (pos) => command({ seekTo: pos }),
@@ -481,7 +676,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
         inputDevice: voice.setInput,
         outputDevice: voice.setOutput,
         pushToTalkKey: voice.setPushToTalk,
-        startWithWindows: () => undefined
+        startWithWindows: desktop.setStartWithWindows
       },
       friends: {
         add: async (username) => {

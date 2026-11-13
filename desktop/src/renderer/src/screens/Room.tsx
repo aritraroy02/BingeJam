@@ -34,7 +34,15 @@ export interface RoomProps {
   onGoLive: () => void
   /** Leave the room (it ends when the last person leaves). */
   onLeave: () => void
+  /** The always-on-top mini window (real accounts). */
+  onToggleMini?: () => void
+  miniOpen?: boolean
+  /** Emoji reactions everyone in the room sees (phones too). */
+  onReact?: (emoji: string) => void
 }
+
+/** Same set as the phone's reaction bar. */
+export const ROOM_REACTIONS = ['😂', '😮', '😍', '😢', '🔥', '👏'] as const
 
 /**
  * Display-only clock: moves the shown position forward between updates while playing.
@@ -79,16 +87,25 @@ function RoomView(p: RoomProps & { room: RoomVM }): JSX.Element {
       </main>
       <aside aria-labelledby="h-room-chat" className="glass glass--strong side-panel rise" style={{ '--i': 4, flex: '1 1 320px' } as CSSProperties}>
         <h2 id="h-room-chat" className="h3">
-          {p.chatName} chat
+          Room chat
         </h2>
         <MessageList
           messages={p.messages}
           resetKey={r.code}
           showSenders
           compact
-          label={`${p.chatName} chat`}
-          empty={<span className="muted small">Messages here go to the whole chat.</span>}
+          label="Room chat"
+          empty={<span className="muted small">Messages here go to everyone in the room, phones too.</span>}
         />
+        {p.onReact ? (
+          <div className="reaction-bar" role="group" aria-label="React">
+            {ROOM_REACTIONS.map((e) => (
+              <button key={e} type="button" className="reaction-btn pressable" aria-label={`React ${e}`} onClick={() => p.onReact?.(e)}>
+                {e}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <Composer label="Message the room" placeholder="Message the room" variant="panel" onSend={p.onSendChat} />
       </aside>
     </div>
@@ -105,7 +122,7 @@ function Hero(p: RoomProps & { room: RoomVM }): JSX.Element {
     <section aria-labelledby="h-room" className="room-hero rise" style={{ '--i': 1 } as CSSProperties}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 12 }}>
         <div className="room-title-card">
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(239,233,222,0.74)' }}>{r.context}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(var(--ink), 0.74)' }}>{r.context}</span>
           <h1 id="h-room" style={{ margin: 0, fontSize: 28, fontWeight: 500, letterSpacing: -0.4 }}>
             {nothing ? 'Nothing playing yet' : r.title}
           </h1>
@@ -117,11 +134,16 @@ function Hero(p: RoomProps & { room: RoomVM }): JSX.Element {
         <button type="button" className="hero-chip hero-chip--btn pressable" onClick={p.onInvite}>
           Invite
         </button>
+        {p.onToggleMini ? (
+          <button type="button" className="hero-chip hero-chip--btn pressable" aria-pressed={p.miniOpen === true} onClick={p.onToggleMini} title="Ctrl+Shift+B">
+            {p.miniOpen ? 'Close mini window' : 'Mini window'}
+          </button>
+        ) : null}
       </div>
 
       <div style={{ alignSelf: 'center', textAlign: 'center', maxWidth: 520, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         <p style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>{r.playerLabel}</p>
-        <p style={{ margin: 0, color: 'rgba(239,233,222,0.74)', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, color: 'rgba(var(--ink), 0.74)', lineHeight: 1.5 }}>
           Everyone watches on their own account. BingeJam lines up play, pause and position through the extension.
         </p>
         <Button className="glass-btn" onClick={p.onShowPlayer}>
@@ -130,7 +152,7 @@ function Hero(p: RoomProps & { room: RoomVM }): JSX.Element {
       </div>
 
       <div className="transport">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: 'rgba(239,233,222,0.8)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: 'rgba(var(--ink), 0.8)' }}>
           <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatClock(nothing ? null : position)}</span>
           <Progress positionMs={position} durationMs={r.durationMs} host={host} onSeekTo={p.onSeekTo} />
           <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatClock(r.durationMs)}</span>
@@ -281,7 +303,7 @@ function VoicePanel({
         <h2 id="h-voice" className="h3" style={{ flex: 1 }}>
           Voice
         </h2>
-        <span style={{ fontSize: 12, color: 'rgba(239,233,222,0.68)' }}>{hint}</span>
+        <span style={{ fontSize: 12, color: 'rgba(var(--ink), 0.68)' }}>{hint}</span>
       </div>
       {v.members.length === 0 ? (
         <p className="muted small" style={{ margin: 0 }}>
@@ -331,7 +353,7 @@ function VoicePerson({ member: m }: { member: VoiceMemberVM }): JSX.Element {
       <span className="voice-person__face" style={{ opacity: m.muted ? 0.6 : 1 }}>
         <Avatar name={m.name} id={m.id} photoUrl={m.photoUrl} size={54} />
       </span>
-      <span style={{ fontSize: 12, color: m.muted ? 'rgba(239,233,222,0.68)' : '#fff' }}>{m.muted && !m.isMe ? 'Muted' : label}</span>
+      <span style={{ fontSize: 12, color: m.muted ? 'rgba(var(--ink), 0.68)' : '#fff' }}>{m.muted && !m.isMe ? 'Muted' : label}</span>
       <span className="sr-only">{m.muted ? `${label}, muted` : m.speaking ? `${label}, talking` : ''}</span>
     </li>
   )

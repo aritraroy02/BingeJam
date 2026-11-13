@@ -543,10 +543,10 @@ function RoomBanner({ room, onJoin }: { room: NonNullable<ChatHeaderVM['room']>;
         <span style={{ fontWeight: 500 }}>
           {names.length === 0 ? 'The room is open' : `${joinNames(names)} ${names.length === 1 ? 'is' : 'are'} in the room`}
         </span>
-        <span style={{ fontSize: 13, color: 'rgba(239,233,222,0.76)' }}>{room.summary}</span>
+        <span style={{ fontSize: 13, color: 'rgba(var(--ink), 0.76)' }}>{room.summary}</span>
       </span>
       <Button
-        style={{ height: 40, padding: '0 16px', borderRadius: 12, borderColor: 'rgba(239,233,222,0.24)', background: 'rgba(239,233,222,0.12)', fontWeight: 500 }}
+        style={{ height: 40, padding: '0 16px', borderRadius: 12, borderColor: 'rgba(var(--ink), 0.24)', background: 'rgba(var(--ink), 0.12)', fontWeight: 500 }}
         onClick={onJoin}
       >
         {room.meInRoom ? 'Open' : 'Join'}

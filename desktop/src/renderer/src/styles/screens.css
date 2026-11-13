@@ -546,8 +546,8 @@
   appearance: none;
   padding-right: 40px;
   background-image:
-    linear-gradient(45deg, transparent 50%, rgba(239, 233, 222, 0.7) 50%),
-    linear-gradient(135deg, rgba(239, 233, 222, 0.7) 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, rgba(var(--ink), 0.7) 50%),
+    linear-gradient(135deg, rgba(var(--ink), 0.7) 50%, transparent 50%);
   background-position:
     calc(100% - 22px) 50%,
     calc(100% - 17px) 50%;
@@ -580,4 +580,256 @@
   font-size: 14px;
   line-height: 1.4;
   cursor: default;
+}
+
+/* ---------- Invites and join requests (top right, over every screen) ---------- */
+.alerts {
+  position: fixed;
+  top: 44px;
+  right: 20px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+}
+.alert-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-card);
+  background: var(--float-bg);
+  backdrop-filter: var(--float-blur);
+  box-shadow: var(--float-shadow);
+  border: 1px solid var(--hairline-strong);
+  animation: bj-rise var(--rise) var(--ease-out) both;
+}
+.alert-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.alert-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ---------- Connection banner ---------- */
+.conn-banner {
+  position: fixed;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  background: var(--live);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--float-shadow);
+}
+.conn-banner--off {
+  background: var(--raised-2);
+  color: var(--text);
+  border: 1px solid var(--hairline-strong);
+}
+
+/* ---------- Room reactions ---------- */
+.reaction-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.reaction-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
+  background: var(--raised);
+  font-size: 18px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+.reaction-btn:hover {
+  background: var(--raised-2);
+}
+
+/* ---------- Keyboard shortcuts list (Settings) ---------- */
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hairline);
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.shortcut-row kbd {
+  min-width: 150px;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--raised);
+  border: 1px solid var(--hairline-strong);
+  text-align: center;
+}
+
+/* ---------- Mini room window ---------- */
+.mini {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--hairline-strong);
+}
+.mini-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: drag;
+}
+.mini-head button {
+  -webkit-app-region: no-drag;
+}
+.mini-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.mini-sync {
+  font-size: 12px;
+  color: var(--warn);
+}
+.mini-sync--ok {
+  color: var(--live);
+}
+.mini-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.mini-icon:hover:not(:disabled) {
+  background: var(--raised);
+}
+.mini-icon:disabled,
+.mini-text-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.mini-transport {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+.mini-play {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+.mini-time {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  padding-left: 6px;
+}
+.mini-text-btn {
+  border: 0;
+  background: var(--raised);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mini-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 96px;
+  overflow-y: auto;
+}
+.mini-member {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.mini-member-label {
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.mini-member--catchingUp .mini-member-label,
+.mini-member--buffering .mini-member-label {
+  color: var(--warn);
+}
+.mini-member--inSync .mini-member-label {
+  color: var(--live);
+}
+.mini-chat {
+  flex: 1;
+  min-height: 60px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  user-select: text;
+}
+.mini-msg {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.mini-msg--me {
+  color: var(--text-2);
+  text-align: right;
+}
+.mini-reactions {
+  display: flex;
+  gap: 4px;
+  justify-content: space-between;
+}
+.mini-reactions .reaction-btn {
+  width: 100%;
+  height: 32px;
+  font-size: 16px;
+}
+.mini-compose .field {
+  width: 100%;
+  height: 36px;
 }

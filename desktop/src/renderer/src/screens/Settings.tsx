@@ -1,8 +1,10 @@
 import { useEffect, useId, useState, type CSSProperties, type JSX, type ReactNode } from 'react'
 import { BRAND, LINKS } from '@shared/brand'
 import { Icon } from '@/ui/Icon'
-import { Avatar, Button, LiveDot, Switch } from '@/ui/primitives'
+import { Avatar, Button, LiveDot, Segmented, Switch } from '@/ui/primitives'
 import type { SettingsVM } from '@/ui/models'
+import type { ShellData, ShellActions } from '@/shell'
+import { GLOBAL_SHORTCUTS, shortcutLabel } from '@shared/desktop'
 
 // Settings (not in the mock-ups; same glass language as the other screens).
 
@@ -20,7 +22,21 @@ export interface SettingsProps {
   onViewPhoto?: () => void
   /** Owner and developers only (App reports, 2026-11-12). */
   onOpenAppReports?: () => void
+  /** Appearance and Windows preferences (real accounts). */
+  prefs?: ShellData['prefs']
+  preferences?: ShellActions['preferences']
 }
+
+const SHORTCUT_HELP: { keys: string; what: string }[] = [
+  { keys: shortcutLabel(GLOBAL_SHORTCUTS.playPause), what: 'Play / pause for everyone (works in any app)' },
+  { keys: shortcutLabel(GLOBAL_SHORTCUTS.syncToMe), what: 'Sync everyone to you (any app)' },
+  { keys: shortcutLabel(GLOBAL_SHORTCUTS.toggleMute), what: 'Mute / unmute in voice (any app)' },
+  { keys: shortcutLabel(GLOBAL_SHORTCUTS.miniWindow), what: 'Mini room window on / off (any app)' },
+  { keys: 'Ctrl+K', what: 'Search' },
+  { keys: 'Ctrl+N', what: 'New room (Chats)' },
+  { keys: 'Ctrl+1 … 6', what: 'Home, Chats, Watchlist, Friends, Streams, Settings' },
+  { keys: 'Ctrl+,', what: 'Settings' }
+]
 
 /** The OS's "Animation effects" switch, live (motion in the app follows it; see global.css). */
 function useReducedMotion(): boolean {
@@ -103,6 +119,8 @@ export function Settings(p: SettingsProps): JSX.Element {
             </Row>
           </Panel>
 
+          {p.prefs && p.preferences ? <AppearancePanel prefs={p.prefs} set={p.preferences} /> : null}
+
           <Panel id="h-app" title="App" i={3}>
             <Row title="Start with Windows" detail="Opens in the tray when you sign in to Windows, so friends can reach you." first>
               <Switch
@@ -112,6 +130,29 @@ export function Settings(p: SettingsProps): JSX.Element {
                 disabled={s.startWithWindows === null}
               />
             </Row>
+            {p.prefs && p.preferences ? (
+              <>
+                <Row title="Keep running when closed" detail="Closing the window leaves BingeJam in the tray, so friends still see you online and messages still pop up.">
+                  <Switch
+                    checked={p.prefs.closeToTray === true}
+                    onChange={p.preferences.closeToTray}
+                    label="Keep running when closed"
+                    disabled={p.prefs.closeToTray === null}
+                  />
+                </Row>
+                <Row title="Notifications" detail="Messages, friend requests, room invites and join requests as Windows pop-ups.">
+                  <Switch checked={p.prefs.notifications} onChange={p.preferences.notifications} label="Notifications" />
+                </Row>
+                <Row title="Shortcuts in any app" detail="Control the room while the movie's browser window has focus.">
+                  <Switch
+                    checked={p.prefs.globalShortcuts === true}
+                    onChange={p.preferences.globalShortcuts}
+                    label="Shortcuts in any app"
+                    disabled={p.prefs.globalShortcuts === null}
+                  />
+                </Row>
+              </>
+            ) : null}
             <Row title="Reduced motion" detail="Follows Windows: Settings → Accessibility → Visual effects → Animation effects.">
               <span className="tag">{reduced ? 'On' : 'Off'}</span>
             </Row>
@@ -136,6 +177,37 @@ export function Settings(p: SettingsProps): JSX.Element {
         </div>
       </div>
     </div>
+  )
+}
+
+function AppearancePanel({ prefs, set }: { prefs: NonNullable<ShellData['prefs']>; set: NonNullable<ShellActions['preferences']> }): JSX.Element {
+  return (
+    <Panel id="h-look" title="Appearance" i={3}>
+      <Row title="Theme" detail="System follows Windows' light or dark mode." first>
+        <Segmented
+          label="Theme"
+          options={[
+            { value: 'system', label: 'System' },
+            { value: 'dark', label: 'Dark' },
+            { value: 'light', label: 'Light' }
+          ]}
+          value={prefs.theme}
+          onChange={set.theme}
+        />
+      </Row>
+      <Row title="Compact mode" detail="Smaller spacing and text, for laptop screens.">
+        <Switch checked={prefs.density === 'compact'} onChange={(on) => set.density(on ? 'compact' : 'comfortable')} label="Compact mode" />
+      </Row>
+      <div className="shortcut-list" aria-label="Keyboard shortcuts">
+        <span className="section-label">Keyboard shortcuts</span>
+        {SHORTCUT_HELP.map((s) => (
+          <div key={s.keys} className="shortcut-row">
+            <kbd>{s.keys}</kbd>
+            <span className="muted small">{s.what}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
   )
 }
 

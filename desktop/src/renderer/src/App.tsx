@@ -25,6 +25,8 @@ import { AppReports } from '@/screens/AppReports'
 import { useStaffRole } from '@/data/appReports'
 import { setCrashScreen } from '@/data/crashReports'
 import { ProfileSetup } from '@/screens/ProfileSetup'
+import { MiniRoom } from '@/screens/MiniRoom'
+import { Alerts, ConnectionBanner } from '@/ui/Alerts'
 
 const params = new URLSearchParams(window.location.search)
 const DEMO = params.get('demo') === '1'
@@ -78,6 +80,11 @@ function tipDismissed(): boolean {
 }
 
 export function App(): JSX.Element {
+  if (params.get('mini') === '1') return <MiniRoom />
+  return <MainApp />
+}
+
+function MainApp(): JSX.Element {
   const auth = useAuth()
   if (DEMO && params.get('screen') === 'setup') return <ProfileSetup needProfile needBirthDate suggestedName="Aritra" onSignOut={() => undefined} />
   if (DEMO) return <DemoShell />
@@ -222,6 +229,45 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
     if (inRoom && data.roomStarting === false && !data.room) setView({ tab: 'chats', room: false })
   }, [inRoom, data.roomStarting, data.room])
 
+  // Notification clicks and invite links ask for a screen.
+  useEffect(() => {
+    const r = data.navRequest
+    if (!r) return
+    if (r.to === 'room') {
+      if (r.chatId) setChatId(r.chatId)
+      setView({ tab: 'chats', room: true })
+    } else if (r.to === 'chat') {
+      if (r.chatId) setChatId(r.chatId)
+      setView({ tab: 'chats', room: false })
+    } else setView({ tab: r.to })
+  }, [data.navRequest?.id])
+
+  // In-app shortcuts: Ctrl+K search, Ctrl+N new room, Ctrl+1…6 tabs, Ctrl+, Settings.
+  useEffect(() => {
+    const TABS: Tab[] = ['home', 'chats', 'watchlist', 'friends', 'streams', 'settings']
+    const onKey = (e: KeyboardEvent): void => {
+      if (!e.ctrlKey || e.altKey || e.metaKey) return
+      const key = e.key.toLowerCase()
+      if (key === 'k' && !e.shiftKey) {
+        e.preventDefault()
+        setView({ tab: 'home' })
+        // After Home renders.
+        setTimeout(() => document.getElementById('search')?.focus(), 0)
+      } else if (key === 'n' && !e.shiftKey) {
+        e.preventDefault()
+        setView({ tab: 'chats', room: false })
+      } else if (key === ',') {
+        e.preventDefault()
+        setView({ tab: 'settings', browser: false })
+      } else if (!e.shiftKey && /^[1-6]$/.test(key)) {
+        e.preventDefault()
+        navigate(TABS[Number(key) - 1])
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // Toasts go away by themselves.
   useEffect(() => {
     if (!data.notice) return
@@ -319,6 +365,9 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onPing={(uid) => data.room?.chatId && act.ping(data.room.chatId, uid)}
           onToggleMute={act.room.toggleMute}
           onJoinVoice={act.room.joinVoice}
+          onToggleMini={act.room.toggleMini}
+          miniOpen={data.miniOpen === true}
+          onReact={act.room.react}
           onGoLive={() => navigate('streams')}
           onLeave={() => {
             act.leaveRoom()
@@ -441,6 +490,8 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onEditProfile={() => setEditing(true)}
           onOpenAppReports={staffRole ? () => setView({ tab: 'settings', browser: false, reports: true }) : undefined}
           onViewPhoto={() => setViewingMyPhoto(true)}
+          prefs={data.prefs}
+          preferences={act.preferences}
         />
       )
       break
@@ -480,6 +531,17 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
         onRemovePhoto={act.editProfile.removePhoto}
       />
       <PhotoViewer photoUrl={viewingMyPhoto ? data.me.photoUrl : null} name={data.me.name} onClose={() => setViewingMyPhoto(false)} />
+      {data.alerts && act.alerts ? (
+        <Alerts
+          invites={data.alerts.invites}
+          joins={data.alerts.joins}
+          onJoin={act.alerts.join}
+          onDeclineInvite={act.alerts.declineInvite}
+          onLetIn={act.alerts.letIn}
+          onDeclineJoin={act.alerts.declineJoin}
+        />
+      ) : null}
+      <ConnectionBanner state={data.connection ?? 'online'} />
       {data.notice ? (
         <div role="status" className="glass glass--strong toast" onClick={() => act.dismissNotice?.()}>
           {data.notice}

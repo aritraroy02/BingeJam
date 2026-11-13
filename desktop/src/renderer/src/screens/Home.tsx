@@ -115,7 +115,7 @@ function ContinueCard(p: HomeProps): JSX.Element {
           {c.subtitle}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 420 }}>
-          <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(239,233,222,0.14)', overflow: 'hidden' }}>
+          <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(var(--ink), 0.14)', overflow: 'hidden' }}>
             <div style={{ width: `${Math.round(c.progress * 100)}%`, height: '100%', borderRadius: 2, background: 'var(--progress-grad)' }} />
           </div>
           <span className="subtle">{c.leftLabel}</span>
@@ -138,7 +138,7 @@ function ContinueCard(p: HomeProps): JSX.Element {
             borderRadius: 20,
             background: c.posterUrl ? `center/cover url("${c.posterUrl}")` : c.gradient,
             
-            border: '1px solid rgba(239,233,222,0.18)',
+            border: '1px solid rgba(var(--ink), 0.18)',
             display: 'flex',
             alignItems: 'flex-end',
             padding: 16,
@@ -159,8 +159,8 @@ function ContinueCard(p: HomeProps): JSX.Element {
                 gap: 8,
                 padding: '8px 12px 8px 8px',
                 borderRadius: 999,
-                background: 'rgba(239,233,222,0.10)',
-                border: '1px solid rgba(239,233,222,0.16)'
+                background: 'rgba(var(--ink), 0.10)',
+                border: '1px solid rgba(var(--ink), 0.16)'
               }}
             >
               <Avatar name={person.name} id={person.id} photoUrl={person.photoUrl} size={26} />

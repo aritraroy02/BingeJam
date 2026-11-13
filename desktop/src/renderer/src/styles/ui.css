@@ -559,7 +559,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, transparent 20%, rgba(239, 233, 222, 0.08) 50%, transparent 80%);
+  background: linear-gradient(100deg, transparent 20%, rgba(var(--ink), 0.08) 50%, transparent 80%);
   animation: bj-shimmer 1.4s ease-in-out infinite;
 }
 

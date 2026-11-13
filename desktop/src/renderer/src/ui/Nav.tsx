@@ -51,8 +51,8 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension }: Nav
           style={{
             padding: 16,
             borderRadius: 16,
-            background: extension.connected ? 'var(--raised)' : 'rgba(239,233,222,0.06)',
-            border: `1px solid ${extension.connected ? 'rgba(239,233,222,0.08)' : 'rgba(239,233,222,0.12)'}`,
+            background: extension.connected ? 'var(--raised)' : 'rgba(var(--ink), 0.06)',
+            border: `1px solid ${extension.connected ? 'rgba(var(--ink), 0.08)' : 'rgba(var(--ink), 0.12)'}`,
             display: 'flex',
             flexDirection: 'column',
             gap: 4
@@ -76,7 +76,7 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension }: Nav
             padding: 12,
             borderRadius: 16,
             background: 'var(--raised)',
-            border: '1px solid rgba(239,233,222,0.08)'
+            border: '1px solid rgba(var(--ink), 0.08)'
           }}
         >
           <Avatar name={me.name} id={me.uid} photoUrl={me.photoUrl} size={38} online />

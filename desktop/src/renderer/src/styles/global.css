@@ -9,13 +9,16 @@
 }
 
 :root {
+  /* The text colour as r, g, b, for translucent tints: rgba(var(--ink), 0.08). */
+  --ink: 239, 233, 222;
+
   /* Warm near-black ramp (same as the phone app and website, 2026-11-12 unslop). */
   --bg: #121110;
   --surface: #1a1917;
   --raised: #24221f;
   --raised-2: #2c2a26;
-  --hairline: rgba(239, 233, 222, 0.08);
-  --hairline-strong: rgba(239, 233, 222, 0.14);
+  --hairline: rgba(var(--ink), 0.08);
+  --hairline-strong: rgba(var(--ink), 0.14);
 
   /* One accent, solid. The *-grad names stay so components keep working, but they are flat now. */
   --accent: #c8102e;
@@ -64,7 +67,7 @@
   --float-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   --field-bg: var(--raised);
   --field-border: var(--hairline);
-  --ring: rgba(239, 233, 222, 0.7);
+  --ring: rgba(var(--ink), 0.7);
   --avatar-ring: var(--bg);
 
   /* Shape: controls 12, cards 16, panels 20 (nested radii add up). */
@@ -227,11 +230,42 @@ textarea::placeholder {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(239, 233, 222, 0.14);
+  background: rgba(var(--ink), 0.14);
   border-radius: 8px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* ---------- Light theme (Settings → Appearance) ---------- */
+:root[data-theme='light'] {
+  --ink: 30, 27, 24;
+  --bg: #f6f3ee;
+  --surface: #ffffff;
+  --raised: #efeae2;
+  --raised-2: #e6e0d6;
+  --accent-text: #b00d28;
+  --text: #1e1b18;
+  --text-2: #5c554c;
+  --text-3: #766e64;
+  --live: #2f8f63;
+  --warn: #9a6a0f;
+  --float-bg: rgba(255, 255, 255, 0.9);
+  --float-shadow: 0 16px 40px rgba(30, 27, 24, 0.16);
+  color-scheme: light;
+}
+
+/* Things that sit on artwork or video stay dark in both themes. */
+:root[data-theme='light'] .room-hero,
+:root[data-theme='light'] .stream-art,
+:root[data-theme='light'] .poster {
+  --ink: 239, 233, 222;
+  --surface: #1a1917;
+  --raised: #24221f;
+  --text: #efe9de;
+  --text-2: #aaa398;
+  --text-3: #948e84;
+  color: var(--text);
 }

@@ -1,6 +1,7 @@
 // Shape of `window.bingejam` (exposed by src/preload/index.ts). Shared by preload and renderer.
 import type { BridgeMessage } from '@shared/player'
 import type { AddToBrowserResult, BrowserId, DetectedBrowser, ExtensionStatus } from '@shared/extension'
+import type { DesktopPrefs, GlobalShortcutId, MiniAction, MiniRoomState, NotifyRequest } from '@shared/desktop'
 
 export interface BingeJamBridge {
   platform: string
@@ -21,6 +22,39 @@ export interface BingeJamBridge {
   relayAvatar(request: { method: 'PUT' | 'DELETE'; token: string; bytes?: Uint8Array }): Promise<{ status: number; body: string }>
   /** bingejam://… links that arrive while the app is running. Returns an unsubscribe function. */
   onDeepLink(listener: (link: string) => void): () => void
+  /** The bingejam:// link the app was started with (once; null afterwards). */
+  takeDeepLink(): Promise<string | null>
+  /** Tray, start with Windows, notifications, global shortcuts (src/main/desktop.ts). */
+  desktop: {
+    get(): Promise<{ prefs: DesktopPrefs; startWithWindows: boolean | null }>
+    /** Returns the new state; null = not possible here (a dev build). */
+    setStartWithWindows(on: boolean): Promise<boolean | null>
+    setPrefs(prefs: Partial<DesktopPrefs>): Promise<DesktopPrefs>
+    onPrefs(listener: (prefs: DesktopPrefs) => void): () => void
+    notify(request: NotifyRequest): void
+    /** Unread count on the tray tooltip and a dot on the taskbar button (0 clears). */
+    setBadge(count: number): void
+    onNotifyClick(listener: (action: string) => void): () => void
+    onGlobalShortcut(listener: (id: GlobalShortcutId) => void): () => void
+    setTheme(theme: 'dark' | 'light'): void
+    /** Compact mode: 0.9; normal: 1. */
+    setZoom(factor: number): void
+  }
+  /** The always-on-top mini room window (src/main/mini.ts). */
+  mini: {
+    /** Main window: open / close it. */
+    open(on: boolean): void
+    /** Main window: what it shows (null closes it). */
+    state(state: MiniRoomState | null): void
+    /** Main window: button presses from the mini window. */
+    onAction(listener: (action: MiniAction) => void): () => void
+    /** Main window: whether it's open. */
+    onOpen(listener: (open: boolean) => void): () => void
+    /** Mini window: send a button press. */
+    action(action: MiniAction): void
+    /** Mini window: the room's state. */
+    onState(listener: (state: MiniRoomState) => void): () => void
+  }
   /** The browser extension link (src/main/extension). Tab ids are the app's own, unique across browsers. */
   extension: {
     status(): Promise<ExtensionStatus>

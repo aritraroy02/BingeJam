@@ -36,7 +36,7 @@
   text-align: left;
 }
 .chat-item:hover:not([aria-current='true']) {
-  background: rgba(239, 233, 222, 0.04);
+  background: rgba(var(--ink), 0.04);
 }
 .chat-item[aria-current='true'] {
   background: var(--raised);
@@ -448,7 +448,7 @@ button.chat-header__subtitle:hover {
 }
 .menu__item:hover,
 .menu__item:focus-visible {
-  background: rgba(239, 233, 222, 0.08);
+  background: rgba(var(--ink), 0.08);
 }
 .menu__item--danger {
   color: var(--accent-text);
@@ -489,7 +489,7 @@ button.chat-header__subtitle:hover {
   cursor: pointer;
 }
 .pick-row:hover {
-  background: rgba(239, 233, 222, 0.04);
+  background: rgba(var(--ink), 0.04);
 }
 .pick-row input {
   width: 18px;

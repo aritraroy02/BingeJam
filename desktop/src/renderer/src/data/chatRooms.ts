@@ -18,9 +18,11 @@ import { initialPreview, linkStartPayload, memberFields, newRoomPayload, PING_CO
 // are in the same room, whichever leaves or drops first takes the account off the list.
 
 interface Active {
+  /** The chat the room belongs to; "room:<code>" for a room joined by its code alone (a link). */
   chatId: string
   code: string
-  linkPath: string
+  /** dmRooms/… or groupRooms/…; null when the room isn't linked to a chat. */
+  linkPath: string | null
   me: string
   /** Our display name, so a reconnect adds us back if the last one out removed us while offline. */
   name: string
@@ -67,6 +69,7 @@ function arm(a: Active): void {
     .update({ online: false, lastSeen: serverTimestamp() })
     .then(() => update(member, { name: a.name, online: true, lastSeen: serverTimestamp() }))
     .catch(log('member presence'))
+  if (!a.linkPath) return
   const mark = ref(db, `${a.linkPath}/in/${a.me}`)
   onDisconnect(mark).remove().catch(log('link onDisconnect'))
   set(mark, true).catch(log('link presence'))
@@ -164,6 +167,37 @@ export async function startOrJoinChatRoom(chatId: string, options: { reuseCode?:
 }
 
 /**
+ * Joins a room by its code (a friend's invite, a /join/CODE link). [chatId]: the chat it belongs to
+ * (the inviter's 1:1 chat); it's linked there only if that chat has no other room running. A room
+ * that ended answers "permission denied" (members can only join existing rooms).
+ */
+export async function joinRoomByCode(code: string, chatId: string | null = null): Promise<string> {
+  const me = requireUid()
+  if (!isRoomCode(code)) throw new Error("That isn't a room code")
+  if (active?.code === code) return code
+  const name = await myName(me)
+  try {
+    await joinRoom(code, me, name)
+  } catch (e) {
+    if (isPermissionDenied(e)) throw new Error('That room has ended')
+    throw e
+  }
+  let linkPath: string | null = null
+  if (chatId) {
+    const path = linkPathFor(chatId, me)
+    const link = await get(ref(db, path)).then((s) => parseRoomLink(s.val()), () => undefined)
+    if (link === null) {
+      await set(ref(db, path), linkStartPayload(me, code, serverTimestamp())).catch(log('link'))
+      linkPath = path
+    } else if (link?.code === code) {
+      linkPath = path
+    }
+  }
+  await enter({ chatId: linkPath && chatId ? chatId : `room:${code}`, code, linkPath, me, name })
+  return code
+}
+
+/**
  * Leaves the chat room we're in (optionally only if it's [chatId]'s): off the chat's "in" list and
  * out of rooms/{code}/members, like Android's ChatRoomTracker + FirebaseSyncTransport.leaveRoom.
  * The last one out also deletes the room (2026-11-10, same as the phone): when nobody else is
@@ -178,14 +212,16 @@ export async function leaveChatRoom(chatId?: string): Promise<void> {
   setActive(null)
   const members = ref(db, `rooms/${a.code}/members`)
   const member = ref(db, `rooms/${a.code}/members/${a.me}`)
-  const mark = ref(db, `${a.linkPath}/in/${a.me}`)
-  await Promise.allSettled([onDisconnect(member).cancel(), onDisconnect(mark).cancel()])
+  const mark = a.linkPath ? ref(db, `${a.linkPath}/in/${a.me}`) : null
+  await Promise.allSettled([onDisconnect(member).cancel(), mark ? onDisconnect(mark).cancel() : Promise.resolve()])
   // Read before leaving: once we're out we can't read the room.
   const others = await get(members)
     .then((s) => Object.entries((s.val() ?? {}) as Record<string, { online?: unknown }>).filter(([uid]) => uid !== a.me))
     .catch(() => null)
-  await remove(mark).catch(log('link presence'))
-  await dropLinkIfEmpty(a.linkPath, a.code)
+  if (mark && a.linkPath) {
+    await remove(mark).catch(log('link presence'))
+    await dropLinkIfEmpty(a.linkPath, a.code)
+  }
   if (others === null || others.some(([, m]) => m?.online === true)) {
     await remove(member).catch(log('leave'))
     return

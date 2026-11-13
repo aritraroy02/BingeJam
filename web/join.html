@@ -24,6 +24,10 @@
     Scan it with your phone's camera to get BingeJam from the PhonePe Appstore.
   </div>
 
+  <div class="notice" id="pc" hidden>
+    <b>Have BingeJam for PC?</b> Open this invite in the PC app.
+    <a class="btn primary" id="open-pc" href="#">Open in BingeJam for PC</a>
+  </div>
   <section id="ok" hidden>
     <div class="code-box">
       <span>Room code</span>
@@ -70,6 +74,11 @@
     SyncItDownload.setup(document.getElementById('download-bad'));
   } else {
     document.getElementById('ok').hidden = false;
+    // On a Windows PC: the BingeJam PC app registers bingejam:// links.
+    if (/Windows NT/.test(navigator.userAgent)) {
+      document.getElementById('pc').hidden = false;
+      document.getElementById('open-pc').href = 'bingejam://join/' + code;
+    }
     document.getElementById('code').textContent = code;
     document.getElementById('code-again').textContent = code;
     const link = 'https://syncit-watchparty.web.app/join/' + code;
