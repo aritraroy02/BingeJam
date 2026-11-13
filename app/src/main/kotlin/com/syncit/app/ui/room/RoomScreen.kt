@@ -171,7 +171,7 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit,
         } else {
             if (service == StreamingService.NETFLIX) {
                 viewModel.netflixRetry.opened(SystemClock.elapsedRealtime())
-                openNetflix(context, netflixId, NetflixLinks.query(preview), currentRoom?.title)
+                openNetflix(context, NetflixLinks.idFromPreview(preview) ?: netflixId, NetflixLinks.query(preview), currentRoom?.title)
             } else if (service == StreamingService.JIOHOTSTAR) {
                 openJioHotstar(context, preview?.takeIf { it.service == service }?.playableRef, currentRoom?.title)
             } else {

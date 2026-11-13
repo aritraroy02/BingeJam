@@ -34,17 +34,23 @@ internal object SocialParser {
 
     /**
      * Online if the phone's legacy flag or any devices/{deviceId} entry is online; last seen is
-     * the latest of them ([PresenceStatus]). Activity stays presence/{uid}/activity only.
+     * the latest of them ([PresenceStatus]). Activity is presence/{uid}/activity, else an online
+     * device's devices/{id}/activity (the PC app's browser tab, 2026-11-14).
      */
     fun presence(s: DataSnapshot?): Presence? {
         if (s == null || !s.exists()) return null
         // children (not .value) so device ids that look like numbers never turn into a List.
         val devices = s.child("devices").children.map { it.value }
         val status = PresenceStatus.of(s.child("online").value, s.child("lastSeen").value, devices)
+        val onlineDevices = s.child("devices").children.filter { it.child("online").bool() == true }
         return Presence(
             online = status.online,
             lastSeen = status.lastSeen,
-            activity = activity(s.child("activity")),
+            // The phone's own activity first; else what an online PC is playing in its browser.
+            activity = activity(s.child("activity"))
+                ?: onlineDevices.firstNotNullOfOrNull { activity(it.child("activity")) },
+            game = onlineDevices.firstNotNullOfOrNull { it.child("game").child("name").string()?.trim()?.takeIf(String::isNotEmpty)?.take(60) },
+            dnd = onlineDevices.any { it.child("status").string() == "dnd" },
         )
     }
 

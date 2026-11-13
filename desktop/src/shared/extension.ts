@@ -89,6 +89,40 @@ export type LinkControl =
   | { kind: 'link.reload' }
   /** host → ext only: whether the host reached the running app. */
   | { kind: 'link.host'; appLinked: boolean }
+  /** app → ext (every tab): room chat and reactions drawn over the video; null hides it. */
+  | { kind: 'link.overlay'; overlay: OverlayState | null }
+  /** app → ext (one tab): open this title in the tab (the host's exact title / next episode). */
+  | { kind: 'link.navigate'; tabId: number; url: string }
+  /** ext → app: typed into the overlay. */
+  | { kind: 'link.overlaySend'; text: string }
+  | { kind: 'link.overlayReact'; emoji: string }
+
+/** The overlay over the video (room chat + floating reactions). */
+export interface OverlayState {
+  code: string
+  /** The last few room messages, oldest first. */
+  chat: { id: string; name: string; text: string; fromMe: boolean }[]
+  /** Recent reactions; the tab animates the ones it hasn't shown yet. */
+  reactions: { id: string; name: string; emoji: string }[]
+  /** Emoji the overlay offers. */
+  palette: string[]
+}
+
+/** What the overlay sends back to the app. */
+export type OverlayInput = { kind: 'send'; text: string } | { kind: 'react'; emoji: string }
+
+/** Pages the app may open in a tab (link.navigate): the services' own watch pages, https only. */
+export function isNavigableUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return (
+      u.protocol === 'https:' &&
+      /^(www\.)?(netflix\.com|primevideo\.com|hotstar\.com|jiohotstar\.com|youtube\.com)$/.test(u.hostname)
+    )
+  } catch {
+    return false
+  }
+}
 
 export type LinkMessage = BridgeMessage | LinkControl
 

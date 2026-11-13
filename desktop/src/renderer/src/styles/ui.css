@@ -249,6 +249,9 @@
   background: var(--live);
   border: 2px solid var(--avatar-ring);
 }
+.avatar__status--dnd {
+  background: #e5484d;
+}
 .avatar-pair {
   position: relative;
   width: 44px;
@@ -637,4 +640,66 @@
 }
 .poster__save--on {
   color: var(--accent-text);
+}
+
+/* ---------- Status menu (your card in the sidebar) ---------- */
+.status-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: var(--r-card);
+  background: var(--float-bg);
+  backdrop-filter: var(--float-blur);
+  box-shadow: var(--float-shadow);
+  border: 1px solid var(--hairline-strong);
+  animation: bj-rise var(--rise) var(--ease-out) both;
+}
+.status-menu__item {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.status-menu__item:hover,
+.status-menu__item:focus-visible {
+  background: var(--raised);
+}
+.status-menu__item[aria-checked='true'] {
+  background: var(--raised-2);
+}
+.status-menu__share {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot--online {
+  background: var(--live);
+}
+.status-dot--dnd {
+  background: #e5484d;
+}
+.status-dot--invisible {
+  background: transparent;
+  border: 2px solid var(--text-3);
 }

@@ -36,19 +36,30 @@ export function activityLong(a: Activity): string {
   return a.playing ? line : `${line} (paused)`
 }
 
-/** Activity while online, else "Online", else "Last seen …" (ActivityText.statusLine). */
+/** "Playing VALORANT" while online on a PC that's running a game. */
+export function gameLine(p: Presence | null): string | null {
+  return p?.online && p.game ? `Playing ${p.game.name}` : null
+}
+
+/** Activity while online, else a game, else "Do not disturb" / "Online", else "Last seen …" (ActivityText.statusLine). */
 export function friendStatus(p: Presence | null, now: number): string {
   if (!p) return 'Offline'
   const a = visibleActivity(p)
   if (a) return activityShort(a)
-  return p.online ? 'Online' : lastSeenText(p.lastSeen, now)
+  const g = gameLine(p)
+  if (g) return g
+  if (p.online) return p.dnd ? 'Do not disturb' : 'Online'
+  return lastSeenText(p.lastSeen, now)
 }
 
 export function headerStatus(p: Presence | null, now: number): string {
   if (!p) return 'Offline'
   const a = visibleActivity(p)
   if (a) return activityLong(a)
-  return p.online ? 'Online' : lastSeenText(p.lastSeen, now)
+  const g = gameLine(p)
+  if (g) return g
+  if (p.online) return p.dnd ? 'Do not disturb' : 'Online'
+  return lastSeenText(p.lastSeen, now)
 }
 
 /** "Ask to join" for a watch party, "Ask to jam" for music/YouTube; nothing to join → null. */
@@ -69,7 +80,7 @@ export interface FriendRecord {
  * offline friends; names alphabetically otherwise (HomeViewModel.buildRows).
  */
 export function buildFriendVMs(friends: readonly FriendRecord[], now: number): FriendVM[] {
-  const rank = (f: FriendRecord): number => (visibleActivity(f.presence) ? 0 : f.presence?.online ? 1 : 2)
+  const rank = (f: FriendRecord): number => (visibleActivity(f.presence) || gameLine(f.presence) ? 0 : f.presence?.online ? 1 : 2)
   return [...friends]
     .sort((a, b) => {
       const r = rank(a) - rank(b)
@@ -86,6 +97,7 @@ export function buildFriendVMs(friends: readonly FriendRecord[], now: number): F
       username: f.profile.username,
       photoUrl: f.profile.photoUrl,
       online: f.presence?.online === true,
+      dnd: f.presence?.online === true && f.presence.dnd === true,
       status: friendStatus(f.presence, now),
       // Game streams ("Live ·", action "watch") don't exist in the data yet.
       action: friendAction(f.presence)

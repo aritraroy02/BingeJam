@@ -11,6 +11,9 @@ import { join } from 'node:path'
 import type { BridgeMessage, PlayerCommandMessage } from '@shared/player'
 import {
   DEFAULT_EXTENSION_SETTINGS,
+  isNavigableUrl,
+  type OverlayInput,
+  type OverlayState,
   type BrowserId,
   type ExtensionConnection,
   type ExtensionSettings,
@@ -40,6 +43,8 @@ export interface LinkEvents {
   message(msg: BridgeMessage): void
   status(): void
   openApp(): void
+  /** Typed into the overlay over the video. */
+  overlayInput(input: OverlayInput): void
   /** A browser linked; lets the owner decide whether it needs link.reload. */
   linked(conn: { id: number; browserId: BrowserId | null; installType: string | null; build: string | null }): void
 }
@@ -53,6 +58,7 @@ export class ExtensionLinkServer {
   private toApp = new Map<string, number>()
   private toBrowser = new Map<number, { conn: number; tabId: number }>()
   private room: Room = null
+  private overlay: OverlayState | null = null
   private stateFile = join(app.getPath('userData'), 'extension-link.json')
   private saved: { settings: ExtensionSettings; seen: ExtensionStatus['seen'] } = { settings: DEFAULT_EXTENSION_SETTINGS, seen: [] }
   listening = false
@@ -139,6 +145,7 @@ export class ExtensionLinkServer {
         conn.extensionVersion = String(msg.extensionVersion).slice(0, 30)
         this.events.message({ kind: 'hello', browser: conn.browser, extensionVersion: conn.extensionVersion })
         if (this.room !== null) this.send(conn, { kind: 'roomInfo', room: this.room })
+        if (this.overlay !== null) this.send(conn, { kind: 'link.overlay', overlay: this.overlay })
         this.remember(conn)
         this.events.status()
         break
@@ -184,6 +191,12 @@ export class ExtensionLinkServer {
         break
       case 'link.openApp':
         this.events.openApp()
+        break
+      case 'link.overlaySend':
+        if (typeof msg.text === 'string' && msg.text.trim()) this.events.overlayInput({ kind: 'send', text: msg.text.slice(0, 500) })
+        break
+      case 'link.overlayReact':
+        if (typeof msg.emoji === 'string' && msg.emoji.length <= 16) this.events.overlayInput({ kind: 'react', emoji: msg.emoji })
         break
     }
   }
@@ -234,6 +247,22 @@ export class ExtensionLinkServer {
       return false
     }
     this.send(conn, { kind: 'command', message: { ...m, tabId: target.tabId } })
+    return true
+  }
+
+  /** Room chat + reactions over the video, in every linked browser (null hides it). */
+  setOverlay(overlay: OverlayState | null): void {
+    this.overlay = overlay
+    for (const c of this.conns.values()) if (c.hello) this.send(c, { kind: 'link.overlay', overlay })
+  }
+
+  /** Opens a service's watch page in one of the app's tabs. */
+  navigate(appTabId: number, url: string): boolean {
+    if (!isNavigableUrl(url)) return false
+    const target = this.toBrowser.get(appTabId)
+    const conn = target && this.conns.get(target.conn)
+    if (!target || !conn) return false
+    this.send(conn, { kind: 'link.navigate', tabId: target.tabId, url })
     return true
   }
 

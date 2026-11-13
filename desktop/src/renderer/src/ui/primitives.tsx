@@ -34,7 +34,8 @@ export function Avatar({
   online = false,
   ring = false,
   group = false,
-  muted = false
+  muted = false,
+  dnd = false
 }: {
   name: string
   id?: string
@@ -47,6 +48,8 @@ export function Avatar({
   group?: boolean
   /** Offline people in member lists: plain grey with two initials (design: Ananya "AI"). */
   muted?: boolean
+  /** Online but Do not disturb: the dot turns red. */
+  dnd?: boolean
 }): JSX.Element {
   const tone = AVATAR_TONES[hash(id ?? name) % AVATAR_TONES.length]
   const style = {
@@ -57,7 +60,7 @@ export function Avatar({
   const avatar = (
     <span className="avatar" style={style} aria-hidden="true">
       {photoUrl ? null : initials(name, group || muted ? 2 : 1)}
-      {online ? <span className="avatar__status" /> : null}
+      {online ? <span className={dnd ? 'avatar__status avatar__status--dnd' : 'avatar__status'} /> : null}
     </span>
   )
   return ring ? <span className="avatar-ring">{avatar}</span> : avatar

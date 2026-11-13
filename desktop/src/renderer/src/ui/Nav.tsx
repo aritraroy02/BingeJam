@@ -1,7 +1,7 @@
-import type { JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import { BRAND } from '@shared/brand'
 import { Icon, LogoMark, type IconName } from './Icon'
-import { Avatar, Badge, LiveDot } from './primitives'
+import { Avatar, Badge, LiveDot, Switch } from './primitives'
 
 export type Tab = 'home' | 'chats' | 'watchlist' | 'friends' | 'streams' | 'settings'
 
@@ -18,12 +18,24 @@ export interface NavProps {
   current: Tab
   onNavigate: (tab: Tab) => void
   badges?: Partial<Record<Tab, number>>
-  me?: { uid: string; name: string; username: string; photoUrl?: string | null }
+  me?: {
+    uid: string
+    name: string
+    username: string
+    photoUrl?: string | null
+    status?: 'online' | 'dnd' | 'invisible'
+    activity?: string | null
+    shareActivity?: boolean
+  }
   extension?: { connected: boolean; detail: string }
+  onStatus?: (status: 'online' | 'dnd' | 'invisible') => void
+  onShareActivity?: (on: boolean) => void
 }
 
+const STATUS_LABEL = { online: 'Online', dnd: 'Do not disturb', invisible: 'Invisible' } as const
+
 /** Wide sidebar with labels: the Home layout in the design. */
-export function SideNav({ current, onNavigate, badges = {}, me, extension }: NavProps): JSX.Element {
+export function SideNav({ current, onNavigate, badges = {}, me, extension, onStatus, onShareActivity }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--wide glass glass--strong rise" style={{ borderRadius: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 8px 24px' }}>
@@ -65,30 +77,109 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension }: Nav
           <span className="subtle">{extension.detail}</span>
         </div>
       ) : null}
-      {me ? (
-        <div
-          className="nav-account"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 16,
-            background: 'var(--raised)',
-            border: '1px solid rgba(var(--ink), 0.08)'
-          }}
-        >
-          <Avatar name={me.name} id={me.uid} photoUrl={me.photoUrl} size={38} online />
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-            <span className="truncate" style={{ fontWeight: 600, fontSize: 13 }}>
-              {me.name}
-            </span>
-            <span className="subtle truncate">@{me.username}</span>
-          </div>
+      {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} /> : null}
+    </nav>
+  )
+}
+
+/** Your card at the bottom of the sidebar: status dot, what you're doing, and the status menu. */
+function AccountCard({
+  me,
+  onStatus,
+  onShareActivity
+}: {
+  me: NonNullable<NavProps['me']>
+  onStatus?: NavProps['onStatus']
+  onShareActivity?: NavProps['onShareActivity']
+}): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const status = me.status ?? 'online'
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent): void => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [open])
+  const line = me.activity ?? STATUS_LABEL[status]
+  return (
+    <div ref={box} style={{ position: 'relative', marginTop: 12 }}>
+      {open && onStatus ? (
+        <div className="status-menu" role="menu" aria-label="Your status">
+          {(['online', 'dnd', 'invisible'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              role="menuitemradio"
+              aria-checked={status === s}
+              className="status-menu__item"
+              onClick={() => {
+                onStatus(s)
+                setOpen(false)
+              }}
+            >
+              <span className={`status-dot status-dot--${s}`} />
+              <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600 }}>{STATUS_LABEL[s]}</span>
+                <span className="subtle small">
+                  {s === 'online' ? 'Friends see you and what you do' : s === 'dnd' ? 'No pop-ups; friends see a red dot' : "You'll look offline to friends"}
+                </span>
+              </span>
+            </button>
+          ))}
+          {onShareActivity ? (
+            <div className="status-menu__share">
+              <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600 }}>Share my activity</span>
+                <span className="subtle small">What you watch and play</span>
+              </span>
+              <Switch checked={me.shareActivity !== false} onChange={onShareActivity} label="Share my activity" />
+            </div>
+          ) : null}
         </div>
       ) : null}
-    </nav>
+      <button
+        type="button"
+        className="nav-account pressable"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${me.name}, ${STATUS_LABEL[status]}. Change status`}
+        onClick={() => setOpen((v) => !v)}
+        disabled={!onStatus}
+        style={{
+          all: 'unset',
+          boxSizing: 'border-box',
+          width: '100%',
+          cursor: onStatus ? 'pointer' : 'default',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: 12,
+          borderRadius: 16,
+          background: 'var(--raised)',
+          border: '1px solid rgba(var(--ink), 0.08)'
+        }}
+      >
+        <Avatar name={me.name} id={me.uid} photoUrl={me.photoUrl} size={38} online={status !== 'invisible'} dnd={status === 'dnd'} />
+        <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <span className="truncate" style={{ fontWeight: 600, fontSize: 13 }}>
+            {me.name}
+          </span>
+          <span className="subtle truncate" title={line}>
+            {me.activity && me.shareActivity === false ? `${line} (hidden)` : line}
+          </span>
+        </span>
+      </button>
+    </div>
   )
 }
 

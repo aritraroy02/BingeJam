@@ -39,6 +39,8 @@ export interface RoomProps {
   miniOpen?: boolean
   /** Emoji reactions everyone in the room sees (phones too). */
   onReact?: (emoji: string) => void
+  /** Opens the host's exact title in the browser (RoomVM.openTitle). */
+  onOpenTitle?: () => void
 }
 
 /** Same set as the phone's reaction bar. */
@@ -146,9 +148,16 @@ function Hero(p: RoomProps & { room: RoomVM }): JSX.Element {
         <p style={{ margin: 0, color: 'rgba(var(--ink), 0.74)', lineHeight: 1.5 }}>
           Everyone watches on their own account. BingeJam lines up play, pause and position through the extension.
         </p>
-        <Button className="glass-btn" onClick={p.onShowPlayer}>
-          {r.playerAction ?? `Show the ${service} tab`}
-        </Button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+          {r.openTitle && p.onOpenTitle ? (
+            <Button variant="primary" onClick={p.onOpenTitle}>
+              {r.openTitle}
+            </Button>
+          ) : null}
+          <Button className="glass-btn" onClick={p.onShowPlayer}>
+            {r.playerAction ?? `Show the ${service} tab`}
+          </Button>
+        </div>
       </div>
 
       <div className="transport">

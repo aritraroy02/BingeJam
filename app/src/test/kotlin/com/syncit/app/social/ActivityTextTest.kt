@@ -114,4 +114,9 @@ class ActivityTextTest {
         const val NOW = 1_800_000_000_000L
         const val MIN = 60_000L
     }
+
+    @Test fun aGameOnTheirPcShowsAsPlaying() {
+        assertEquals("Playing VALORANT", ActivityText.statusLine(Presence(online = true, lastSeen = 1L, activity = null, game = "VALORANT"), 10L))
+        assertEquals("Do not disturb", ActivityText.statusLine(Presence(online = true, lastSeen = 1L, activity = null, dnd = true), 10L))
+    }
 }

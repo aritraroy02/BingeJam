@@ -203,6 +203,29 @@
             "label": {
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
             },
+            "activity": {
+              ".validate": "newData.hasChildren(['app', 'playing', 'startedAt'])",
+              "app": {
+                ".validate": "(newData.val() === 'netflix' || newData.val() === 'jiohotstar' || newData.val() === 'primevideo' || newData.val() === 'spotify' || newData.val() === 'ytmusic' || newData.val() === 'amazonmusic' || newData.val() === 'youtube')"
+              },
+              "title": { ".validate": "newData.isString() && newData.val().length <= 200" },
+              "subtitle": { ".validate": "newData.isString() && newData.val().length <= 200" },
+              "playing": { ".validate": "newData.isBoolean()" },
+              "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "startedAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+              "inWatchParty": { ".validate": "newData.isBoolean()" },
+              "watchingWith": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100" },
+              "$other": { ".validate": false }
+            },
+            "status": {
+              ".validate": "newData.val() === 'online' || newData.val() === 'dnd'"
+            },
+            "game": {
+              ".validate": "newData.hasChildren(['name', 'startedAt'])",
+              "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60" },
+              "startedAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+              "$other": { ".validate": false }
+            },
             "$other": {
               ".validate": false
             }
@@ -459,7 +482,7 @@
         "subtitle": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "artwork": { ".validate": "newData.isString() && newData.val().length <= 70000" },
         "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-        "playableRef": { ".validate": "newData.isString() && newData.val().length <= 200 && (newData.val().matches(/^spotify:track:[A-Za-z0-9]{22}$/) || newData.val().matches(/^spotify:episode:[A-Za-z0-9]{22}$/) || newData.val().matches(/^https:\\/\\/www\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/music\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/www\\.hotstar\\.com\\/in\\/movies\\/x\\/[0-9]{6,12}\\/watch$/))" },
+        "playableRef": { ".validate": "newData.isString() && newData.val().length <= 200 && (newData.val().matches(/^spotify:track:[A-Za-z0-9]{22}$/) || newData.val().matches(/^spotify:episode:[A-Za-z0-9]{22}$/) || newData.val().matches(/^https:\\/\\/www\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/music\\.youtube\\.com\\/watch\\?v=[A-Za-z0-9_-]{11}$/) || newData.val().matches(/^https:\\/\\/www\\.hotstar\\.com\\/in\\/movies\\/x\\/[0-9]{6,12}\\/watch$/) || newData.val().matches(/^https:\\/\\/www\\.netflix\\.com\\/watch\\/[0-9]{5,12}$/))" },
         "updatedAt": { ".validate": "newData.val() === now" },
         "$other": { ".validate": false }
       }

@@ -27,6 +27,15 @@ import {
   useFriends,
   useGroupMembers,
   useHome,
+  setDeviceActivity,
+  setDeviceGame,
+  isDnd,
+  setDnd,
+  isInvisible,
+  setInvisible,
+  isSharingActivity,
+  setSharingActivity,
+  type DeviceActivity,
   type Profile
 } from '@/data'
 import { agoShort } from '@/data/format'
@@ -55,14 +64,28 @@ import { useConnection, useDesktopPrefs, useNotifier } from './desktopIntegratio
 import type { NavRequest } from '@/shell'
 import type { MiniRoomState } from '@shared/desktop'
 import { acceptJoin, declineInvite, declineJoin, dismissInvite, useJoinRequests, useRoomInvites } from '@/data/watchInvites'
-import { sendRoomMessage, sendRoomReaction, useRoomChat } from '@/data/roomChat'
+import { sendRoomMessage, sendRoomReaction, useRoomChat, useRoomReactions } from '@/data/roomChat'
+import { lookupNetflixId } from '@/data/relay'
+import { isNavigableUrl, type OverlayState } from '@shared/extension'
+import { ROOM_REACTIONS } from '@/screens/Room'
 import { joinRoomByCode } from '@/data/chatRooms'
 import { parseInviteLink } from '@/data/invites'
 import { isRoomCode } from '@/data/ids'
+import { playableRefFor } from '@shared/sync/roomParser'
 import { useSentFriendRequests } from '@/data/friends'
 
 // Real data for every screen (the signed-in counterpart of demo/useDemo.ts). Screens stay
 // props-only; this hook is the only place that knows about Firebase, the extension and the room.
+
+/** Browser services → presence activity app ids (ActivityApp.wire on the phone). */
+const ACTIVITY_APP: Partial<Record<ServiceId, DeviceActivity['app']>> = {
+  NETFLIX: 'netflix',
+  JIOHOTSTAR: 'jiohotstar',
+  PRIME_VIDEO: 'primevideo',
+  YOUTUBE: 'youtube'
+}
+
+const APP_NAME: Record<DeviceActivity['app'], string> = { netflix: 'Netflix', jiohotstar: 'JioHotstar', primevideo: 'Prime Video', youtube: 'YouTube' }
 
 const SERVICE_HOME: Partial<Record<ServiceId, string>> = {
   NETFLIX: 'https://www.netflix.com/browse',
@@ -110,6 +133,28 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const appearance = useAppearance()
   const desktop = useDesktopPrefs()
   const connection = useConnection()
+
+  // ---------- Status (Online / Do not disturb / Invisible), shared activity, the running game ----------
+  const [myStatus, setMyStatus] = useState<'online' | 'dnd' | 'invisible'>(() => (isInvisible(uid) ? 'invisible' : isDnd(uid) ? 'dnd' : 'online'))
+  const [sharing, setSharing] = useState(() => isSharingActivity(uid))
+  const [game, setGame] = useState<{ name: string; since: number } | null>(null)
+  useEffect(() => {
+    let live = true
+    void window.bingejam.games?.current().then((g) => live && setGame(g))
+    const off = window.bingejam.games?.onChange((g) => setGame(g))
+    return () => {
+      live = false
+      off?.()
+    }
+  }, [])
+  useEffect(() => setDeviceGame(uid, game?.name ?? null), [game?.name, uid, sharing, myStatus])
+  async function changeStatus(next: 'online' | 'dnd' | 'invisible'): Promise<void> {
+    // The flag first, so the reconnect that ends Invisible already writes the right status.
+    await setDnd(next === 'dnd', uid)
+    await setInvisible(next === 'invisible', uid)
+    setMyStatus(next)
+    setNotice(next === 'invisible' ? "You're invisible: friends see you offline" : next === 'dnd' ? 'Do not disturb: no pop-ups' : "You're online")
+  }
 
   // Crash reports waiting on this PC go up (encrypted) once we're signed in.
   useEffect(() => {
@@ -189,6 +234,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const roomMembers = useGroupMembers(roomChat && isGroupId(roomChat) ? roomChat : null)
   // The room's own chat (chats/{code}), shared with phones in the room.
   const roomMessages = useRoomChat(roomCode)
+  const roomReactions = useRoomReactions(roomCode)
   const roomPhotos = useProfiles(useMemo(() => room.state.members.map((m) => m.uid), [room.state.members]))
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -196,6 +242,18 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     const t = setInterval(() => setTick((n) => n + 1), 1_000)
     return () => clearInterval(t)
   }, [room.state.playing])
+
+  const hostTitle = room.state.hostPreview
+  const local = room.state.localTab
+  // A member whose browser isn't on the host's title yet (no tab, another service or another id).
+  const hostRef = hostTitle?.playableRef ?? null
+  const localRef = local ? playableRefFor(local.service, local.itemId) : null
+  const offTitle =
+    !room.state.isHost &&
+    hostTitle?.service != null &&
+    hostTitle.title != null &&
+    (local === null || local.service !== hostTitle.service || (hostRef !== null && localRef !== null && hostRef !== localRef) || room.state.status === 'otherTitle')
+  const openTitleLabel = offTitle && hostTitle?.title ? `Play ${hostTitle.title.length > 32 ? `${hostTitle.title.slice(0, 30)}…` : hostTitle.title} in your browser` : undefined
 
   const roomVM = useMemo(() => {
     if (!room.active) return null
@@ -216,16 +274,99 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       photos,
       browser,
       waitForBuffering: ext?.settings.waitForBuffering ?? true,
-      localNow: performance.now()
+      localNow: performance.now(),
+      openTitle: openTitleLabel
     })
     // `tick` moves the position on once a second while playing.
-  }, [room.active, room.state, roomHeader, roomMembers, roomPhotos, browser, ext?.settings.waitForBuffering, tick])
+  }, [room.active, room.state, roomHeader, roomMembers, roomPhotos, browser, ext?.settings.waitForBuffering, tick, openTitleLabel])
+
+  /** The link that opens the host's title: their exact id when published, else a Netflix lookup / search. */
+  async function hostTitleUrl(): Promise<string | null> {
+    const h = room.state.hostPreview
+    if (!h?.service) return null
+    if (h.playableRef && isNavigableUrl(h.playableRef)) return h.playableRef
+    if (h.service === 'NETFLIX' && h.title) {
+      const id = await lookupNetflixId(h.title, h.durationMs)
+      return id ? `https://www.netflix.com/watch/${id}` : `https://www.netflix.com/search?q=${encodeURIComponent(h.title)}`
+    }
+    if (h.service === 'YOUTUBE' && h.title) return `https://www.youtube.com/results?search_query=${encodeURIComponent(h.title)}`
+    return SERVICE_HOME[h.service] ?? null
+  }
+
+  /** In this PC's tab on that service when there is one (the extension navigates it), else a new browser tab. */
+  async function openHostTitle(): Promise<void> {
+    const url = await hostTitleUrl()
+    if (!url) {
+      setNotice("Couldn't find the host's title")
+      return
+    }
+    const tab = room.state.localTab
+    const sameSite = tab !== null && tab.service === room.state.hostPreview?.service
+    if (sameSite && (await window.bingejam.extension.navigate(tab.tabId, url))) return
+    await window.bingejam.openExternal(url)
+  }
+
+  // Follow the host to the next episode (extension popup toggle): when the host's title link
+  // changes and our tab is on that service with another id, open the new one there.
+  const followed = useRef<string | null>(null)
+  useEffect(() => {
+    const ref = room.state.hostPreview?.playableRef ?? null
+    const tab = room.state.localTab
+    if (!ref || !ext?.settings.followHostEpisodes || room.state.isHost || !tab) return
+    if (followed.current === ref) return
+    followed.current = ref
+    if (tab.service !== room.state.hostPreview?.service || playableRefFor(tab.service, tab.itemId) === ref) return
+    void window.bingejam.extension.navigate(tab.tabId, ref)
+  }, [room.state.hostPreview?.playableRef, room.state.localTab?.itemId, ext?.settings.followHostEpisodes, room.state.isHost])
+
+  // ---------- Overlay over the video (room chat + reactions) ----------
+  const overlayState = useMemo((): OverlayState | null => {
+    if (!roomCode) return null
+    return {
+      code: roomCode,
+      chat: (roomMessages ?? []).slice(-6).flatMap((m) => (m.kind === 'text' ? [{ id: m.id, name: (m.senderName ?? '').split(' ')[0], text: m.text, fromMe: m.fromMe }] : [])),
+      reactions: (roomReactions ?? []).slice(-12).map((r) => ({ id: r.id, name: r.name, emoji: r.emoji })),
+      palette: [...ROOM_REACTIONS]
+    }
+  }, [roomCode, roomMessages, roomReactions])
+  const overlayKey = useRef('')
+  useEffect(() => {
+    const key = JSON.stringify(overlayState)
+    if (key === overlayKey.current) return
+    overlayKey.current = key
+    window.bingejam.extension.overlay(overlayState)
+  }, [overlayState])
+
+  // ---------- "Watching X" for friends (devices/{id}/activity) ----------
+  const myActivity = useMemo((): DeviceActivity | null => {
+    const tabs = linked.flatMap((c) => c.tabs)
+    const tab =
+      tabs.find((t) => t.tabId === room.state.tabId) ?? tabs.find((t) => t.playing) ?? tabs.find((t) => linked.some((c) => c.activeTabId === t.tabId)) ?? null
+    const app = tab ? ACTIVITY_APP[tab.service] : undefined
+    if (!tab || !app || (!tab.title && !tab.playing)) return null
+    const others = room.state.members.filter((m) => !m.isMe && m.online).map((m) => m.name.split(' ')[0])
+    return {
+      app,
+      title: tab.title,
+      subtitle: tab.subtitle,
+      playing: tab.playing,
+      durationMs: tab.tabId === room.state.tabId ? room.state.durationMs : null,
+      inWatchParty: room.active !== null,
+      watchingWith: others.length > 0 ? others.join(', ').slice(0, 100) : null
+    }
+  }, [ext, room.state.tabId, room.state.members, room.state.durationMs, room.active])
+  useEffect(() => setDeviceActivity(uid, myActivity), [myActivity, uid, sharing, myStatus])
+  const myActivityLine = game
+    ? `Playing ${game.name}`
+    : myActivity
+      ? `${myActivity.playing ? 'Watching' : 'Paused'} ${myActivity.title ?? ''} · ${APP_NAME[myActivity.app]}`.replace('  ', ' ')
+      : null
 
   // ---------- Settings ----------
   const voice = useVoiceDevices()
 
   // ---------- Notifications + taskbar badge ----------
-  useNotifier({ enabled: desktop.notifications, chats, requests, invites, joinRequests, viewing })
+  useNotifier({ enabled: desktop.notifications && myStatus !== 'dnd', chats, requests, invites, joinRequests, viewing })
   useEffect(
     () =>
       window.bingejam.desktop.onNotifyClick((action) => {
@@ -345,6 +486,14 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   useEffect(() => window.bingejam.mini.onOpen(setMiniOpen), [])
   useEffect(
     () =>
+      window.bingejam.extension.onOverlayInput((input) => {
+        if (input.kind === 'send') roomActions.current.send(input.text)
+        else roomActions.current.react(input.emoji)
+      }),
+    []
+  )
+  useEffect(
+    () =>
       window.bingejam.mini.onAction((a) => {
         const r = roomActions.current
         if (a.kind === 'togglePlay') r.togglePlay()
@@ -398,7 +547,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const unread = chats?.reduce((n, c) => n + c.unread, 0) ?? 0
 
   return {
-    me: { uid, name: profile.displayName, username: profile.username, photoUrl: profile.photoUrl },
+    me: { uid, name: profile.displayName, username: profile.username, photoUrl: profile.photoUrl, status: myStatus, activity: myActivityLine, shareActivity: sharing },
     home,
     chats,
     header: (id) => (id === chatId ? header : null),
@@ -599,6 +748,14 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
         unblockUser: (who) => void unblockUser(who).then(() => setNotice('Unblocked'), fail("Couldn't unblock them")),
         unblockGroup: (gid) => void unblockGroup(gid).then(() => setNotice('Unblocked. Its admins can add you again.'), fail("Couldn't unblock the group"))
       },
+      status: {
+        set: (s) => void changeStatus(s).catch(fail("Couldn't change your status")),
+        shareActivity: (on) => {
+          setSharingActivity(on, uid)
+          setSharing(on)
+          setNotice(on ? 'Friends can see what you watch and play' : "Friends won't see what you watch or play")
+        }
+      },
       alerts: {
         join: joinInvite,
         declineInvite: (from) => void declineInvite(from).catch(fail("Couldn't answer")),
@@ -632,6 +789,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
         send: (text) => roomCode && void sendRoomMessage(roomCode, profile.displayName, text).catch(fail("Couldn't send that")),
         react: (emoji) => roomCode && void sendRoomReaction(roomCode, profile.displayName, emoji).catch(fail("Couldn't react")),
         toggleMini: () => window.bingejam.mini.open(!miniOpen),
+        openTitle: () => void openHostTitle().catch(fail("Couldn't open the title")),
         togglePlay: () => command(room.state.playing ? 'pause' : 'play'),
         seekBy: (delta) => command({ seekTo: livePositionMs(room.state, performance.now()) + delta }),
         seekTo: (pos) => command({ seekTo: pos }),

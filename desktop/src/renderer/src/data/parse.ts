@@ -70,8 +70,12 @@ export interface Presence {
   online: boolean
   /** Latest of the legacy lastSeen and every device's lastSeen (all server time). */
   lastSeen: number | null
-  /** Only ever from presence/{uid}/activity (written by the phone). */
+  /** The phone's presence/{uid}/activity, else what an online PC is playing (devices/{id}/activity). */
   activity: Activity | null
+  /** A game running on an online PC (devices/{id}/game): "Playing VALORANT". */
+  game?: { name: string; startedAt: number } | null
+  /** An online device set Do not disturb (devices/{id}/status = "dnd"). */
+  dnd?: boolean
 }
 
 export function parseActivity(v: unknown): Activity | null {
@@ -117,7 +121,35 @@ export function parsePresence(v: unknown): Presence | null {
   const o = obj(v)
   if (!o) return null
   const devices = Object.values(obj(o.devices) ?? {})
-  return { ...aggregatePresence(o.online, o.lastSeen, devices), activity: parseActivity(o.activity) }
+  return {
+    ...aggregatePresence(o.online, o.lastSeen, devices),
+    activity: parseActivity(o.activity) ?? deviceActivity(devices),
+    game: deviceGame(devices),
+    dnd: devices.some((d) => obj(d)?.online === true && obj(d)?.status === 'dnd')
+  }
+}
+
+/** The first online device's game. */
+export function deviceGame(devices: readonly unknown[]): { name: string; startedAt: number } | null {
+  for (const entry of devices) {
+    const device = obj(entry)
+    if (device?.online !== true) continue
+    const g = obj(device.game)
+    const name = nonBlank(g?.name)
+    if (name) return { name: name.slice(0, 60), startedAt: num(g?.startedAt) ?? 0 }
+  }
+  return null
+}
+
+/** The first online device's activity (the PC app's browser tab), for when the phone shows none. */
+export function deviceActivity(devices: readonly unknown[]): Activity | null {
+  for (const entry of devices) {
+    const device = obj(entry)
+    if (device?.online !== true) continue
+    const a = parseActivity(device.activity)
+    if (a) return a
+  }
+  return null
 }
 
 // ---------- Messages ----------

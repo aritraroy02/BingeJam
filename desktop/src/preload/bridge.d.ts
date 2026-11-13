@@ -1,6 +1,6 @@
 // Shape of `window.bingejam` (exposed by src/preload/index.ts). Shared by preload and renderer.
 import type { BridgeMessage } from '@shared/player'
-import type { AddToBrowserResult, BrowserId, DetectedBrowser, ExtensionStatus } from '@shared/extension'
+import type { AddToBrowserResult, BrowserId, DetectedBrowser, ExtensionStatus, OverlayInput, OverlayState } from '@shared/extension'
 import type { DesktopPrefs, GlobalShortcutId, MiniAction, MiniRoomState, NotifyRequest } from '@shared/desktop'
 
 export interface BingeJamBridge {
@@ -22,6 +22,11 @@ export interface BingeJamBridge {
   relayAvatar(request: { method: 'PUT' | 'DELETE'; token: string; bytes?: Uint8Array }): Promise<{ status: number; body: string }>
   /** bingejam://… links that arrive while the app is running. Returns an unsubscribe function. */
   onDeepLink(listener: (link: string) => void): () => void
+  /** The game running on this PC (src/main/games.ts), for "Playing VALORANT". since = Date.now() at detection. */
+  games: {
+    current(): Promise<{ name: string; since: number } | null>
+    onChange(listener: (game: { name: string; since: number } | null) => void): () => void
+  }
   /** The bingejam:// link the app was started with (once; null afterwards). */
   takeDeepLink(): Promise<string | null>
   /** Tray, start with Windows, notifications, global shortcuts (src/main/desktop.ts). */
@@ -63,6 +68,11 @@ export interface BingeJamBridge {
     onMessage(listener: (message: BridgeMessage) => void): () => void
     /** `command` goes to its tab, `roomInfo` to every linked browser. false = nobody received it. */
     send(message: BridgeMessage): Promise<boolean>
+    /** Room chat + reactions over the video in every streaming tab (null hides it). */
+    overlay(overlay: OverlayState | null): void
+    /** Opens a service's watch page in the app's tab [tabId]; false if not possible. */
+    navigate(tabId: number, url: string): Promise<boolean>
+    onOverlayInput(listener: (input: OverlayInput) => void): () => void
   }
   /** Installed browsers and the "Add to browser" routes (PLAN.md). */
   browsers: {

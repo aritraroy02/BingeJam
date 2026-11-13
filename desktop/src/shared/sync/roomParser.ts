@@ -171,6 +171,18 @@ export function countdownValue(leadMs: number, uid: string, sentinels: ServerSen
  * subtitle clears the old one, and artwork / playableRef (which a browser tab doesn't give us)
  * are cleared rather than left from a previous title, as on Android.
  */
+/**
+ * The public link that opens a title, from the id the extension reads off the page URL. Only the
+ * shapes the database rules accept for previews/{code}/playableRef (phones open them too).
+ */
+export function playableRefFor(service: string, itemId: string | null | undefined): string | null {
+  if (!itemId) return null
+  if (service === 'NETFLIX' && /^[0-9]{5,12}$/.test(itemId)) return `https://www.netflix.com/watch/${itemId}`
+  if (service === 'JIOHOTSTAR' && /^[0-9]{6,12}$/.test(itemId)) return `https://www.hotstar.com/in/movies/x/${itemId}/watch`
+  if (service === 'YOUTUBE' && /^[A-Za-z0-9_-]{11}$/.test(itemId)) return `https://www.youtube.com/watch?v=${itemId}`
+  return null
+}
+
 export function nowPlayingUpdate(np: NowPlaying, sentinels: ServerSentinels): Record<string, unknown> {
   const clip = (s: string | null): string | null => (s === null ? null : s.slice(0, MAX_META_LENGTH))
   return {
@@ -178,7 +190,7 @@ export function nowPlayingUpdate(np: NowPlaying, sentinels: ServerSentinels): Re
     title: clip(np.title),
     subtitle: clip(np.subtitle),
     durationMs: np.durationMs !== null && Number.isFinite(np.durationMs) && np.durationMs >= 0 ? Math.round(np.durationMs) : null,
-    playableRef: null,
+    playableRef: np.playableRef ?? null,
     artwork: null,
     updatedAt: sentinels.timestamp
   }

@@ -36,8 +36,19 @@ export interface NavRequest {
 // does. Demo mode fills it from demo/useDemo.ts; the Firebase data layer fills it for real accounts.
 // Screens stay props-only; only App.tsx reads this.
 
+export type MyStatus = 'online' | 'dnd' | 'invisible'
+
 export interface ShellData {
-  me: { uid: string; name: string; username: string; photoUrl: string | null }
+  me: {
+    uid: string
+    name: string
+    username: string
+    photoUrl: string | null
+    /** Online / Do not disturb / Invisible (this PC), the activity line and whether it's shared. */
+    status?: MyStatus
+    activity?: string | null
+    shareActivity?: boolean
+  }
   home: HomeVM
   chats: ChatSummaryVM[] | null
   header: (chatId: string) => ChatHeaderVM | null
@@ -118,6 +129,8 @@ export interface ShellActions {
     toggleMini?: () => void
     /** An emoji reaction everyone in the room sees (reactions/{code}). */
     react?: (emoji: string) => void
+    /** Open the host's exact title in the browser (member). */
+    openTitle?: () => void
   }
   /** Room invites ("Join" / "Not now") and join requests ("Let in" / "Not now"). */
   alerts?: {
@@ -141,6 +154,11 @@ export interface ShellActions {
     send: (text: string) => void
   }
   addToBrowser: (browser: BrowserId) => void
+  /** The status menu on your profile card. */
+  status?: {
+    set: (status: MyStatus) => void
+    shareActivity: (on: boolean) => void
+  }
   /** The chat on screen (null = none), for read receipts. */
   viewing?: (chatId: string | null) => void
   dismissNotice?: () => void

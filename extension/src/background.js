@@ -35,7 +35,9 @@ const state = {
   idleTimer: null,
   helloUntil: 0,
   browser: null,
-  build: null
+  build: null,
+  /** Room chat + reactions over the video (link.overlay), replayed to tabs that open later. */
+  overlay: null
 }
 
 // ---------- Startup ----------
@@ -215,6 +217,15 @@ function onNativeMessage(msg) {
     case 'link.settings':
       if (msg.settings) setSettings(msg.settings, false)
       break
+    case 'link.overlay':
+      state.overlay = msg.overlay ?? null
+      for (const t of state.tabs.values()) postTab(t, { t: 'overlay', overlay: state.overlay })
+      break
+    case 'link.navigate': {
+      const tab = typeof msg.tabId === 'number' ? state.tabs.get(msg.tabId) : null
+      if (tab && typeof msg.url === 'string') postTab(tab, { t: 'navigate', url: msg.url })
+      break
+    }
     case 'link.reload':
       // The app rewrote our unpacked folder with a newer build: load it.
       api.runtime.reload()
@@ -258,6 +269,15 @@ function onPlayerPort(port) {
   ensureNative()
   pickActive()
   updateBadge()
+  if (state.overlay) postTab(tab, { t: 'overlay', overlay: state.overlay })
+}
+
+function postTab(tab, msg) {
+  try {
+    tab.port.postMessage(msg)
+  } catch {
+    /* tab gone; its onDisconnect cleans up */
+  }
 }
 
 function onPlayerMessage(tabId, tab, msg) {
@@ -273,6 +293,10 @@ function onPlayerMessage(tabId, tab, msg) {
     if (state.link === 'linked') sendNative({ kind: 'snapshot', snapshot: { ...s, tabId }, lastCommandId: tab.lastCommandId })
     if (pickActive()) sendTabs()
     pushPopups()
+  } else if (msg.t === 'overlaySend' && typeof msg.text === 'string') {
+    sendNative({ kind: 'link.overlaySend', text: msg.text.slice(0, 500) })
+  } else if (msg.t === 'overlayReact' && typeof msg.emoji === 'string') {
+    sendNative({ kind: 'link.overlayReact', emoji: msg.emoji.slice(0, 16) })
   } else if (msg.t === 'info') {
     if (msg.playing && !tab.playing) tab.playAt = Date.now()
     Object.assign(tab, { service: msg.service, title: msg.title, subtitle: msg.subtitle, playing: !!msg.playing, seek: msg.seek, problem: msg.problem ?? null })

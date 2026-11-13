@@ -20,6 +20,8 @@ export interface RoomVmInput {
   waitForBuffering: boolean
   /** Local monotonic time (same base as state.positionAt). */
   localNow: number
+  /** "Play Dune in your browser" (member not on the host's title yet). */
+  openTitle?: string
 }
 
 /** "+0.4 s" / "−1.2 s" (ahead / behind the room). */
@@ -102,6 +104,7 @@ export function buildRoomVM(i: RoomVmInput): RoomVM {
     notHere: i.chatPeople.filter((p) => !p.isMe && !inRoom.has(p.id)),
     // Voice chat isn't on the desktop yet.
     voice: { members: [], quality: 'HD', pushToTalkKey: null, joined: false, muted: false },
-    settings: { waitForBuffering: i.waitForBuffering, subtitles: null }
+    settings: { waitForBuffering: i.waitForBuffering, subtitles: null },
+    openTitle: i.openTitle
   }
 }

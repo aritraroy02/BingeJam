@@ -87,6 +87,8 @@ export interface NowPlaying {
   title: string | null
   subtitle: string | null
   durationMs: number | null
+  /** A public link that opens this exact title (playableRefFor); null when the tab gives no id. */
+  playableRef?: string | null
 }
 
 // ---------------------------------------------------------------------------------------------

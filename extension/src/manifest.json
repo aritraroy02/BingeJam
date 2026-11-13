@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "BingeJam",
   "short_name": "BingeJam",
-  "version": "0.1.0",
-  "description": "Watch Netflix, Prime Video and JioHotstar in sync with friends. Works with the BingeJam app for Windows.",
+  "version": "0.2.0",
+  "description": "Watch Netflix, Prime Video, JioHotstar and YouTube in sync with friends. Works with the BingeJam app for Windows.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzGsxGOFE+oYNlWjuLHy13dmIndEi/GeHmjaFGkknyvn1aD/a/7peobrXN4Mdl/4hFWqfwko505VmOu9FMv/f1X4fVMIsc84i4uX0BZpSy6lOY5/p8tMlF63muiTqGk2UZdOrtZOgMitzINoSTjWAyEdtEKGxppxpAWcUe1WjsyNsSZwvIFU3ednlZCOIge7x0OFyGhUNRLNmZDWnJEVwYb6xg9h8PffUq12tpwi0cFzfuyu9BKKEFSimfGJvdmeP2RSdjdzvf2+PvLU5Jso5LdCKLY9yP2uunLbppKZSYg/RE97tiYPUZiFEW0FZ7Ho6CDAw8eCE5uVdIU+E9TrKfwIDAQAB",
   "minimum_chrome_version": "110",
   "icons": {
@@ -31,7 +31,8 @@
     "https://www.amazon.com/gp/video/*",
     "https://www.amazon.in/gp/video/*",
     "https://www.hotstar.com/*",
-    "https://www.jiohotstar.com/*"
+    "https://www.jiohotstar.com/*",
+    "https://www.youtube.com/*"
   ],
   "content_scripts": [
     {
@@ -41,7 +42,8 @@
         "https://www.amazon.com/gp/video/*",
         "https://www.amazon.in/gp/video/*",
         "https://www.hotstar.com/*",
-        "https://www.jiohotstar.com/*"
+        "https://www.jiohotstar.com/*",
+        "https://www.youtube.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle",

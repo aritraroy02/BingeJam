@@ -54,6 +54,10 @@ data class Presence(
     val online: Boolean,
     val lastSeen: Long?,
     val activity: Activity?,
+    /** A game running on their PC (presence/{uid}/devices/{id}/game, PC app 2026-11-14): "Playing VALORANT". */
+    val game: String? = null,
+    /** Do not disturb, set on their PC (devices/{id}/status = "dnd"). */
+    val dnd: Boolean = false,
 )
 
 /**

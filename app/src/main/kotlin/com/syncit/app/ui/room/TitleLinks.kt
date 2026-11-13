@@ -101,6 +101,18 @@ internal object NetflixLinks {
     private val EPISODE = Regex("""\bS\d+\s*:?\s*E\d+\b""", RegexOption.IGNORE_CASE)
     private val ID = Regex("""\d{1,12}""")
 
+    private val WATCH_REF = Regex("""^https://www\.netflix\.com/watch/(\d{5,12})$""")
+
+    /**
+     * The exact Netflix id a PC host published (previews/{code}/playableRef =
+     * "https://www.netflix.com/watch/<id>", read off its browser tab, 2026-11-14), or null. Works for
+     * episodes too, unlike the title lookup.
+     */
+    fun idFromPreview(preview: RoomPreview?): String? {
+        if (preview?.service != StreamingService.NETFLIX) return null
+        return preview.playableRef?.let { WATCH_REF.matchEntire(it)?.groupValues?.get(1) }
+    }
+
     /** What to look up for the host's Netflix preview, or null (not Netflix, no title, an episode). */
     fun query(preview: RoomPreview?): Query? {
         if (preview?.service != StreamingService.NETFLIX) return null

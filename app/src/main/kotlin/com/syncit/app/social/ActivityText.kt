@@ -16,6 +16,8 @@ object ActivityText {
         val activity = presence.activity
         return when {
             presence.online && activity != null -> activityLine(activity)
+            presence.online && presence.game != null -> "Playing ${presence.game}"
+            presence.online && presence.dnd -> "Do not disturb"
             presence.online -> "Online"
             else -> lastSeen(presence.lastSeen, nowMs)
         }

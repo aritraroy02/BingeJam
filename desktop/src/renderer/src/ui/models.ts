@@ -7,6 +7,8 @@ export interface PersonVM {
   username?: string
   photoUrl?: string | null
   online?: boolean
+  /** Online but Do not disturb: a red dot instead of green. */
+  dnd?: boolean
 }
 
 export type FriendAction = 'join' | 'watch' | 'jam' | null
@@ -159,6 +161,8 @@ export interface RoomVM {
   notHere: GroupMemberVM[]
   voice: { members: VoiceMemberVM[]; quality: 'HD' | 'SD'; pushToTalkKey: string | null; joined: boolean; muted: boolean }
   settings: { waitForBuffering: boolean; subtitles: string | null }
+  /** "Play Dune in your browser": opens the host's exact title (member, not on it yet). */
+  openTitle?: string
 }
 
 // ---------- Streams (Go Live) ----------

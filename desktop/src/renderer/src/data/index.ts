@@ -52,7 +52,19 @@ export {
 } from './groups.ts'
 export { startOrJoinChatRoom, leaveChatRoom, pingMember, useActiveChatRoom, activeChatRoom } from './chatRooms.ts'
 export { useHome, useTrending, trendingWatchLink, type TrendingKind } from './home.ts'
-export { startDevicePresence, setInvisible, isInvisible, deviceId } from './devicePresence.ts'
+export {
+  startDevicePresence,
+  setInvisible,
+  isInvisible,
+  deviceId,
+  setDeviceActivity,
+  setDeviceGame,
+  isDnd,
+  setDnd,
+  isSharingActivity,
+  setSharingActivity,
+  type DeviceActivity
+} from './devicePresence.ts'
 export { notifyRelay, fetchTrending, fetchWatchLink, lookupNetflixId, avatarUrl, RELAY_URL, type RelayNote, type RelayRequest, type RelayResponse } from './relay.ts'
 export { serverNow, serverClock, useServerNow, isServerClockSynced } from './clock.ts'
 export { dmId, dmFriend } from './ids.ts'

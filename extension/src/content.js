@@ -110,6 +110,21 @@
         ])
         return title && !/^(jio\s*)?hotstar$/i.test(title) ? { title, subtitle: null } : null
       }
+    },
+    {
+      service: 'YOUTUBE',
+      hosts: /(^|\.)youtube\.com$/,
+      isWatchPage: (path) => path === '/watch',
+      itemId: (path, search) => new URLSearchParams(search).get('v'),
+      accepts: (v) => big(v) && !!v.closest('#movie_player'),
+      // An ad plays in the same <video>: while it shows, report buffering so the room waits instead of
+      // syncing anyone to the ad's position.
+      adShowing: () => !!document.querySelector('#movie_player.ad-showing'),
+      readTitle() {
+        const title = text('h1.ytd-watch-metadata yt-formatted-string') ?? cleanDocTitle(document.title, [/^\(\d+\)\s*/, /\s*-\s*YouTube\s*$/i])
+        if (!title || /^youtube$/i.test(title)) return null
+        return { title, subtitle: text('ytd-watch-metadata #owner #channel-name a') }
+      }
     }
   ]
 
@@ -260,10 +275,12 @@
     video = v
     waiting = false
     if (!video) {
+      overlay.refresh()
       dropPort()
       return
     }
     for (const t of EVENTS_ALL) video.addEventListener(t, onVideoEvent)
+    overlay.refresh()
     ensurePort()
     sendInfo(true)
     queueSnapshot()
@@ -290,7 +307,7 @@
       positionMs: v.readyState >= 1 && Number.isFinite(v.currentTime) ? Math.max(0, Math.round(v.currentTime * 1000)) : -1,
       playing: !v.paused && !v.ended,
       // HAVE_FUTURE_DATA = 3: below that the player can't move forward.
-      buffering: !v.ended && (waiting || v.seeking || v.readyState < 3),
+      buffering: !v.ended && (waiting || v.seeking || v.readyState < 3 || site.adShowing?.() === true),
       playbackRate: v.playbackRate,
       sampledAt: performance.now(),
       ageMs: 0,
@@ -375,7 +392,16 @@
 
   // ---------- Commands ----------
   function onMessage(msg) {
-    if (!msg || !video) return
+    if (!msg) return
+    if (msg.t === 'overlay') {
+      overlay.set(msg.overlay ?? null)
+      return
+    }
+    if (msg.t === 'navigate') {
+      navigateTo(msg.url)
+      return
+    }
+    if (!video) return
     if (msg.t === 'command') {
       applyCommand(msg.command)
       lastCommandId = msg.commandId ?? lastCommandId
@@ -536,6 +562,185 @@
     nudge = null
     if (video && video.playbackRate !== 1) video.playbackRate = 1
   }
+
+  // ---------- Opening a title (the host's exact title / next episode) ----------
+  function navigateTo(url) {
+    let u
+    try {
+      u = new URL(url)
+    } catch {
+      return
+    }
+    // Only this service's own pages, over https.
+    if (u.protocol !== 'https:' || !site.hosts.test(u.hostname)) return
+    if (u.href === loc().href) return
+    if (!TEST) location.assign(u.href)
+  }
+
+  // ---------- Overlay: room chat and reactions over the video ----------
+  // A closed shadow root keeps the page's CSS out and ours in. It's re-parented into the fullscreen
+  // element when the player goes fullscreen (anything outside it isn't drawn then).
+  const overlay = (() => {
+    let state = null
+    let host = null
+    let root = null
+    let open = false // the message box
+    let hidden = false // the person closed the overlay for this page
+    const shownReactions = new Set()
+    let firstReactions = true
+
+    const CSS = `
+      :host { all: initial; }
+      .wrap { position: fixed; right: 20px; bottom: 96px; width: 300px; z-index: 2147483647; font: 14px/1.35 Inter, 'Segoe UI', system-ui, sans-serif; color: #efe9de; pointer-events: none; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+      .msgs { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; max-width: 100%; }
+      .msg { background: rgba(18,17,16,0.78); padding: 6px 10px; border-radius: 12px; max-width: 100%; word-break: break-word; animation: in .25s ease-out; transition: opacity .6s; }
+      .msg b { color: #ff7a45; font-weight: 600; margin-right: 4px; }
+      .msg.me { background: rgba(200,16,46,0.82); }
+      .msg.old { opacity: 0; }
+      .bar { pointer-events: auto; display: flex; gap: 4px; align-items: center; background: rgba(18,17,16,0.82); border-radius: 999px; padding: 4px; opacity: .35; transition: opacity .2s; }
+      .bar:hover, .bar.open { opacity: 1; }
+      button { all: unset; cursor: pointer; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; font-size: 17px; }
+      button:hover { background: rgba(239,233,222,0.14); }
+      input { all: unset; width: 170px; padding: 0 10px; height: 30px; color: #efe9de; font-size: 13px; }
+      input::placeholder { color: rgba(239,233,222,0.6); }
+      .float { position: fixed; right: 60px; bottom: 140px; font-size: 34px; z-index: 2147483647; pointer-events: none; animation: rise 2.6s ease-out forwards; }
+      @keyframes rise { from { transform: translateY(0) scale(.8); opacity: 1; } to { transform: translateY(-260px) scale(1.25); opacity: 0; } }
+      @keyframes in { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) { .float, .msg { animation: none; } }
+    `
+
+    function ensure() {
+      if (host) return
+      host = document.createElement('bingejam-overlay')
+      root = host.attachShadow({ mode: 'closed' })
+      const style = document.createElement('style')
+      style.textContent = CSS
+      root.appendChild(style)
+      const wrap = document.createElement('div')
+      wrap.className = 'wrap'
+      wrap.innerHTML = '<div class="msgs"></div><div class="bar"></div>'
+      root.appendChild(wrap)
+      // Typing must not reach the player's shortcuts (space = pause, f = fullscreen…).
+      for (const t of ['keydown', 'keyup', 'keypress']) wrap.addEventListener(t, (e) => e.stopPropagation())
+      document.addEventListener('fullscreenchange', place)
+      place()
+    }
+
+    function place() {
+      if (!host) return
+      const parent = document.fullscreenElement ?? document.documentElement
+      if (host.parentNode !== parent) parent.appendChild(host)
+    }
+
+    function remove() {
+      if (!host) return
+      document.removeEventListener('fullscreenchange', place)
+      host.remove()
+      host = null
+      root = null
+    }
+
+    function render() {
+      if (!state || hidden || !video) {
+        remove()
+        return
+      }
+      ensure()
+      place()
+      const msgs = root.querySelector('.msgs')
+      msgs.textContent = ''
+      for (const m of state.chat.slice(-5)) {
+        const el = document.createElement('div')
+        el.className = m.fromMe ? 'msg me' : 'msg'
+        if (!m.fromMe) {
+          const b = document.createElement('b')
+          b.textContent = m.name
+          el.appendChild(b)
+        }
+        el.appendChild(document.createTextNode(m.text))
+        msgs.appendChild(el)
+        // Fade after a while unless the box is open.
+        setTimeout(() => {
+          if (!open) el.classList.add('old')
+        }, 9000)
+      }
+      const bar = root.querySelector('.bar')
+      bar.textContent = ''
+      bar.classList.toggle('open', open)
+      for (const e of state.palette) {
+        const b = document.createElement('button')
+        b.textContent = e
+        b.title = `React ${e}`
+        b.addEventListener('click', () => post({ t: 'overlayReact', emoji: e }))
+        bar.appendChild(b)
+      }
+      if (open) {
+        const input = document.createElement('input')
+        input.placeholder = 'Message the room'
+        input.maxLength = 500
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && input.value.trim()) {
+            post({ t: 'overlaySend', text: input.value.trim() })
+            input.value = ''
+          } else if (e.key === 'Escape') {
+            open = false
+            render()
+          }
+        })
+        bar.appendChild(input)
+        setTimeout(() => input.focus(), 0)
+      }
+      const chat = document.createElement('button')
+      chat.textContent = open ? '✕' : '💬'
+      chat.title = open ? 'Close' : 'Message the room'
+      chat.addEventListener('click', () => {
+        open = !open
+        render()
+      })
+      bar.appendChild(chat)
+      const hide = document.createElement('button')
+      hide.textContent = '–'
+      hide.title = 'Hide BingeJam on this page'
+      hide.addEventListener('click', () => {
+        hidden = true
+        render()
+      })
+      bar.appendChild(hide)
+    }
+
+    function floatReactions() {
+      if (!state || hidden) return
+      for (const r of state.reactions) {
+        if (shownReactions.has(r.id)) continue
+        shownReactions.add(r.id)
+        // The first batch is history: don't replay it.
+        if (firstReactions || !root) continue
+        const el = document.createElement('div')
+        el.className = 'float'
+        el.textContent = r.emoji
+        el.style.right = `${40 + Math.round(Math.random() * 60)}px`
+        root.appendChild(el)
+        setTimeout(() => el.remove(), 2700)
+      }
+      firstReactions = false
+    }
+
+    return {
+      set(next) {
+        const was = state
+        state = next && Array.isArray(next.chat) && Array.isArray(next.reactions) ? next : null
+        if (!state || (was && was.code !== state.code)) {
+          shownReactions.clear()
+          firstReactions = true
+          hidden = false
+        }
+        render()
+        floatReactions()
+      },
+      /** The video came or went. */
+      refresh: render
+    }
+  })()
 
   // ---------- Main loop ----------
   function tick() {

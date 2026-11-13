@@ -55,3 +55,11 @@ test('room links are live only while someone is in', () => {
 test('dmHidden maps chats to hidden ids', () => {
   assert.deepEqual([...(parseHidden({ a_b: { m1: true, m2: true } }).get('a_b') ?? [])], ['m1', 'm2'])
 })
+
+test("a PC's activity shows when the phone has none; an offline PC's doesn't", () => {
+  const pc = { kind: 'desktop', online: true, lastSeen: 5, activity: { app: 'netflix', title: 'Dune', playing: true, startedAt: 1 } }
+  assert.equal(parsePresence({ devices: { abcdefgh12: pc } })?.activity?.title, 'Dune')
+  assert.equal(parsePresence({ devices: { abcdefgh12: { ...pc, online: false } } })?.activity, null)
+  const phone = { app: 'spotify', title: 'Song', playing: true, startedAt: 2 }
+  assert.equal(parsePresence({ online: true, activity: phone, devices: { abcdefgh12: pc } })?.activity?.title, 'Song')
+})

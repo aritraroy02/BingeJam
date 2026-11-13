@@ -312,7 +312,9 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
     onNavigate: navigate,
     badges: data.badges,
     me: data.me,
-    extension: data.settings.extension
+    extension: data.settings.extension,
+    onStatus: act.status?.set,
+    onShareActivity: act.status?.shareActivity
   }
 
   let screen: JSX.Element
@@ -368,6 +370,7 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           onToggleMini={act.room.toggleMini}
           miniOpen={data.miniOpen === true}
           onReact={act.room.react}
+          onOpenTitle={act.room.openTitle}
           onGoLive={() => navigate('streams')}
           onLeave={() => {
             act.leaveRoom()

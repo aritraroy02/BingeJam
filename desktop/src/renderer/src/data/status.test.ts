@@ -49,3 +49,10 @@ test('friends sort: playing, online, then offline by last seen, then name', () =
   assert.equal(vms[0].action, 'join')
   assert.equal(vms[0].online, true)
 })
+
+test('a game shows as "Playing X"; Do not disturb when nothing else', () => {
+  const base = { online: true, lastSeen: 1, activity: null }
+  assert.equal(friendStatus({ ...base, game: { name: 'VALORANT', startedAt: 0 } }, 10), 'Playing VALORANT')
+  assert.equal(friendStatus({ ...base, dnd: true }, 10), 'Do not disturb')
+  assert.equal(headerStatus({ ...base, game: { name: 'VALORANT', startedAt: 0 } }, 10), 'Playing VALORANT')
+})

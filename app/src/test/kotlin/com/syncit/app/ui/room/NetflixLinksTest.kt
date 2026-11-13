@@ -55,4 +55,14 @@ class NetflixLinksTest {
         assertEquals("https://www.netflix.com/search/The%20Paradise", NetflixLinks.searchUrl("The Paradise"))
         assertEquals("https://www.netflix.com/search/Tom%20%26%20Jerry%3F", NetflixLinks.searchUrl("Tom & Jerry?"))
     }
+
+    @Test fun exactIdFromAPcHostsWatchLink() {
+        fun withRef(ref: String, service: StreamingService = StreamingService.NETFLIX) = RoomPreview(
+            code = "ABC123", hostName = "Host", service = service, title = "Dark", subtitle = "S1:E2",
+            artworkJpeg = null, updatedAt = 0, playableRef = ref,
+        )
+        assertEquals("80100172", NetflixLinks.idFromPreview(withRef("https://www.netflix.com/watch/80100172")))
+        assertEquals(null, NetflixLinks.idFromPreview(withRef("https://evil.example/watch/80100172")))
+        assertEquals(null, NetflixLinks.idFromPreview(withRef("https://www.netflix.com/watch/80100172", StreamingService.JIOHOTSTAR)))
+    }
 }

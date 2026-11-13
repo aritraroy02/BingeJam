@@ -10,6 +10,10 @@ const bridge: BingeJamBridge = {
   relayAvatar: (request) => ipcRenderer.invoke('relay:avatar', request),
   onDeepLink: (listener) => subscribe('app:deep-link', listener),
   takeDeepLink: () => ipcRenderer.invoke('app:take-deep-link'),
+  games: {
+    current: () => ipcRenderer.invoke('games:current'),
+    onChange: (listener) => subscribe('games:current', listener)
+  },
   desktop: {
     get: () => ipcRenderer.invoke('desktop:get'),
     setStartWithWindows: (on) => ipcRenderer.invoke('desktop:set-start-with-windows', on),
@@ -34,7 +38,10 @@ const bridge: BingeJamBridge = {
     status: () => ipcRenderer.invoke('extension:status'),
     onStatus: (listener) => subscribe('extension:status', listener),
     onMessage: (listener) => subscribe('extension:message', listener),
-    send: (message) => ipcRenderer.invoke('extension:send', message)
+    send: (message) => ipcRenderer.invoke('extension:send', message),
+    overlay: (overlay) => ipcRenderer.send('extension:overlay', overlay),
+    navigate: (tabId, url) => ipcRenderer.invoke('extension:navigate', tabId, url),
+    onOverlayInput: (listener) => subscribe('extension:overlay-input', listener)
   },
   browsers: {
     detect: () => ipcRenderer.invoke('browsers:detect'),

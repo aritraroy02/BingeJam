@@ -5,7 +5,7 @@
 //            ⇄ native host (one per browser) ⇄ extension background ⇄ content script in the tab
 import { app, ipcMain, type BrowserWindow } from 'electron'
 import type { BridgeMessage } from '@shared/player'
-import type { BrowserId, DetectedBrowser, ExtensionStatus } from '@shared/extension'
+import type { BrowserId, DetectedBrowser, ExtensionStatus, OverlayState } from '@shared/extension'
 import { addToBrowser, findBrowsers, routeFor } from './browsers'
 import { bundledBuild, syncInstallDir } from './bundle'
 import { registerNativeHost } from './registry'
@@ -39,6 +39,7 @@ export function setupExtensionLink(opts: { window: () => BrowserWindow | null; f
     message: (msg: BridgeMessage) => toRenderer('extension:message', msg),
     status: pushStatus,
     openApp: () => opts.focus(),
+    overlayInput: (input) => toRenderer('extension:overlay-input', input),
     linked: (c) => {
       // An unpacked copy older than what the app ships: rewrite the folder and have it reload.
       const bundled = bundledBuild()
@@ -91,6 +92,10 @@ export function setupExtensionLink(opts: { window: () => BrowserWindow | null; f
     if (kind !== 'command' && kind !== 'roomInfo') return false
     return server.sendFromApp(msg as BridgeMessage)
   })
+  ipcMain.on('extension:overlay', (_e, overlay: unknown) => server.setOverlay((overlay as OverlayState | null) ?? null))
+  ipcMain.handle('extension:navigate', (_e, tabId: unknown, url: unknown) =>
+    typeof tabId === 'number' && typeof url === 'string' ? server.navigate(tabId, url) : false
+  )
   ipcMain.handle('browsers:detect', async (): Promise<DetectedBrowser[]> => {
     const connected = server.connections()
     const seen = server.seen()

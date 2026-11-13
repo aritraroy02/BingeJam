@@ -20,6 +20,7 @@
 
 import type { PlayerCommand, PlayerSnapshot, ServiceId } from '../../../shared/player.ts'
 import { toLocalSnapshot, BROWSER_VIDEO_CAPABILITIES } from '../../../shared/sync/clock.ts'
+import { playableRefFor } from '../../../shared/sync/roomParser.ts'
 import { DEFAULT_SYNC_CONFIG, type SyncConfig } from '../../../shared/sync/config.ts'
 import { SyncEngine, sameSnapshot } from '../../../shared/sync/engine.ts'
 import { localLivePositionMs, memberExpectedPositionMs, roomExpectedPositionMs } from '../../../shared/sync/positionMath.ts'
@@ -84,6 +85,10 @@ export interface RoomSyncState {
   /** Manual "3, 2, 1, play": server time to press play at (compare with serverNowMs()). */
   countdown: { playAtServerMs: number; startedBy: string } | null
   lastError: string | null
+  /** What the host published (previews/{code}); null before it's known. */
+  hostPreview: { service: ServiceId | null; title: string | null; subtitle: string | null; durationMs: number | null; playableRef: string | null } | null
+  /** The browser tab this PC would sync, even while it's on another title. */
+  localTab: { tabId: number; service: ServiceId; itemId: string | null; title: string | null } | null
 }
 
 export interface RoomSessionOptions {
@@ -122,7 +127,8 @@ function idleState(): RoomSyncState {
   return {
     code: null, status: 'idle', mode: 'manualCountdown', isHost: false, playing: false, started: false,
     positionMs: null, positionAt: 0, durationMs: null, service: null, title: null, subtitle: null, tabId: null,
-    driftMs: null, nudging: false, members: [], allInSync: false, syncLabel: '', countdown: null, lastError: null
+    driftMs: null, nudging: false, members: [], allInSync: false, syncLabel: '', countdown: null, lastError: null,
+    hostPreview: null, localTab: null
   }
 }
 
@@ -143,6 +149,8 @@ export class RoomSession {
   private readonly tabs = new Map<number, TabEntry>()
   /** The tab the engine currently sees (null = none, or hidden). Commands go to it only. */
   private fed: TabEntry | null = null
+  /** The tab we'd use, even while it's hidden from the engine (another title). */
+  private pickedTab: TabEntry | null = null
   private fedEngine = false
   private followedTabId: number | null = null
   private statusOverride: SyncStatus | null = null
@@ -331,6 +339,7 @@ export class RoomSession {
     const preview = this.preview
     const isHost = room !== null && room.hostUid === this.transport.uid
     const picked = this.pick(room, preview, isHost)
+    this.pickedTab = picked
     let visible = picked
     let override: SyncStatus | null = null
     let nowPlaying: (NowPlaying & { item: number }) | null = null
@@ -351,6 +360,7 @@ export class RoomSession {
             title: picked.raw.title,
             subtitle: picked.raw.subtitle,
             durationMs: picked.raw.durationMs,
+            playableRef: playableRefFor(picked.raw.service, picked.raw.itemId),
             item: this.hostItemGeneration
           }
         }
@@ -559,7 +569,13 @@ export class RoomSession {
       allInSync: summary.allInSync,
       syncLabel: summary.label,
       countdown: room?.countdown ? { playAtServerMs: countdownPlayAt(room.countdown), startedBy: room.countdown.startedBy } : null,
-      lastError: this.lastError
+      lastError: this.lastError,
+      hostPreview: this.preview
+        ? { service: this.preview.service, title: this.preview.title, subtitle: this.preview.subtitle, durationMs: this.preview.durationMs, playableRef: this.preview.playableRef }
+        : null,
+      localTab: this.pickedTab
+        ? { tabId: this.pickedTab.raw.tabId, service: this.pickedTab.raw.service, itemId: this.pickedTab.raw.itemId ?? null, title: this.pickedTab.raw.title }
+        : null
     }
   }
 }
