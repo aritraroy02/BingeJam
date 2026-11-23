@@ -589,6 +589,30 @@
             }
           }
         },
+        "channels": {
+          "$cid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin'",
+            ".validate": "$cid.matches(/^[A-Za-z0-9_-]{1,40}$/) && $cid !== 'general' && $cid !== 'lounge' && newData.hasChildren(['name', 'kind', 'order', 'createdBy', 'createdAt'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 32"
+            },
+            "kind": {
+              ".validate": "(newData.val() === 'text' || newData.val() === 'voice') && (!data.exists() || newData.val() === data.val())"
+            },
+            "order": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+            },
+            "createdBy": {
+              ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === auth.uid"
+            },
+            "createdAt": {
+              ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
         "settings": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin'",
           ".validate": "newData.hasChildren(['send', 'edit'])",
@@ -678,6 +702,100 @@
         "$gid": {
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
           ".validate": "newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+
+    "groupChannelMessages": {
+      "$gid": {
+        "$cid": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !newData.exists() && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin'",
+          ".indexOn": [
+            "sentAt"
+          ],
+          "$msgId": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists() && root.child('groups').child($gid).child('channels').child($cid).child('kind').val() === 'text' && (root.child('groups').child($gid).child('settings').child('send').val() !== 'admins' || root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin') && !data.exists() && newData.exists()",
+            ".validate": "newData.hasChildren(['from', 'text', 'sentAt'])",
+            "from": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "text": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
+            },
+            "sentAt": {
+              ".validate": "newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+
+    "groupChannelReads": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
+        "$gid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
+          "$cid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+            ".validate": "newData.isNumber() && newData.val() <= now"
+          }
+        }
+      }
+    },
+
+    "groupVoice": {
+      "$gid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+        "$cid": {
+          "$uid": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((auth.uid === $uid && (!newData.exists() || (root.child('groups').child($gid).child('members').child(auth.uid).exists() && ($cid === 'lounge' || root.child('groups').child($gid).child('channels').child($cid).child('kind').val() === 'voice')))) || (!newData.exists() && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin'))",
+            ".validate": "newData.hasChildren(['name', 'since'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            },
+            "since": {
+              ".validate": "data.exists() ? newData.val() === data.val() : newData.val() === now"
+            },
+            "muted": {
+              ".validate": "newData.isBoolean()"
+            },
+            "deafened": {
+              ".validate": "newData.isBoolean()"
+            },
+            "live": {
+              ".validate": "newData.isBoolean()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+
+    "groupVoiceStatus": {
+      "$gid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+        "$cid": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('groups').child($gid).child('members').child(auth.uid).exists() && (root.child('groupVoice').child($gid).child($cid).child(auth.uid).exists() || (!newData.exists() && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'admin'))",
+          ".validate": "newData.hasChildren(['text', 'by', 'at'])",
+          "text": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60"
+          },
+          "by": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "at": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     },
