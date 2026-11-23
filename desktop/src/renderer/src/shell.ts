@@ -26,6 +26,7 @@ import type { ReportReasonValue } from '@/ui/ReportDialog'
 import type { EditProfileValues } from '@/ui/ProfileDialogs'
 import type { InviteAlertVM, JoinAlertVM } from '@/ui/Alerts'
 import type { Density, ThemeMode } from '@/live/appearance'
+import type { UpdateState } from '@shared/update'
 
 /** Something outside the shell (a notification click, an invite link) wants a screen opened. */
 export interface NavRequest {
@@ -63,6 +64,8 @@ export interface ShellData {
   channelMessages?: (chatId: string, channelId: string) => MessageVM[] | null
   /** The voice chat this PC is in (a voice channel or a room); null = none. */
   voice?: VoiceConnectionVM | null
+  /** In-app updates (PC 0.1.3+): what the background updater is doing. */
+  update?: UpdateState
   /** Go Live video: the share we watch, and our own share for our tile (both null when none). */
   voiceMedia?: { watching: MediaStream | null; preview: MediaStream | null }
   /** Friends as plain people, for the New group / Add people pickers. */
@@ -216,6 +219,8 @@ export interface ShellActions {
     watch?: (uid: string) => void
     stopWatching?: () => void
   }
+  /** In-app updates: look now (Settings), and restart into a downloaded one. */
+  update?: { check: () => void; install: () => void }
   /** Group admins and settings (2026-11-10). */
   groups: {
     setAdmin: (chatId: string, uid: string, admin: boolean) => void

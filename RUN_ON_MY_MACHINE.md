@@ -344,3 +344,13 @@ After the rules and the relay are deployed. Two PCs signed in as two friends in 
 | V15 | 4K · 60 on A, two viewers | Plays if A's upload allows (~25 Mbps each); otherwise lower quality is the fix |
 | V16 | One PC on a mobile hotspot | If Watch fails with "may block direct connections", TURN isn't set up: add the Cloudflare TURN key (PLAN.md) |
 
+## PC in-app updates (added 2026-11-23)
+Needs two published PC versions with the updater (0.1.3 and a later one). Checked once with a local feed (see desktop/README).
+
+| # | Test | Expected |
+|---|---|---|
+| U1 | Open the older version, wait ~15 s | "BingeJam X is ready · Restart to update" appears on top; Settings → About shows the same |
+| U2 | Restart to update | The window closes, BingeJam reopens on the new version within ~20 s, a note says "Updated to X"; no browser, no Windows prompt |
+| U3 | Settings → About → Check for updates on the newest version | "Up to date" |
+| U4 | Wi-Fi off, Check for updates | "Couldn't update. Check your connection and try again." |
+

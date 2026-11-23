@@ -25,6 +25,16 @@ Fixed in `data/live.ts` + `data/liveDiff.ts` (listener = key + path; values filt
 website's button (web/download.js `PC_VERSION` + fallback hrefs) points at 0.1.2 in git, **but hosting isn't
 deployed**: web/ also holds the website session's undeployed unslop pass, so the live button still hands out 0.1.0.
 
+**PC in-app updates (2026-11-23, built as 0.1.3, not published yet):** `src/main/updater.ts` checks the releases
+repo 15 s after start and every 6 h (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
+ignored; `src/shared/update.ts` + tests), downloads the installer in the background with `net.fetch` to
+%TEMP%\BingeJam-update, checks size + SHA-256 (GitHub asset digest, else the "SHA-256:" line in the notes), then a
+"BingeJam X is ready · Restart to update" bar (every screen) and Settings → About run it with `/S --force-run`: silent,
+per user, no browser, no SmartScreen (no download mark), the app reopens. Tested end to end on the main PC: installed
+0.1.3 + a local feed (`BJ_UPDATE_FEED` = JSON file, `BJ_UPDATE_DOWNLOADS` = allowed download prefix) updated itself to
+a test 0.1.4 and reopened; 0.1.3 was put back. Releases must keep the tag/asset names and the SHA-256 line.
+**People on 0.1.0-0.1.2 have no updater: they download 0.1.3 once by hand.**
+
 **2026-11-22, shipped in PC 0.1.0: Discord-style channels + voice on the PC.** Every group gets a channel column on the PC
 (it takes the chat list's place while the group is open; back arrow returns): text channels (#general = the old
 group chat, which phones keep showing; more in `groupChannelMessages/{gid}/{cid}`) and voice channels (built-in

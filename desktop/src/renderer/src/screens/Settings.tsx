@@ -5,6 +5,8 @@ import { Avatar, Button, LiveDot, Segmented, Switch } from '@/ui/primitives'
 import type { SettingsVM } from '@/ui/models'
 import type { ShellData, ShellActions } from '@/shell'
 import { GLOBAL_SHORTCUTS, shortcutLabel } from '@shared/desktop'
+import type { UpdateState } from '@shared/update'
+import { UpdateStatus } from '@/ui/UpdateBar'
 
 // Settings (not in the mock-ups; same glass language as the other screens).
 
@@ -25,6 +27,10 @@ export interface SettingsProps {
   /** Appearance and Windows preferences (real accounts). */
   prefs?: ShellData['prefs']
   preferences?: ShellActions['preferences']
+  /** In-app updates: the version row checks for one and restarts into it. */
+  update?: UpdateState
+  onCheckUpdate?: () => void
+  onInstallUpdate?: () => void
 }
 
 const SHORTCUT_HELP: { keys: string; what: string }[] = [
@@ -160,7 +166,11 @@ export function Settings(p: SettingsProps): JSX.Element {
 
           <Panel id="h-about" title="About" i={4}>
             <Row title={BRAND.name} detail={`Version ${s.version}`} first>
-              <span className="muted small">{BRAND.tagline}</span>
+              {p.update && p.onCheckUpdate && p.onInstallUpdate ? (
+                <UpdateStatus state={p.update} onCheck={p.onCheckUpdate} onInstall={p.onInstallUpdate} />
+              ) : (
+                <span className="muted small">{BRAND.tagline}</span>
+              )}
             </Row>
             <div style={{ display: 'flex', gap: 16, paddingTop: 4 }}>
               <a href={LINKS.terms} target="_blank" rel="noreferrer">

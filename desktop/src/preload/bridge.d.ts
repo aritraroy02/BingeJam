@@ -3,6 +3,7 @@ import type { BridgeMessage } from '@shared/player'
 import type { AddToBrowserResult, BrowserId, DetectedBrowser, ExtensionStatus, OverlayInput, OverlayState } from '@shared/extension'
 import type { DesktopPrefs, GlobalShortcutId, MiniAction, MiniRoomState, NotifyRequest } from '@shared/desktop'
 import type { ScreenSource } from '@shared/screen'
+import type { UpdateState } from '@shared/update'
 
 export interface BingeJamBridge {
   platform: string
@@ -84,6 +85,14 @@ export interface BingeJamBridge {
   screen: {
     sources(): Promise<ScreenSource[]>
     choose(id: string, audio: boolean): Promise<void>
+  }
+  /** In-app updates (src/main/updater.ts): check, then restart into a downloaded update. */
+  update: {
+    get(): Promise<UpdateState>
+    check(): Promise<void>
+    /** false when nothing is downloaded yet. */
+    install(): Promise<boolean>
+    onState(listener: (state: UpdateState) => void): () => void
   }
 }
 

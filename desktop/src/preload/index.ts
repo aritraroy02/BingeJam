@@ -50,6 +50,12 @@ const bridge: BingeJamBridge = {
   screen: {
     sources: () => ipcRenderer.invoke('screen:sources'),
     choose: (id, audio) => ipcRenderer.invoke('screen:choose', { id, audio })
+  },
+  update: {
+    get: () => ipcRenderer.invoke('update:get'),
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onState: (listener) => subscribe('update:state', listener)
   }
 }
 

@@ -17,6 +17,10 @@ npm run dev               # app with hot reload
   no admin, unsigned so SmartScreen asks once; installs into the same `%LOCALAPPDATA%\Programs\BingeJam`). Published as a
   GitHub release `pc-v<version>` on `aritraroy02/sync-it-releases` (never marked latest; the phones' update check reads only
   `v` tags); the website's "Download for Windows" (`web/download.js` `PC_VERSION`) points at it. Bump both together.
+- In-app updates (0.1.3+): the installed app finds a newer `pc-v*` release, downloads and checks it, and
+  "Restart to update" installs it silently. So every release needs the tag `pc-vX.Y.Z`, the asset
+  `BingeJam-Setup-X.Y.Z.exe` and a `SHA-256: <hex>` line in its notes. Test without publishing: start the installed
+  app with `BJ_UPDATE_FEED=<feed.json>` (a releases list) and `BJ_UPDATE_DOWNLOADS=http://127.0.0.1:<port>/`.
 - `BJ_DEMO=1` shows the design's sample content without Firebase (store screenshots, design reviews).
 - `BJ_SNAPSHOT=C:\path\shot.png` saves a screenshot of the window after it settles and quits
   (`BJ_SNAPSHOT_DELAY` ms, default 2500). Combine with `BJ_DEMO=1` to compare with `design/*.png`.

@@ -88,6 +88,7 @@ import { cityOf, pingQuality } from '@/voice/regions'
 import { QUALITY } from '@/voice/streamModel'
 import type { VoiceConnectionVM, VoiceMemberVM } from '@/ui/models'
 import { useVoiceSession } from './useVoice'
+import { justUpdatedTo, useUpdateState } from './updates'
 
 // Real data for every screen (the signed-in counterpart of demo/useDemo.ts). Screens stay
 // props-only; this hook is the only place that knows about Firebase, the extension and the room.
@@ -161,6 +162,13 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
     pushToTalkKey: devices.vm.pushToTalkKey,
     onError: setNotice
   })
+  // In-app updates: the background updater's state, and "Updated to X" once after an update.
+  const update = useUpdateState()
+  useEffect(() => {
+    const to = justUpdatedTo(version)
+    if (to) setNotice(`Updated to ${to}`)
+  }, [version])
+
   // What the voice panel calls the place we're talking in (kept from when we joined).
   const [voiceLabel, setVoiceLabel] = useState({ channel: '', place: '' })
 
@@ -668,6 +676,7 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
     channelMessages: (id, cid) => (id === groupId && cid === openChannel ? channelMessages : null),
     voice: voiceVM,
     voiceMedia,
+    update,
     friendPeople: friends?.map((f) => ({ id: f.id, name: f.name, username: f.username, photoUrl: f.photoUrl, online: f.online })) ?? null,
     room: roomVM,
     roomStarting,
@@ -800,6 +809,13 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
         stopShare: voice.stopShare,
         watch: voice.watch,
         stopWatching: voice.stopWatching
+      },
+      update: {
+        check: () => void window.bingejam.update?.check(),
+        install: () =>
+          void window.bingejam.update?.install().then((ok) => {
+            if (!ok) setNotice("The update isn't ready yet")
+          })
       },
       groups: {
         setAdmin: (id, who, admin) =>

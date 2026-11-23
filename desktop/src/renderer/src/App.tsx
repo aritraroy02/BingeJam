@@ -27,6 +27,7 @@ import { setCrashScreen } from '@/data/crashReports'
 import { ProfileSetup } from '@/screens/ProfileSetup'
 import { MiniRoom } from '@/screens/MiniRoom'
 import { Alerts, ConnectionBanner } from '@/ui/Alerts'
+import { UpdateBar } from '@/ui/UpdateBar'
 
 const params = new URLSearchParams(window.location.search)
 const DEMO = params.get('demo') === '1'
@@ -590,6 +591,9 @@ function Shell({
           onViewPhoto={() => setViewingMyPhoto(true)}
           prefs={data.prefs}
           preferences={act.preferences}
+          update={data.update}
+          onCheckUpdate={act.update?.check}
+          onInstallUpdate={act.update?.install}
         />
       )
       break
@@ -640,6 +644,7 @@ function Shell({
         />
       ) : null}
       <ConnectionBanner state={data.connection ?? 'online'} />
+      {data.update && act.update ? <UpdateBar state={data.update} onInstall={act.update.install} /> : null}
       {data.notice ? (
         <div role="status" className="glass glass--strong toast" onClick={() => act.dismissNotice?.()}>
           {data.notice}
