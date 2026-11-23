@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { BRAND } from '@shared/brand'
 import { Icon, LogoMark, type IconName } from './Icon'
+import type { VoiceConnectionVM } from './models'
 import { Avatar, Badge, LiveDot, Switch } from './primitives'
+import { VoiceDock } from './VoiceDock'
 
 export type Tab = 'home' | 'chats' | 'watchlist' | 'friends' | 'streams' | 'settings'
 
@@ -30,12 +32,15 @@ export interface NavProps {
   extension?: { connected: boolean; detail: string }
   onStatus?: (status: 'online' | 'dnd' | 'invisible') => void
   onShareActivity?: (on: boolean) => void
+  /** "Voice connected" above your card, on every screen (like Discord). */
+  voice?: VoiceConnectionVM | null
+  voiceActions?: { open: () => void; toggleMute: () => void; toggleDeafen: () => void; leave: () => void }
 }
 
 const STATUS_LABEL = { online: 'Online', dnd: 'Do not disturb', invisible: 'Invisible' } as const
 
 /** Wide sidebar with labels: the Home layout in the design. */
-export function SideNav({ current, onNavigate, badges = {}, me, extension, onStatus, onShareActivity }: NavProps): JSX.Element {
+export function SideNav({ current, onNavigate, badges = {}, me, extension, onStatus, onShareActivity, voice, voiceActions }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--wide glass glass--strong rise" style={{ borderRadius: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 8px 24px' }}>
@@ -76,6 +81,15 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension, onSta
           </span>
           <span className="subtle">{extension.detail}</span>
         </div>
+      ) : null}
+      {voice && voiceActions ? (
+        <VoiceDock
+          voice={voice}
+          onOpen={voiceActions.open}
+          onToggleMute={voiceActions.toggleMute}
+          onToggleDeafen={voiceActions.toggleDeafen}
+          onLeave={voiceActions.leave}
+        />
       ) : null}
       {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} /> : null}
     </nav>
@@ -206,7 +220,7 @@ function AccountCard({
 }
 
 /** Slim icon rail: chats, rooms, streams and settings screens in the design. */
-export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity }: NavProps): JSX.Element {
+export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity, voice, voiceActions }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--rail glass glass--strong rise">
       <button type="button" className="logo-tile pressable" aria-label={`${BRAND.name} home`} onClick={() => onNavigate('home')} style={{ border: 'none' }}>
@@ -227,6 +241,16 @@ export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShar
         </button>
       ))}
       <div style={{ flex: 1 }} />
+      {voice && voiceActions ? (
+        <VoiceDock
+          voice={voice}
+          onOpen={voiceActions.open}
+          onToggleMute={voiceActions.toggleMute}
+          onToggleDeafen={voiceActions.toggleDeafen}
+          onLeave={voiceActions.leave}
+          compact
+        />
+      ) : null}
       {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} compact /> : null}
     </nav>
   )

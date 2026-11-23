@@ -173,7 +173,27 @@ const STROKE: Record<string, JSX.Element> = {
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M3 9h18" />
     </>
-  )
+  ),
+  // Channels and voice (2026-11-22).
+  hash: <path d="M5 9h15M4 15h15M10 3L8 21M16 3l-2 18" />,
+  chevronDown: <path d="M6 9l6 6 6-6" />,
+  headphones: (
+    <>
+      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+      <path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z" />
+    </>
+  ),
+  headphonesOff: (
+    <>
+      <path d="M2 2l20 20" />
+      <path d="M3 18v-6a9 9 0 0 1 14.4-7.2M20.4 8.4A9 9 0 0 1 21 12v6" />
+      <path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z" />
+    </>
+  ),
+  hangUp: (
+    <path d="M22 15.5v-2.2a2 2 0 0 0-1.4-1.9 28 28 0 0 0-17.2 0A2 2 0 0 0 2 13.3v2.2a1.5 1.5 0 0 0 1.8 1.5l3.4-.7a1.5 1.5 0 0 0 1.2-1.4l.1-1.6a17 17 0 0 1 7 0l.1 1.6a1.5 1.5 0 0 0 1.2 1.4l3.4.7a1.5 1.5 0 0 0 1.8-1.5z" />
+  ),
+  signal: <path d="M4 20v-3M9 20v-7M14 20v-11M19 20V5" />
 }
 
 const FILL: Record<string, JSX.Element> = {

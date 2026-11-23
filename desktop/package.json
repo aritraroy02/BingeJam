@@ -1,7 +1,7 @@
 {
   "name": "bingejam-desktop",
   "productName": "BingeJam",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "description": "BingeJam for Windows: watch and listen together, in sync.",
   "main": "out/main/index.js",
@@ -12,10 +12,11 @@
     "build": "node scripts/run.mjs build",
     "preview": "node scripts/run.mjs preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node --test --experimental-strip-types \"src/shared/**/*.test.ts\" \"src/renderer/src/data/**/*.test.ts\" \"src/renderer/src/sync/**/*.test.ts\"",
+    "test": "node --test --experimental-strip-types \"src/shared/**/*.test.ts\" \"src/renderer/src/data/**/*.test.ts\" \"src/renderer/src/sync/**/*.test.ts\" \"src/renderer/src/voice/**/*.test.ts\"",
     "build:extension": "node ../extension/build.mjs",
     "firebase-config": "node scripts/firebase-config.mjs",
-    "install:local": "node scripts/install-local.mjs"
+    "install:local": "node scripts/install-local.mjs",
+    "dist:win": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
     "firebase": "^13.2.0",
@@ -29,8 +30,68 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
     "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "typescript": "5.9",
     "vite": "^8.3.6"
-  }
+  },
+  "build": {
+    "appId": "com.bingejam.desktop",
+    "productName": "BingeJam",
+    "artifactName": "BingeJam-Setup-${version}.${ext}",
+    "asar": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "build/icon.png",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../extension/dist/chromium",
+        "to": "extension/chromium"
+      },
+      {
+        "from": "../extension/dist/firefox",
+        "to": "extension/firefox"
+      }
+    ],
+    "protocols": [
+      {
+        "name": "BingeJam",
+        "schemes": [
+          "bingejam"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BingeJam",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "electronLanguages": [
+      "en-US"
+    ]
+  },
+  "author": "BingeJam"
 }

@@ -2,6 +2,7 @@
 import type { BridgeMessage } from '@shared/player'
 import type { AddToBrowserResult, BrowserId, DetectedBrowser, ExtensionStatus, OverlayInput, OverlayState } from '@shared/extension'
 import type { DesktopPrefs, GlobalShortcutId, MiniAction, MiniRoomState, NotifyRequest } from '@shared/desktop'
+import type { ScreenSource } from '@shared/screen'
 
 export interface BingeJamBridge {
   platform: string
@@ -78,6 +79,11 @@ export interface BingeJamBridge {
   browsers: {
     detect(): Promise<DetectedBrowser[]>
     addTo(browser: BrowserId): Promise<AddToBrowserResult>
+  }
+  /** Screen share (src/main/screenShare.ts): what can be shared, and which one the next getDisplayMedia gets. */
+  screen: {
+    sources(): Promise<ScreenSource[]>
+    choose(id: string, audio: boolean): Promise<void>
   }
 }
 

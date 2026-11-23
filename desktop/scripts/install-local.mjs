@@ -5,7 +5,8 @@
 // plus Start menu and desktop shortcuts. Run `npm run build` first (it also builds the extension).
 //   node scripts/install-local.mjs              install / update
 //   node scripts/install-local.mjs --uninstall  remove the app and shortcuts (keeps %APPDATA%\BingeJam)
-// A real installer (electron-builder) comes with the first public release.
+// The public installer is `npm run dist:win` (electron-builder, NSIS) → release/BingeJam-Setup-<version>.exe;
+// it installs into the same folder (build/installer.nsh), so the two never sit side by side.
 
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'

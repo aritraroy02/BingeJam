@@ -13,6 +13,10 @@ npm run dev               # app with hot reload
 - Install on this PC (no admin, no installer): `npm run build && npm run install:local` puts it in
   `%LOCALAPPDATA%\Programs\BingeJam` with Start menu and desktop shortcuts; run it again to update
   (quit the app first), `node scripts/install-local.mjs --uninstall` removes it.
+- Installer for other PCs: `npm run dist:win` → `release/BingeJam-Setup-<version>.exe` (electron-builder NSIS, per user,
+  no admin, unsigned so SmartScreen asks once; installs into the same `%LOCALAPPDATA%\Programs\BingeJam`). Published as a
+  GitHub release `pc-v<version>` on `aritraroy02/sync-it-releases` (never marked latest; the phones' update check reads only
+  `v` tags); the website's "Download for Windows" (`web/download.js` `PC_VERSION`) points at it. Bump both together.
 - `BJ_DEMO=1` shows the design's sample content without Firebase (store screenshots, design reviews).
 - `BJ_SNAPSHOT=C:\path\shot.png` saves a screenshot of the window after it settles and quits
   (`BJ_SNAPSHOT_DELAY` ms, default 2500). Combine with `BJ_DEMO=1` to compare with `design/*.png`.

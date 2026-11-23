@@ -7,6 +7,7 @@ import { setupExtensionLink } from './extension'
 import { setupDesktop, shouldCloseToTray, startedHidden } from './desktop'
 import { setupMini, toggleMini } from './mini'
 import { setupGames } from './games'
+import { setupScreenShare } from './screenShare'
 
 // BingeJam desktop: one window, one instance. Firebase (auth + Realtime Database) runs in the
 // renderer like the web SDK expects; the main process owns the window, OS integration and IPC.
@@ -49,6 +50,7 @@ function onReady(): void {
   setupDesktop({ window: () => mainWindow, focus: focusMainWindow, quit: quitApp, toggleMini })
   setupMini({ main: () => mainWindow, load: loadUi })
   setupGames()
+  setupScreenShare()
   createMainWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()

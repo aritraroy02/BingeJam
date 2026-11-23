@@ -46,6 +46,10 @@ const bridge: BingeJamBridge = {
   browsers: {
     detect: () => ipcRenderer.invoke('browsers:detect'),
     addTo: (browser) => ipcRenderer.invoke('browsers:add-to', browser)
+  },
+  screen: {
+    sources: () => ipcRenderer.invoke('screen:sources'),
+    choose: (id, audio) => ipcRenderer.invoke('screen:choose', { id, audio })
   }
 }
 

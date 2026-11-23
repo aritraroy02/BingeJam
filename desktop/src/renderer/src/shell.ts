@@ -6,7 +6,9 @@ import type {
   ChatSummaryVM,
   FriendsVM,
   FriendVM,
+  GroupChannelsVM,
   GroupMemberVM,
+  VoiceConnectionVM,
   HomeVM,
   MessageVM,
   InviteVM,
@@ -14,6 +16,7 @@ import type {
   ProfileVM,
   RoomVM,
   SettingsVM,
+  ShareSourceVM,
   StreamQuality,
   StreamSource,
   StreamVM,
@@ -54,6 +57,14 @@ export interface ShellData {
   header: (chatId: string) => ChatHeaderVM | null
   messages: (chatId: string) => MessageVM[] | null
   members: (chatId: string) => GroupMemberVM[] | null
+  /** A group's channels, Discord style (2026-11-22); null for 1:1 chats and while loading. */
+  channels?: (chatId: string) => GroupChannelsVM | null
+  /** A text channel's messages (not #general, whose messages are the group chat's). */
+  channelMessages?: (chatId: string, channelId: string) => MessageVM[] | null
+  /** The voice chat this PC is in (a voice channel or a room); null = none. */
+  voice?: VoiceConnectionVM | null
+  /** Go Live video: the share we watch, and our own share for our tile (both null when none). */
+  voiceMedia?: { watching: MediaStream | null; preview: MediaStream | null }
   /** Friends as plain people, for the New group / Add people pickers. */
   friendPeople: PersonVM[] | null
   /** The room this PC is in (null = not in one). */
@@ -183,6 +194,27 @@ export interface ShellActions {
   invite: {
     copy: () => void
     reset: () => void
+  }
+  /** Group channels (2026-11-22): admins add, rename and delete; anyone writes and sets a voice status. */
+  channels?: {
+    send: (chatId: string, channelId: string, text: string) => void
+    create: (chatId: string, name: string, kind: 'text' | 'voice') => void
+    rename: (chatId: string, channelId: string, name: string, kind: 'text' | 'voice') => void
+    remove: (chatId: string, channelId: string) => void
+    setStatus: (chatId: string, channelId: string, text: string) => void
+  }
+  /** Voice chat (voice channels and rooms), the sidebar's "Voice connected" panel. */
+  voice?: {
+    joinChannel: (chatId: string, channelId: string) => void
+    leave: () => void
+    toggleMute: () => void
+    toggleDeafen: () => void
+    /** Go Live (2026-11-22): screens and app windows to pick from. */
+    listSources?: () => Promise<ShareSourceVM[]>
+    startShare?: (sourceId: string, quality: '720p30' | '1080p60' | '1440p60' | '4k60', sound: boolean) => void
+    stopShare?: () => void
+    watch?: (uid: string) => void
+    stopWatching?: () => void
   }
   /** Group admins and settings (2026-11-10). */
   groups: {

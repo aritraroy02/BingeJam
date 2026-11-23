@@ -34,4 +34,8 @@ service-account*.json
 desktop/node_modules/
 desktop/out/
 desktop/dist/
+desktop/release/
 desktop/src/renderer/src/firebase-config.json
+
+# Firebase CLI debug output
+firebase-debug.log

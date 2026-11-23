@@ -120,6 +120,81 @@ export interface GroupMemberVM extends PersonVM {
   creator?: boolean
 }
 
+// ---------- Group channels, Discord style (PC app, 2026-11-22) ----------
+
+export interface VoiceOccupantVM extends PersonVM {
+  isMe: boolean
+  muted: boolean
+  deafened: boolean
+  /** Only known while we're in the same voice channel. */
+  speaking: boolean
+  /** Sharing their screen (Go Live): a LIVE badge, and Watch in the voice stage. */
+  live?: boolean
+}
+
+export interface ChannelVM {
+  id: string
+  name: string
+  kind: 'text' | 'voice'
+  /** #general and the General voice channel: always there, can't be renamed or deleted. */
+  builtIn: boolean
+  /** Text: something new from someone else. */
+  unread?: boolean
+  /** Voice: who's in it, the call timer ("15:05") and its status ("Valorant ranked"). */
+  people?: VoiceOccupantVM[]
+  elapsed?: string | null
+  status?: string | null
+  /** Voice: we're connected to it from this PC. */
+  connected?: boolean
+}
+
+export interface GroupChannelsVM {
+  chatId: string
+  text: ChannelVM[]
+  voice: ChannelVM[]
+  /** Admins add, rename and delete channels. */
+  canManage: boolean
+}
+
+export type VoiceTargetVM = { kind: 'channel'; chatId: string; channelId: string } | { kind: 'room'; code: string; chatId: string | null }
+
+/** The voice chat this PC is in (bottom of the sidebar on every screen, like Discord). */
+export interface VoiceConnectionVM {
+  status: 'connecting' | 'connected' | 'reconnecting' | 'failed'
+  error: string | null
+  /** "Gaming" (a voice channel) or "Room" */
+  channelName: string
+  /** "Movie Night" (the group, or the room's chat) */
+  placeName: string
+  target: VoiceTargetVM
+  muted: boolean
+  deafened: boolean
+  speaking: boolean
+  /** Round trip to the voice server; null until measured. */
+  pingMs: number | null
+  quality: 'good' | 'ok' | 'poor' | null
+  /** Where the voice chat runs: "Mumbai" and "BOM"; null until the relay says. */
+  server: string | null
+  serverCode: string | null
+  /** The data centre we connected through, "Mumbai (BOM)". */
+  edge: string | null
+  /** Our screen share: "1080p · 60", how many watch. Null = not sharing. */
+  sharing?: { quality: string; viewers: number } | null
+  /** Whose share we watch (uid) and how far it got. */
+  watching?: { uid: string; name: string; status: 'connecting' | 'playing' } | null
+}
+
+/** A screen or window the Go Live picker offers (from the main process). */
+export interface ShareSourceVM {
+  id: string
+  name: string
+  kind: 'screen' | 'window'
+  thumbnail: string
+  icon: string | null
+  /** Netflix / Prime Video / JioHotstar: shows black and breaks their terms, so not offered. */
+  blocked: boolean
+}
+
 // ---------- Inside a room ----------
 
 export type SyncHealth = 'inSync' | 'catchingUp' | 'buffering' | 'noPlayer'
@@ -159,7 +234,15 @@ export interface RoomVM {
   allInSync: boolean
   members: RoomMemberVM[]
   notHere: GroupMemberVM[]
-  voice: { members: VoiceMemberVM[]; quality: 'HD' | 'SD'; pushToTalkKey: string | null; joined: boolean; muted: boolean }
+  voice: {
+    members: VoiceMemberVM[]
+    quality: 'HD' | 'SD'
+    pushToTalkKey: string | null
+    joined: boolean
+    muted: boolean
+    /** Where the voice chat runs and our ping, "Mumbai · 28 ms" (PC voice, 2026-11-22). */
+    server?: string | null
+  }
   settings: { waitForBuffering: boolean; subtitles: string | null }
   /** "Play Dune in your browser": opens the host's exact title (member, not on it yet). */
   openTitle?: string

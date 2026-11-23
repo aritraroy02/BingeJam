@@ -1,6 +1,21 @@
 import { useState } from 'react'
 import { useAppearance } from '@/live/appearance'
-import type { ChatHeaderVM, ChatSummaryVM, GroupMemberVM, MessageVM, RoomVM, SettingsVM, StreamVM, FriendsVM, ProfileVM } from '@/ui/models'
+import type {
+  ChannelVM,
+  ChatHeaderVM,
+  ChatSummaryVM,
+  GroupChannelsVM,
+  GroupMemberVM,
+  MessageVM,
+  RoomVM,
+  SettingsVM,
+  StreamVM,
+  FriendsVM,
+  ProfileVM,
+  VoiceConnectionVM
+} from '@/ui/models'
+import { DEMO_CHANNEL_MESSAGES, DEMO_CHANNELS, DEMO_VOICE } from './channels'
+import { DEMO_SOURCES, demoScreen } from './screens'
 import type { ShellData } from '@/shell'
 import {
   DEMO_BROWSER,
@@ -42,6 +57,70 @@ export function useDemo(profileUid: string | null = null): ShellData {
   const [streamChat, setStreamChat] = useState<MessageVM[]>(DEMO_STREAM_CHAT)
   const [settings, setSettings] = useState<SettingsVM>(DEMO_SETTINGS)
   const [friends, setFriends] = useState<FriendsVM>(DEMO_FRIENDS)
+  const [channels, setChannels] = useState<Record<string, GroupChannelsVM>>(DEMO_CHANNELS)
+  const [channelMessages, setChannelMessages] = useState<Record<string, MessageVM[]>>(DEMO_CHANNEL_MESSAGES)
+  // In voice from the start only for the channel and voice snapshots.
+  // ?screen=stream: already watching Riya's screen (snapshots).
+  const startWatching = /screen=stream/.test(window.location.search)
+  const [voice, setVoice] = useState<VoiceConnectionVM | null>(() =>
+    /screen=(voice|channel|stream|golive)/.test(window.location.search)
+      ? startWatching
+        ? { ...DEMO_VOICE, watching: { uid: DEMO_PEOPLE.riya.id, name: 'Riya Sen', status: 'playing' } }
+        : DEMO_VOICE
+      : null
+  )
+  const [voiceMedia, setVoiceMedia] = useState<{ watching: MediaStream | null; preview: MediaStream | null }>(() => ({
+    watching: startWatching ? demoScreen('Skyline Racers · Riya') : null,
+    preview: null
+  }))
+  /** Mark us live (or not) in the voice channel we're in. */
+  function setMeLive(live: boolean): void {
+    setChannels((all) => {
+      const next: Record<string, GroupChannelsVM> = {}
+      for (const [id, g] of Object.entries(all))
+        next[id] = { ...g, voice: g.voice.map((v) => ({ ...v, people: (v.people ?? []).map((p) => (p.isMe ? { ...p, live } : p)) })) }
+      return next
+    })
+  }
+
+  /** A group's channels: Movie Night's sample, or just #general and General for the others. */
+  function channelsOf(chatId: string): GroupChannelsVM | null {
+    if (headers[chatId]?.kind !== 'group') return null
+    return (
+      channels[chatId] ?? {
+        chatId,
+        canManage: true,
+        text: [{ id: 'general', name: 'general', kind: 'text', builtIn: true }],
+        voice: [{ id: 'lounge', name: 'General', kind: 'voice', builtIn: true, people: [], elapsed: null, status: null }]
+      }
+    )
+  }
+  function patchChannels(chatId: string, fn: (c: GroupChannelsVM) => GroupChannelsVM): void {
+    const cur = channelsOf(chatId)
+    if (cur) setChannels((all) => ({ ...all, [chatId]: fn(cur) }))
+  }
+  /** Us in or out of a voice channel (the demo keeps only one connection, like the app). */
+  function placeMe(chatId: string | null, channelId: string | null): void {
+    setChannels((all) => {
+      const next: Record<string, GroupChannelsVM> = {}
+      for (const [id, g] of Object.entries(all)) {
+        next[id] = {
+          ...g,
+          voice: g.voice.map((v): ChannelVM => {
+            const others = (v.people ?? []).filter((p) => !p.isMe)
+            const here = id === chatId && v.id === channelId
+            return {
+              ...v,
+              connected: here,
+              people: here ? [...others, { id: DEMO_ME.uid, name: 'You', isMe: true, muted: false, deafened: false, speaking: false }] : others,
+              elapsed: here ? v.elapsed ?? '0:00' : others.length > 0 ? v.elapsed : null
+            }
+          })
+        }
+      }
+      return next
+    })
+  }
 
   const people = [DEMO_PEOPLE.riya, DEMO_PEOPLE.kabir, DEMO_PEOPLE.meera, DEMO_PEOPLE.zoe, DEMO_PEOPLE.ananya]
 
@@ -162,6 +241,69 @@ export function useDemo(profileUid: string | null = null): ShellData {
     addToBrowser: () => undefined,
     invite: { copy: () => undefined, reset: () => undefined },
     toggleWatchlist: () => undefined,
+    channels: {
+      send: (chatId, channelId, text) => setChannelMessages((all) => ({ ...all, [`${chatId}#${channelId}`]: [...(all[`${chatId}#${channelId}`] ?? []), myText(text)] })),
+      create: (chatId, name, kind) =>
+        patchChannels(chatId, (c) => {
+          const clean = kind === 'text' ? name.toLowerCase().replace(/[^a-z0-9 _-]/g, '').trim().replace(/[ -]+/g, '-') : name
+          const id = newId('ch')
+          return kind === 'text'
+            ? { ...c, text: [...c.text, { id, name: clean, kind, builtIn: false }] }
+            : { ...c, voice: [...c.voice, { id, name: clean, kind, builtIn: false, people: [], elapsed: null, status: null }] }
+        }),
+      rename: (chatId, channelId, name) =>
+        patchChannels(chatId, (c) => ({
+          ...c,
+          text: c.text.map((x) => (x.id === channelId ? { ...x, name } : x)),
+          voice: c.voice.map((x) => (x.id === channelId ? { ...x, name } : x))
+        })),
+      remove: (chatId, channelId) => {
+        patchChannels(chatId, (c) => ({ ...c, text: c.text.filter((x) => x.id !== channelId), voice: c.voice.filter((x) => x.id !== channelId) }))
+        if (voice?.target.kind === 'channel' && voice.target.channelId === channelId) setVoice(null)
+      },
+      setStatus: (chatId, channelId, text) =>
+        patchChannels(chatId, (c) => ({ ...c, voice: c.voice.map((x) => (x.id === channelId ? { ...x, status: text.trim() || null } : x)) }))
+    },
+    voice: {
+      joinChannel: (chatId, channelId) => {
+        const c = channelsOf(chatId)?.voice.find((v) => v.id === channelId)
+        placeMe(chatId, channelId)
+        setVoice({ ...DEMO_VOICE, channelName: c?.name ?? 'Voice', placeName: headers[chatId]?.name ?? 'Group', target: { kind: 'channel', chatId, channelId } })
+      },
+      leave: () => {
+        placeMe(null, null)
+        setVoice(null)
+      },
+      toggleMute: () => setVoice((v) => (v ? { ...v, muted: !v.muted, deafened: v.muted ? false : v.deafened } : v)),
+      toggleDeafen: () => setVoice((v) => (v ? { ...v, deafened: !v.deafened, muted: !v.deafened } : v)),
+      listSources: async () => {
+        await new Promise((r) => setTimeout(r, 300))
+        return DEMO_SOURCES
+      },
+      startShare: (sourceId, quality) => {
+        const name = DEMO_SOURCES.find((s) => s.id === sourceId)?.name ?? 'Your screen'
+        voiceMedia.preview?.getTracks().forEach((t) => t.stop())
+        setVoiceMedia((m) => ({ ...m, preview: demoScreen(name) }))
+        setVoice((v) => (v ? { ...v, sharing: { quality: quality === '4k60' ? '4K · 60' : quality.replace(/p(\d+)$/, 'p · $1'), viewers: 2 } } : v))
+        setMeLive(true)
+      },
+      stopShare: () => {
+        voiceMedia.preview?.getTracks().forEach((t) => t.stop())
+        setVoiceMedia((m) => ({ ...m, preview: null }))
+        setVoice((v) => (v ? { ...v, sharing: null } : v))
+        setMeLive(false)
+      },
+      watch: (uid) => {
+        const name = Object.values(channels).flatMap((g) => g.voice.flatMap((v) => v.people ?? [])).find((p) => p.id === uid)?.name ?? 'Friend'
+        setVoiceMedia((m) => ({ ...m, watching: demoScreen(`Skyline Racers · ${name.split(' ')[0]}`) }))
+        setVoice((v) => (v ? { ...v, watching: { uid, name, status: 'playing' } } : v))
+      },
+      stopWatching: () => {
+        voiceMedia.watching?.getTracks().forEach((t) => t.stop())
+        setVoiceMedia((m) => ({ ...m, watching: null }))
+        setVoice((v) => (v ? { ...v, watching: null } : v))
+      }
+    },
     groups: {
       setAdmin: (chatId, uid, admin) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).map((m) => (m.id === uid ? { ...m, admin } : m)) })),
       remove: (chatId, uid) => setMembers((all) => ({ ...all, [chatId]: (all[chatId] ?? []).filter((m) => m.id !== uid) })),
@@ -236,6 +378,10 @@ export function useDemo(profileUid: string | null = null): ShellData {
     header: (id) => headers[id] ?? null,
     messages: (id) => messages[id] ?? null,
     members: (id) => members[id] ?? null,
+    channels: channelsOf,
+    channelMessages: (id, channelId) => channelMessages[`${id}#${channelId}`] ?? [],
+    voice,
+    voiceMedia,
     friendPeople: people,
     room,
     roomChat,

@@ -6,7 +6,8 @@ import { ConfirmDialog, Dialog } from '@/ui/Dialog'
 import { MenuButton, type MenuItem } from '@/ui/Menu'
 import { ReportDialog, type ReportReasonValue } from '@/ui/ReportDialog'
 import { firstName, joinNames } from '@/ui/format'
-import type { ChatHeaderVM, ChatSummaryVM, GroupMemberVM, MessageVM, PersonVM } from '@/ui/models'
+import type { ChannelVM, ChatHeaderVM, ChatSummaryVM, GroupChannelsVM, GroupMemberVM, MessageVM, PersonVM, VoiceConnectionVM } from '@/ui/models'
+import { GroupChannels, VoiceStage, type ChannelKind, type ShareActions } from './Channels'
 
 // Chats: 1:1 chats and groups in one list, each with its own room (PLAN.md "Chats and rooms are one
 // thing"). design/2-chat-1to1 (list + open chat) and design/3-group-chat (open chat + Members panel).
@@ -57,6 +58,27 @@ export interface ChatsProps {
   onForward?: (text: string, friendIds: string[]) => void
   onDeleteForMe?: (messageId: string) => void
   onDeleteForEveryone?: (messageId: string) => void
+  /**
+   * Groups' channels, Discord style (2026-11-22): the open group's channel list takes the chat list's
+   * place. [messages] are the selected text channel's. Null/absent = no channel column.
+   */
+  channels?: GroupChannelsVM | null
+  channelId?: string | null
+  voice?: VoiceConnectionVM | null
+  onSelectChannel?: (channelId: string) => void
+  /** Back to all chats. */
+  onCloseChat?: () => void
+  onCreateChannel?: (name: string, kind: ChannelKind) => void
+  onRenameChannel?: (channelId: string, name: string, kind: ChannelKind) => void
+  onDeleteChannel?: (channelId: string) => void
+  onSetChannelStatus?: (channelId: string, text: string) => void
+  onJoinVoice?: (channelId: string) => void
+  onLeaveVoice?: () => void
+  onToggleMute?: () => void
+  onToggleDeafen?: () => void
+  /** Go Live in voice channels: the video, and share / watch. */
+  voiceMedia?: { watching: MediaStream | null; preview: MediaStream | null }
+  share?: ShareActions
 }
 
 type DialogKind = 'newGroup' | 'addPeople' | 'delete' | 'block' | 'report' | null
@@ -77,13 +99,64 @@ export function Chats(p: ChatsProps): JSX.Element {
   // A different chat cancels a rename in progress.
   useEffect(() => setRenaming(false), [p.selectedChatId])
 
-  return (
-    <div className={showMembers ? 'screen chats chats--members' : 'screen chats'}>
-      <ChatList {...p} onNewGroup={() => setDialog('newGroup')} />
+  // The open group's channels (absent until they load, and for 1:1 chats).
+  const channels = isGroup && p.channels && p.channels.chatId === p.header?.chatId ? p.channels : null
+  const channelId = p.channelId ?? 'general'
+  const textChannel = channels?.text.find((c) => c.id === channelId) ?? channels?.text[0] ?? null
+  const voiceChannel = channels?.voice.find((c) => c.id === channelId) ?? null
+  const groupMenu: MenuItem[] =
+    channels && p.header
+      ? [
+          ...(p.header.canRename ? [{ label: 'Rename group', icon: 'edit' as const, onSelect: () => setRenaming(true) }] : []),
+          ...(p.header.group?.amAdmin ? [{ label: 'Add people', icon: 'friends' as const, onSelect: () => setDialog('addPeople') }] : []),
+          { label: membersOpen ? 'Hide members' : 'Show members', icon: 'users' as const, onSelect: () => setMembersOpen((v) => !v) }
+        ]
+      : []
 
-      {p.header ? (
+  return (
+    <div className={showMembers ? `screen chats chats--members${channels ? ' chats--channels' : ''}` : `screen chats${channels ? ' chats--channels' : ''}`}>
+      {channels && p.header ? (
+        <GroupChannels
+          groupName={p.header.name}
+          channels={channels}
+          selected={voiceChannel?.id ?? textChannel?.id ?? 'general'}
+          voice={p.voice ?? null}
+          menu={groupMenu}
+          renaming={renaming}
+          onRenameGroup={(name) => {
+            setRenaming(false)
+            if (name && name !== p.header?.name) p.onRename(name)
+          }}
+          onBack={() => p.onCloseChat?.()}
+          onSelect={(id) => p.onSelectChannel?.(id)}
+          onJoinVoice={(id) => p.onJoinVoice?.(id)}
+          onCreate={(name, kind) => p.onCreateChannel?.(name, kind)}
+          onRename={(id, name, kind) => p.onRenameChannel?.(id, name, kind)}
+          onDelete={(id) => p.onDeleteChannel?.(id)}
+          onSetStatus={(id, text) => p.onSetChannelStatus?.(id, text)}
+          onOpenProfile={p.onOpenProfile}
+        />
+      ) : (
+        <ChatList {...p} onNewGroup={() => setDialog('newGroup')} />
+      )}
+
+      {p.header && voiceChannel ? (
+        <VoiceStage
+          channel={voiceChannel}
+          groupName={p.header.name}
+          voice={voiceChannel.connected ? p.voice ?? null : null}
+          media={p.voiceMedia}
+          share={p.share}
+          onJoin={() => p.onJoinVoice?.(voiceChannel.id)}
+          onLeave={() => p.onLeaveVoice?.()}
+          onToggleMute={() => p.onToggleMute?.()}
+          onToggleDeafen={() => p.onToggleDeafen?.()}
+          onOpenProfile={p.onOpenProfile}
+        />
+      ) : p.header ? (
         <ChatView
           {...p}
+          channel={channels ? textChannel : null}
           header={p.header}
           membersOpen={membersOpen}
           onToggleMembers={() => setMembersOpen((v) => !v)}
@@ -336,6 +409,8 @@ function ChatView(
     onDeleteMessage?: (m: TextMessage) => void
     solo: boolean
     onOpenAddPeople: () => void
+    /** A group's text channel (the column on the left picks it); null = plain group chat. */
+    channel?: ChannelVM | null
   }
 ): JSX.Element {
   const h = p.header
@@ -344,6 +419,9 @@ function ChatView(
   const tipId = useId()
   const titleId = useId()
   const showTip = p.showStartRoomTip && !isGroup && h.room === null
+  const channel = isGroup ? p.channel ?? null : null
+  // Who the composer and the message list talk about: "#off-topic", the group or the friend.
+  const target = channel ? `#${channel.name}` : isGroup ? h.name : firstName(h.name)
 
   // The hint closes with Escape too (WCAG 1.4.13).
   useEffect(() => {
@@ -367,7 +445,11 @@ function ChatView(
   return (
     <main aria-labelledby={titleId} className="chat-main rise" style={{ '--i': 2 } as CSSProperties}>
       <header className="chat-header">
-        {!isGroup && friend && p.onOpenProfile ? (
+        {channel ? (
+          <span className="channel-glyph" aria-hidden="true">
+            <Icon name="hash" size={20} />
+          </span>
+        ) : !isGroup && friend && p.onOpenProfile ? (
           <button type="button" className="person-open" aria-label={`${h.name}'s profile`} onClick={() => p.onOpenProfile?.(friend.id)}>
             <ChatAvatar kind={h.kind} name={h.name} id={h.chatId} people={h.people} large online={friend.online === true} />
           </button>
@@ -376,7 +458,12 @@ function ChatView(
         )}
         <div className="chat-header__title">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-            {p.renaming ? (
+            {channel ? (
+              // The group's name (and its rename) live at the top of the channel column.
+              <h2 id={titleId} className="chat-header__name truncate">
+                {channel.name}
+              </h2>
+            ) : p.renaming ? (
               <RenameField name={h.name} labelId={titleId} onDone={(name) => {
                 p.setRenaming(false)
                 if (name && name !== h.name) p.onRename(name)
@@ -386,7 +473,7 @@ function ChatView(
                 {h.name}
               </h2>
             )}
-            {isGroup && h.canRename && !p.renaming ? (
+            {isGroup && !channel && h.canRename && !p.renaming ? (
               <button type="button" className="icon-btn-sm pressable" aria-label="Rename group" title="Rename group" onClick={() => p.setRenaming(true)}>
                 <Icon name="edit" size={14} />
               </button>
@@ -394,7 +481,7 @@ function ChatView(
           </div>
           {p.solo ? (
             <button type="button" className="chat-header__subtitle" onClick={p.onOpenAddPeople}>
-              Just you · add people
+              {channel ? `${h.name} · just you · add people` : 'Just you · add people'}
             </button>
           ) : isGroup ? (
             <button
@@ -405,7 +492,7 @@ function ChatView(
               title={p.membersOpen ? 'Hide members' : 'Show members'}
               onClick={p.onToggleMembers}
             >
-              {h.subtitle}
+              {channel ? `${h.name} · ${h.subtitle}` : h.subtitle}
             </button>
           ) : (
             <span className="chat-header__subtitle truncate">{h.subtitle}</span>
@@ -459,15 +546,20 @@ function ChatView(
             ...(!m.deleted && p.onForwardMessage ? [{ label: 'Forward', icon: 'forward' as const, onSelect: () => p.onForwardMessage?.(m) }] : []),
             ...(!isGroup && p.onDeleteMessage ? [{ label: 'Delete', icon: 'trash' as const, danger: true, onSelect: () => p.onDeleteMessage?.(m) }] : [])
           ]}
-          resetKey={h.chatId}
+          resetKey={channel ? `${h.chatId}#${channel.id}` : h.chatId}
           showSenders={isGroup}
-          label={`Messages with ${h.name}`}
+          label={channel ? `Messages in #${channel.name}` : `Messages with ${h.name}`}
           empty={
             <div className="chat-empty">
               <span className="chat-empty__icon">
-                <Icon name={isGroup ? 'users' : 'chat'} size={24} />
+                <Icon name={channel ? 'hash' : isGroup ? 'users' : 'chat'} size={24} />
               </span>
-              {p.solo ? (
+              {channel && !channel.builtIn ? (
+                <>
+                  <span style={{ color: 'var(--text)', fontWeight: 500, fontSize: 16 }}>This is the start of #{channel.name}</span>
+                  <span>Everyone in {h.name} can read and write here. Phones show only #general for now.</span>
+                </>
+              ) : p.solo ? (
                 <>
                   <span style={{ color: 'var(--text)', fontWeight: 500, fontSize: 16 }}>Just you in {h.name} so far</span>
                   <span>Add friends to chat here and start the group's room together.</span>
@@ -485,8 +577,8 @@ function ChatView(
           }
         />
         <Composer
-          label={`Message ${isGroup ? h.name : firstName(h.name)}`}
-          placeholder={isGroup && h.canSend === false ? 'Only admins can send messages' : `Message ${isGroup ? h.name : firstName(h.name)}`}
+          label={`Message ${target}`}
+          placeholder={isGroup && h.canSend === false ? 'Only admins can send messages' : `Message ${target}`}
           disabled={isGroup && h.canSend === false}
           onSend={p.onSend}
           onTyping={p.onTyping}

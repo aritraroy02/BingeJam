@@ -305,7 +305,7 @@ function VoicePanel({
   onLeave: () => void
 }): JSX.Element {
   const v = room.voice
-  const hint = [v.quality, v.pushToTalkKey ? `hold ${v.pushToTalkKey} to talk` : null].filter(Boolean).join(' · ')
+  const hint = [v.server ?? v.quality, v.pushToTalkKey ? `hold ${v.pushToTalkKey} to talk` : null].filter(Boolean).join(' · ')
   return (
     <section aria-labelledby="h-voice" className="glass side-panel rise" style={{ '--i': 3, gap: 16 } as CSSProperties}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>

@@ -33,7 +33,9 @@ const DEMO = params.get('demo') === '1'
 
 /**
  * Where the app opens (`?screen=`, set by BJ_SCREEN for snapshots): home, chats (1:1 with Riya in
- * demo mode), group (Movie Night), solo (a group with just you), room, streams, browser (Add to browser), settings, friends.
+ * demo mode), group (Movie Night), channel (its #off-topic), voice (its Gaming voice channel; stream = watching
+ * Riya's share there, golive = the share picker open),
+ * solo (a group with just you), room, streams, browser (Add to browser), settings, friends.
  */
 type View =
   | { tab: 'home' }
@@ -43,13 +45,18 @@ type View =
   | { tab: 'streams' }
   | { tab: 'settings'; browser: boolean; reports?: boolean }
 
-function initialView(): { view: View; chatId: string | null; joinRoom: boolean } {
+function initialView(): { view: View; chatId: string | null; joinRoom: boolean; channelId?: string } {
   const screen = params.get('screen')
   switch (screen) {
     case 'chats':
       return { view: { tab: 'chats', room: false }, chatId: DEMO ? RIYA_DM : null, joinRoom: false }
     case 'group':
       return { view: { tab: 'chats', room: false }, chatId: DEMO ? MOVIE_NIGHT : null, joinRoom: false }
+    case 'channel':
+    case 'voice':
+    case 'stream':
+    case 'golive':
+      return { view: { tab: 'chats', room: false }, chatId: DEMO ? MOVIE_NIGHT : null, joinRoom: false, channelId: screen === 'channel' ? 'off-topic' : 'gaming' }
     case 'solo':
       return { view: { tab: 'chats', room: false }, chatId: DEMO ? ROAD_TRIP : null, joinRoom: false }
     case 'room':
@@ -93,8 +100,21 @@ function MainApp(): JSX.Element {
   return <ProfileGate user={auth.user} />
 }
 
+/** Which channel is open in each group (#general until another is picked), for this window's life. */
+function useChannelPick(chatId: string | null): [string | null, (id: string, forChat?: string) => void] {
+  const [picks, setPicks] = useState<Record<string, string>>(() => (START.channelId && START.chatId ? { [START.chatId]: START.channelId } : {}))
+  return [
+    chatId ? picks[chatId] ?? 'general' : null,
+    (id, forChat) => {
+      const chat = forChat ?? chatId
+      if (chat) setPicks((m) => ({ ...m, [chat]: id }))
+    }
+  ]
+}
+
 function DemoShell(): JSX.Element {
   const [chatId, setChatId] = useState<string | null>(START.chatId)
+  const [channelId, setChannelId] = useChannelPick(chatId)
   const [trendingKind, setTrendingKind] = useState<TrendingKind>('movies')
   const [profileUid, setProfileUid] = useState<string | null>(null)
   return (
@@ -102,6 +122,8 @@ function DemoShell(): JSX.Element {
       data={useDemo(profileUid)}
       chatId={chatId}
       onChatId={setChatId}
+      channelId={channelId}
+      onChannelId={setChannelId}
       trendingKind={trendingKind}
       onTrendingKind={setTrendingKind}
       profileUid={profileUid}
@@ -150,17 +172,20 @@ function ProfileGate({ user }: { user: User }): JSX.Element {
 function LiveShell({ profile, stopPresence }: { profile: Profile; stopPresence: () => Promise<void> }): JSX.Element {
   const [version, setVersion] = useState('')
   const [chatId, setChatId] = useState<string | null>(START.chatId)
+  const [channelId, setChannelId] = useChannelPick(chatId)
   const [trendingKind, setTrendingKind] = useState<TrendingKind>('movies')
   const [profileUid, setProfileUid] = useState<string | null>(null)
   useEffect(() => {
     void window.bingejam.version().then(setVersion)
   }, [])
-  const data = useLiveShell({ profile, chatId, trendingKind, version, stopPresence, profileUid })
+  const data = useLiveShell({ profile, chatId, channelId, trendingKind, version, stopPresence, profileUid })
   return (
     <Shell
       data={data}
       chatId={chatId}
       onChatId={setChatId}
+      channelId={channelId}
+      onChannelId={setChannelId}
       trendingKind={trendingKind}
       onTrendingKind={setTrendingKind}
       profileUid={profileUid}
@@ -191,6 +216,10 @@ interface ShellProps {
   data: ShellData
   chatId: string | null
   onChatId: (id: string | null) => void
+  /** The open group's channel ("general" = the group chat); null when no chat is open. */
+  channelId: string | null
+  /** Picks [id] in the open chat, or in [forChat]. */
+  onChannelId: (id: string, forChat?: string) => void
   trendingKind: TrendingKind
   onTrendingKind: (kind: TrendingKind) => void
   /** Whose profile dialog is open (null = none). */
@@ -198,7 +227,17 @@ interface ShellProps {
   onProfileUid: (uid: string | null) => void
 }
 
-function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind: setTrendingKind, profileUid, onProfileUid }: ShellProps): JSX.Element {
+function Shell({
+  data,
+  chatId,
+  onChatId: setChatId,
+  channelId,
+  onChannelId: setChannelId,
+  trendingKind,
+  onTrendingKind: setTrendingKind,
+  profileUid,
+  onProfileUid
+}: ShellProps): JSX.Element {
   const [view, setView] = useState<View>(START.view)
   const [tipOff, setTipOff] = useState(tipDismissed)
   const [editing, setEditing] = useState(false)
@@ -308,6 +347,24 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
             ? 'browser'
             : 'calm'
 
+  // The open group's channels; a text channel other than #general has its own messages.
+  const channels = chatId && header?.kind === 'group' ? data.channels?.(chatId) ?? null : null
+  const inChannel = channels !== null && channelId !== null && channelId !== 'general' && channels.text.some((c) => c.id === channelId)
+
+  /** The sidebar's voice panel: back to the voice channel (or room) we're talking in. */
+  function openVoice(): void {
+    const t = data.voice?.target
+    if (!t) return
+    if (t.kind === 'channel') {
+      setChatId(t.chatId)
+      setChannelId(t.channelId, t.chatId)
+      setView({ tab: 'chats', room: false })
+    } else if (t.chatId) {
+      setChatId(t.chatId)
+      setView({ tab: 'chats', room: true })
+    } else setView({ tab: 'chats', room: true })
+  }
+
   const nav = {
     current: tab,
     onNavigate: navigate,
@@ -315,7 +372,11 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
     me: data.me,
     extension: data.settings.extension,
     onStatus: act.status?.set,
-    onShareActivity: act.status?.shareActivity
+    onShareActivity: act.status?.shareActivity,
+    voice: data.voice ?? null,
+    voiceActions: act.voice
+      ? { open: openVoice, toggleMute: act.voice.toggleMute, toggleDeafen: act.voice.toggleDeafen, leave: act.voice.leave }
+      : undefined
   }
 
   let screen: JSX.Element
@@ -383,13 +444,46 @@ function Shell({ data, chatId, onChatId: setChatId, trendingKind, onTrendingKind
           chats={data.chats}
           selectedChatId={chatId}
           header={header}
-          messages={chatId ? data.messages(chatId) : null}
+          messages={chatId ? (inChannel && channelId ? data.channelMessages?.(chatId, channelId) ?? null : data.messages(chatId)) : null}
           members={chatId ? data.members(chatId) : null}
           friends={data.friendPeople}
           showStartRoomTip={!tipOff}
           onSelectChat={setChatId}
-          onSend={(text) => chatId && act.send(chatId, text)}
-          onTyping={(typing) => chatId && act.typing(chatId, typing)}
+          onSend={(text) => {
+            if (!chatId) return
+            if (inChannel && channelId && act.channels) act.channels.send(chatId, channelId, text)
+            else act.send(chatId, text)
+          }}
+          onTyping={(typing) => chatId && !inChannel && act.typing(chatId, typing)}
+          channels={channels}
+          channelId={channelId}
+          voice={data.voice ?? null}
+          onSelectChannel={setChannelId}
+          onCloseChat={() => setChatId(null)}
+          onCreateChannel={(name, kind) => chatId && act.channels?.create(chatId, name, kind)}
+          onRenameChannel={(id, name, kind) => chatId && act.channels?.rename(chatId, id, name, kind)}
+          onDeleteChannel={(id) => {
+            if (!chatId) return
+            act.channels?.remove(chatId, id)
+            if (id === channelId) setChannelId('general')
+          }}
+          onSetChannelStatus={(id, text) => chatId && act.channels?.setStatus(chatId, id, text)}
+          onJoinVoice={(id) => chatId && act.voice?.joinChannel(chatId, id)}
+          onLeaveVoice={() => act.voice?.leave()}
+          onToggleMute={() => act.voice?.toggleMute()}
+          onToggleDeafen={() => act.voice?.toggleDeafen()}
+          voiceMedia={data.voiceMedia}
+          share={
+            act.voice?.listSources && act.voice.startShare && act.voice.stopShare && act.voice.watch && act.voice.stopWatching
+              ? {
+                  listSources: act.voice.listSources,
+                  start: act.voice.startShare,
+                  stop: act.voice.stopShare,
+                  watch: act.voice.watch,
+                  stopWatching: act.voice.stopWatching
+                }
+              : undefined
+          }
           onAttach={() => undefined}
           onStartRoom={() => chatId && openRoom(chatId, true)}
           onJoinRoom={() => chatId && openRoom(chatId, false)}

@@ -146,6 +146,23 @@ export async function lookupNetflixId(title: string, durationMs: number | null):
   }
 }
 
+// ---------- Screen share connection servers (GET /ice) ----------
+
+/** Public STUN only: what screen share uses if the relay can't be reached. */
+const FALLBACK_ICE: RTCIceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }]
+
+/** STUN, plus Cloudflare TURN when the relay has it configured (credentials last 24 h). */
+export async function fetchIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const body = (await relayGet('/ice', {})) as { iceServers?: unknown } | null
+    const list = Array.isArray(body?.iceServers) ? (body.iceServers as RTCIceServer[]).filter((s) => s && (typeof s.urls === 'string' || Array.isArray(s.urls))) : []
+    return list.length > 0 ? list : FALLBACK_ICE
+  } catch (e) {
+    console.warn('ICE servers request failed', e)
+    return FALLBACK_ICE
+  }
+}
+
 /** Profile pictures are public: an <img> can load this without a token (no CORS needed). */
 export function avatarUrl(uid: string): string {
   return `${RELAY_URL}/avatar/${encodeURIComponent(uid)}`

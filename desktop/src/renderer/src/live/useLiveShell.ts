@@ -73,6 +73,21 @@ import { parseInviteLink } from '@/data/invites'
 import { isRoomCode } from '@/data/ids'
 import { playableRefFor } from '@shared/sync/roomParser'
 import { useSentFriendRequests } from '@/data/friends'
+import {
+  createChannel,
+  deleteChannel,
+  GENERAL,
+  markChannelRead,
+  renameChannel,
+  sendChannelMessage,
+  setChannelStatus,
+  useChannelMessages,
+  useGroupChannels
+} from '@/data/channels'
+import { cityOf, pingQuality } from '@/voice/regions'
+import { QUALITY } from '@/voice/streamModel'
+import type { VoiceConnectionVM, VoiceMemberVM } from '@/ui/models'
+import { useVoiceSession } from './useVoice'
 
 // Real data for every screen (the signed-in counterpart of demo/useDemo.ts). Screens stay
 // props-only; this hook is the only place that knows about Firebase, the extension and the room.
@@ -100,6 +115,8 @@ function errorText(e: unknown, fallback: string): string {
 export interface LiveShellInput {
   profile: Profile
   chatId: string | null
+  /** The open group's channel ("general" = the group chat). */
+  channelId: string | null
   trendingKind: 'movies' | 'series'
   version: string
   /** Stops this PC's presence; awaited before signing out (the removal needs our token). */
@@ -108,7 +125,7 @@ export interface LiveShellInput {
   profileUid: string | null
 }
 
-export function useLiveShell({ profile, chatId, trendingKind, version, stopPresence, profileUid }: LiveShellInput): ShellData {
+export function useLiveShell({ profile, chatId, channelId, trendingKind, version, stopPresence, profileUid }: LiveShellInput): ShellData {
   const uid = profile.uid
   const [notice, setNotice] = useState<string | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
@@ -133,6 +150,19 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const appearance = useAppearance()
   const desktop = useDesktopPrefs()
   const connection = useConnection()
+
+  // ---------- Voice: one voice chat at a time (a group's voice channel or a room), like Discord ----------
+  const devices = useVoiceDevices()
+  const voice = useVoiceSession({
+    uid,
+    name: profile.displayName,
+    inputId: devices.vm.inputId,
+    outputId: devices.vm.outputId,
+    pushToTalkKey: devices.vm.pushToTalkKey,
+    onError: setNotice
+  })
+  // What the voice panel calls the place we're talking in (kept from when we joined).
+  const [voiceLabel, setVoiceLabel] = useState({ channel: '', place: '' })
 
   // ---------- Status (Online / Do not disturb / Invisible), shared activity, the running game ----------
   const [myStatus, setMyStatus] = useState<'online' | 'dnd' | 'invisible'>(() => (isInvisible(uid) ? 'invisible' : isDnd(uid) ? 'dnd' : 'online'))
@@ -216,10 +246,21 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
   const invitedSet = useGroupInvited(chatId && isGroupId(chatId) && !dmFriend(chatId, uid) ? chatId : null, friendIds)
   const invited = useMemo(() => [...invitedSet], [invitedSet])
 
-  // Read receipts: whenever the chat on screen gets new messages.
+  // The open group's channels (2026-11-22). #general is the group chat itself.
+  const groupId = chatId && isGroupId(chatId) && !dmFriend(chatId, uid) ? chatId : null
+  const generalUnread = (chats?.find((c) => c.chatId === groupId)?.unread ?? 0) > 0
+  const connectedChannel = voice.target?.kind === 'channel' && voice.target.gid === groupId ? voice.target.cid : null
+  const channels = useGroupChannels(groupId, generalUnread, connectedChannel, voice.speaking)
+  const openChannel = groupId && channelId && channelId !== GENERAL && channels?.text.some((c) => c.id === channelId) ? channelId : null
+  const channelMessages = useChannelMessages(groupId, openChannel)
+
+  // Read receipts: whenever the chat (or channel) on screen gets new messages.
   useEffect(() => {
-    if (viewing && viewing === chatId && messages) void markRead(viewing).catch(() => undefined)
-  }, [viewing, chatId, messages])
+    if (!viewing || viewing !== chatId) return
+    if (openChannel && groupId) {
+      if (channelMessages) void markChannelRead(groupId, openChannel).catch(() => undefined)
+    } else if (messages && !(groupId && channelId && channelId !== GENERAL)) void markRead(viewing).catch(() => undefined)
+  }, [viewing, chatId, messages, openChannel, channelMessages, channelId])
 
   // ---------- Extension + room ----------
   const ext = useExtensionStatus()
@@ -264,7 +305,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
         : [])
     const photos = new Map<string, string | null>()
     for (const [id, p] of roomPhotos) photos.set(id, p?.photoUrl ?? null)
-    return buildRoomVM({
+    const vm = buildRoomVM({
       state: room.state,
       code: room.active.code,
       chatId: room.active.chatId,
@@ -277,8 +318,80 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       localNow: performance.now(),
       openTitle: openTitleLabel
     })
+    // Voice in the room: us and whoever the relay says is in its voice chat (phones included).
+    const inVoice = voice.target?.kind === 'room' && voice.target.code === room.active.code
+    const s = voice.state
+    const talking: VoiceMemberVM[] = inVoice
+      ? [
+          { id: uid, name: profile.displayName, photoUrl: profile.photoUrl, isMe: true, speaking: voice.speaking.has(uid), muted: voice.muted || voice.deafened },
+          ...(s?.peers ?? []).map((p) => ({ id: p.uid, name: p.name, photoUrl: photos.get(p.uid) ?? null, isMe: false, speaking: p.speaking, muted: p.muted || p.deafened }))
+        ]
+      : []
+    return {
+      ...vm,
+      voice: {
+        ...vm.voice,
+        members: talking,
+        joined: inVoice,
+        muted: voice.muted || voice.deafened,
+        pushToTalkKey: devices.vm.pushToTalkKey,
+        server: inVoice && s?.serverCity ? (s.pingMs !== null ? `${s.serverCity} · ${s.pingMs} ms` : s.serverCity) : null
+      }
+    }
     // `tick` moves the position on once a second while playing.
-  }, [room.active, room.state, roomHeader, roomMembers, roomPhotos, browser, ext?.settings.waitForBuffering, tick, openTitleLabel])
+  }, [room.active, room.state, roomHeader, roomMembers, roomPhotos, browser, ext?.settings.waitForBuffering, tick, openTitleLabel, voice.target, voice.state, voice.muted, voice.deafened, voice.speaking, devices.vm.pushToTalkKey])
+
+  // Voice follows the room and the group: leaving either hangs up.
+  useEffect(() => {
+    const t = voice.target
+    if (t?.kind === 'room' && t.code !== room.active?.code) voice.leave()
+  }, [room.active?.code, voice.target])
+  const groupIds = useMemo(() => new Set((chats ?? []).filter((c) => c.kind === 'group').map((c) => c.chatId)), [chats])
+  useEffect(() => {
+    const t = voice.target
+    if (t?.kind === 'channel' && chats && !groupIds.has(t.gid)) voice.leave()
+  }, [groupIds, voice.target])
+  // The channel we're in was deleted: hang up.
+  useEffect(() => {
+    const t = voice.target
+    if (t?.kind === 'channel' && channels && channels.chatId === t.gid && !channels.voice.some((c) => c.id === t.cid)) voice.leave()
+  }, [channels, voice.target])
+
+  const voiceVM = useMemo((): VoiceConnectionVM | null => {
+    const t = voice.target
+    if (!t) return null
+    const s = voice.state
+    const ping = s?.pingMs ?? null
+    return {
+      status: s?.status ?? 'connecting',
+      error: s?.error ?? null,
+      channelName: t.kind === 'room' ? 'Room' : voiceLabel.channel || 'Voice',
+      placeName: t.kind === 'room' ? roomHeader?.name ?? `Room ${t.code}` : chats?.find((c) => c.chatId === t.gid)?.name ?? (voiceLabel.place || 'Group'),
+      target: t.kind === 'room' ? { kind: 'room', code: t.code, chatId: roomChat } : { kind: 'channel', chatId: t.gid, channelId: t.cid },
+      muted: voice.muted || voice.deafened,
+      deafened: voice.deafened,
+      speaking: s?.speaking ?? false,
+      pingMs: ping,
+      quality: pingQuality(ping),
+      server: s?.serverCity ?? null,
+      serverCode: s?.server ?? null,
+      edge: s?.edge ? `${cityOf(s.edge)} (${s.edge})` : null,
+      sharing: voice.share ? { quality: QUALITY[voice.share.quality].label, viewers: voice.share.viewers } : null,
+      watching:
+        voice.watching && (voice.watching.status === 'connecting' || voice.watching.status === 'playing')
+          ? {
+              uid: voice.watching.uid,
+              name: s?.peers.find((p) => p.uid === voice.watching?.uid)?.name ?? 'Friend',
+              status: voice.watching.status
+            }
+          : null
+    }
+  }, [voice.target, voice.state, voice.muted, voice.deafened, voice.share, voice.watching, voiceLabel, roomHeader, chats, roomChat])
+  const voiceMedia = useMemo(
+    () => ({ watching: voice.watching?.stream ?? null, preview: voice.share?.preview ?? null }),
+    [voice.watching?.stream, voice.share?.preview]
+  )
+
 
   /** The link that opens the host's title: their exact id when published, else a Netflix lookup / search. */
   async function hostTitleUrl(): Promise<string | null> {
@@ -362,8 +475,6 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
       ? `${myActivity.playing ? 'Watching' : 'Paused'} ${myActivity.title ?? ''} · ${APP_NAME[myActivity.app]}`.replace('  ', ' ')
       : null
 
-  // ---------- Settings ----------
-  const voice = useVoiceDevices()
 
   // ---------- Notifications + taskbar badge ----------
   useNotifier({ enabled: desktop.notifications && myStatus !== 'dnd', chats, requests, invites, joinRequests, viewing })
@@ -481,7 +592,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     seekBy: (d) => command({ seekTo: livePositionMs(room.state, performance.now()) + d }),
     send: (t) => roomCode && void sendRoomMessage(roomCode, profile.displayName, t).catch(fail("Couldn't send that")),
     react: (e) => roomCode && void sendRoomReaction(roomCode, profile.displayName, e).catch(fail("Couldn't react")),
-    toggleMute: () => setNotice('Join voice in the room first')
+    toggleMute: () => (voice.target ? voice.toggleMute() : setNotice('Join a voice channel or the room\u2019s voice first'))
   }
   useEffect(() => window.bingejam.mini.onOpen(setMiniOpen), [])
   useEffect(
@@ -553,6 +664,10 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     header: (id) => (id === chatId ? header : null),
     messages: (id) => (id === chatId ? messages : null),
     members: (id) => (id === chatId ? members : null),
+    channels: (id) => (id === groupId ? channels : null),
+    channelMessages: (id, cid) => (id === groupId && cid === openChannel ? channelMessages : null),
+    voice: voiceVM,
+    voiceMedia,
     friendPeople: friends?.map((f) => ({ id: f.id, name: f.name, username: f.username, photoUrl: f.photoUrl, online: f.online })) ?? null,
     room: roomVM,
     roomStarting,
@@ -612,7 +727,7 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
     settings: {
       account: { uid, name: profile.displayName, username: profile.username, email: null, photoUrl: profile.photoUrl, bio: profile.bio },
       extension: { connected: linked.length > 0, detail: browser ? `Linked in ${browser}` : 'Add it from Settings' },
-      voice: voice.vm,
+      voice: devices.vm,
       startWithWindows: desktop.startWithWindows,
       version
     },
@@ -662,6 +777,29 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
             setInviteToken(t)
             setNotice('New link ready. Old links now send you a request instead.')
           }, fail("Couldn't reset your link"))
+      },
+      channels: {
+        send: (id, cid, text) => void sendChannelMessage(id, cid, text).catch(fail("Couldn't send that")),
+        create: (id, name, kind) =>
+          void createChannel(id, name, kind).then(() => setNotice(kind === 'text' ? 'Text channel created' : 'Voice channel created'), fail("Couldn't create the channel")),
+        rename: (id, cid, name, kind) => void renameChannel(id, cid, name, kind).catch(fail("Couldn't rename the channel")),
+        remove: (id, cid) => void deleteChannel(id, cid).then(() => setNotice('Channel deleted'), fail("Couldn't delete the channel")),
+        setStatus: (id, cid, text) => void setChannelStatus(id, cid, text).catch(fail("Couldn't set the status"))
+      },
+      voice: {
+        joinChannel: (id, cid) => {
+          const c = channels?.chatId === id ? channels.voice.find((v) => v.id === cid) : undefined
+          setVoiceLabel({ channel: c?.name ?? 'Voice', place: chats?.find((x) => x.chatId === id)?.name ?? '' })
+          voice.join({ kind: 'channel', gid: id, cid })
+        },
+        leave: voice.leave,
+        toggleMute: voice.toggleMute,
+        toggleDeafen: voice.toggleDeafen,
+        listSources: () => window.bingejam.screen.sources(),
+        startShare: (sourceId, quality, sound) => void voice.startShare(sourceId, quality, sound),
+        stopShare: voice.stopShare,
+        watch: voice.watch,
+        stopWatching: voice.stopWatching
       },
       groups: {
         setAdmin: (id, who, admin) =>
@@ -808,8 +946,10 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
           const url = room.state.service ? SERVICE_HOME[room.state.service] : SERVICE_HOME.NETFLIX
           if (room.state.tabId === null && url) void window.bingejam.openExternal(url)
         },
-        toggleMute: () => setNotice('Voice chat comes to the PC app soon'),
-        joinVoice: () => setNotice('Voice chat comes to the PC app soon')
+        toggleMute: () => voice.toggleMute(),
+        joinVoice: () => {
+          if (room.active) voice.join({ kind: 'room', code: room.active.code })
+        }
       },
       stream: { source: () => undefined, quality: () => undefined, start: () => setNotice('Streaming arrives in a later update'), stop: () => undefined, send: () => undefined },
       addToBrowser: (id: BrowserId) =>
@@ -831,9 +971,9 @@ export function useLiveShell({ profile, chatId, trendingKind, version, stopPrese
             await stopPresence()
             await signOut()
           })(),
-        inputDevice: voice.setInput,
-        outputDevice: voice.setOutput,
-        pushToTalkKey: voice.setPushToTalk,
+        inputDevice: devices.setInput,
+        outputDevice: devices.setOutput,
+        pushToTalkKey: devices.setPushToTalk,
         startWithWindows: desktop.setStartWithWindows
       },
       friends: {
