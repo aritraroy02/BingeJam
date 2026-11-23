@@ -12,6 +12,8 @@
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
   const isWindows = /Windows NT/i.test(ua);
+  // Any phone or tablet, including iPads that report as a Mac.
+  const isPhone = isAndroid || /iPhone|iPad|iPod|Mobile/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   // Chrome Custom Tabs (WhatsApp, Telegram, Gmail) report as Chrome and work fine. Full in-app
   // WebViews mark themselves with "; wv)" or their app name, and drop APK downloads.
   const inAppBrowser = /; wv\)|FBAN|FBAV|FB_IAB|Instagram|Snapchat|Line\/|MicroMessenger|LinkedInApp/i.test(ua);
@@ -32,20 +34,23 @@
     PC_VERSION: PC_VERSION,
 
     /**
-     * Wires a "Download for Windows" link: on a Windows PC it goes first and, once clicked, shows
-     * #after-pc-download (the SmartScreen steps); on a phone it stays a quiet link.
+     * Wires a "Download for Windows" link inside its (hidden) .pc-get box: phones and tablets never
+     * see it; on a computer it shows with the version under it, first in the row on Windows, and once
+     * clicked shows #after-pc-download (the SmartScreen steps).
      */
     setupPc: function (link) {
       if (!link) return;
       link.href = PC_URL;
+      const box = link.closest('.pc-get');
+      if (isPhone || !box) return;
+      const meta = box.querySelector('.pc-meta');
+      if (meta) {
+        meta.textContent = 'Version ' + PC_VERSION + ' · ' + (isWindows ? 'Windows 10 and 11 · Free' : 'Windows 10 and 11 only for now');
+      }
+      box.hidden = false;
       if (isWindows) {
-        const row = link.closest('.get');
+        const row = box.closest('.get');
         if (row) row.classList.add('pc-first');
-      } else if (isAndroid) {
-        link.classList.add('pc-quiet');
-      } else {
-        const note = link.querySelector('small');
-        if (note) note.textContent = 'Windows 10 and 11 only for now';
       }
       link.addEventListener('click', function () {
         // No preventDefault: the download starts as usual; the steps appear under it.

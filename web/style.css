@@ -119,38 +119,31 @@ a { color: inherit; }
   background: var(--card);
   border: 1px solid var(--line);
 }
-/* "Download for Windows": as tall as the store badge, in the page's primary button colours. First in
-   the row on a Windows PC; a quiet text link on a phone. */
+/* "Download for Windows": the page's primary button colours, with the version under it. Button (56)
+   + gap (12) + meta line (20) = 88, the QR card's height. Computers only; first in the row on Windows. */
+.pc-get { display: flex; flex-direction: column; gap: 12px; }
 .pc-download {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  width: fit-content;
   height: 56px;
-  padding: 0 20px 0 16px;
+  padding: 0 24px 0 20px;
   border-radius: 10px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
   text-decoration: none;
   color: var(--on-light);
   background: var(--text);
-  transition: transform 150ms var(--ease);
+  transition: background-color 150ms var(--ease), transform 150ms var(--ease);
 }
-.pc-download:active { transform: scale(.97); }
+.pc-download:hover { background: color-mix(in srgb, var(--text) 86%, var(--bg)); }
+.pc-download:active { transform: scale(.98); }
 .pc-download svg { flex: none; }
-.pc-download span { display: flex; flex-direction: column; }
-.pc-download b { font-size: 15px; line-height: 20px; font-weight: 500; }
-.pc-download small { font-size: 12px; line-height: 16px; opacity: .72; }
 .pc-download:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.get.pc-first .pc-download { order: -1; }
-.pc-download.pc-quiet {
-  height: auto;
-  padding: 0;
-  gap: 8px;
-  color: var(--text-2);
-  background: none;
-  flex-basis: 100%;
-}
-.pc-download.pc-quiet b { font-size: 14px; }
-.pc-download.pc-quiet small { display: none; }
-.pc-download.pc-quiet svg { width: 18px; height: 18px; }
+.pc-meta { margin: 0; font-size: 13px; line-height: 20px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.get.pc-first .pc-get { order: -1; }
 
 .scan .qr { flex: none; display: block; width: 72px; height: 72px; padding: 4px; border-radius: 4px; background: #fff; }
 .scan p { margin: 0; font-size: 14px; line-height: 20px; color: var(--text-2); }
