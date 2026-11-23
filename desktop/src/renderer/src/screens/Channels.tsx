@@ -601,9 +601,8 @@ export function VoiceStage({
             >
               <Icon name={voice.deafened ? 'headphonesOff' : 'headphones'} />
             </button>
-            <button type="button" className="voice-btn voice-btn--leave pressable" onClick={onLeave}>
+            <button type="button" className="voice-btn voice-btn--icon voice-btn--leave pressable" aria-label="Disconnect" title="Disconnect" onClick={onLeave}>
               <Icon name="hangUp" />
-              Disconnect
             </button>
           </>
         ) : (

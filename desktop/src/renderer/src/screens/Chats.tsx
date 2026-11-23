@@ -440,7 +440,6 @@ function ChatView(
     ...(p.onAskReport ? [{ label: isGroup ? 'Report group' : `Report ${firstName(h.name)}`, icon: 'flag' as const, danger: true, onSelect: p.onAskReport }] : [])
   ]
 
-  const roomButtonLabel = h.room ? (h.room.meInRoom ? 'Open room' : 'Join room') : null
 
   return (
     <main aria-labelledby={titleId} className="chat-main rise" style={{ '--i': 2 } as CSSProperties}>
@@ -505,11 +504,7 @@ function ChatView(
             Room live · {h.room.startedAtLabel}
           </span>
         ) : null}
-        {h.room ? (
-          <Button variant="primary" style={{ padding: '0 20px' }} onClick={p.onJoinRoom}>
-            {roomButtonLabel}
-          </Button>
-        ) : p.solo ? (
+        {h.room ? null : p.solo ? (
           <Button variant="primary" onClick={p.onOpenAddPeople}>
             <Icon name="friends" size={18} />
             Add people
@@ -631,17 +626,14 @@ function RoomBanner({ room, onJoin }: { room: NonNullable<ChatHeaderVM['room']>;
           <Avatar key={n.id} name={n.name} id={n.id} photoUrl={n.photoUrl} size={40} />
         ))}
       </span>
-      <span style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{ fontWeight: 500 }}>
           {names.length === 0 ? 'The room is open' : `${joinNames(names)} ${names.length === 1 ? 'is' : 'are'} in the room`}
         </span>
         <span style={{ fontSize: 13, color: 'rgba(var(--ink), 0.76)' }}>{room.summary}</span>
       </span>
-      <Button
-        style={{ height: 40, padding: '0 16px', borderRadius: 12, borderColor: 'rgba(var(--ink), 0.24)', background: 'rgba(var(--ink), 0.12)', fontWeight: 500 }}
-        onClick={onJoin}
-      >
-        {room.meInRoom ? 'Open' : 'Join'}
+      <Button variant="primary" size="sm" onClick={onJoin}>
+        {room.meInRoom ? 'Open room' : 'Join room'}
       </Button>
     </div>
   )
@@ -712,7 +704,7 @@ function MembersPanel({
   const live = header.room !== null
   return (
     <aside id="members-panel" aria-labelledby="h-members" className="glass side-panel rise" style={{ '--i': 3 } as CSSProperties}>
-      <h2 id="h-members" className="h2" style={{ fontSize: 19, letterSpacing: 0 }}>
+      <h2 id="h-members" className="chat-header__name">
         Members{members ? ` · ${members.length}` : ''}
       </h2>
       <div className="scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, margin: '0 -4px', padding: '0 4px' }}>
@@ -788,15 +780,12 @@ export function MemberRow({
           {m.isMe ? 'You' : m.name}
           {m.admin ? <span className="admin-tag">Admin</span> : null}
         </span>
-        <span className="member-row__detail truncate">{m.detail}</span>
+        {/* Pinged: says so where the status was, so the name keeps the row's width. */}
+        <span className="member-row__detail truncate">{m.ping && m.ping !== 'can' ? m.ping.pingedLabel : m.detail}</span>
       </span>
       {m.ping === 'can' ? (
-        <Button variant="primary" size="xs" aria-label={`Ping ${m.name}`} onClick={() => onPing(m.id)}>
+        <Button size="xs" aria-label={`Ping ${m.name}`} onClick={() => onPing(m.id)}>
           Ping
-        </Button>
-      ) : m.ping ? (
-        <Button size="xs" className="btn--pinged" disabled>
-          {m.ping.pingedLabel}
         </Button>
       ) : null}
       {menu.length > 0 ? <MenuButton label={`Options for ${m.name}`} items={menu} small /> : null}

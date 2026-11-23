@@ -101,7 +101,7 @@
   border-bottom: 1px solid var(--hairline);
 }
 .chat-header__title {
-  flex: 1 1 220px;
+  flex: 1 1 160px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -113,6 +113,10 @@
   font-size: 16px;
 }
 .chat-header__subtitle {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--text-2);
   background: none;
@@ -398,6 +402,23 @@ button.chat-header__subtitle:hover {
 .member-row__detail {
   font-size: 12px;
   color: var(--text-2);
+}
+/* A member's ⋮: no box, shown on hover and keyboard focus (and while its menu is open). */
+.member-row .btn--icon[aria-haspopup='menu'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-2);
+  opacity: 0;
+  transition: opacity 0.16s ease, background-color 0.16s ease;
+}
+.member-row:hover .btn--icon[aria-haspopup='menu'],
+.member-row:focus-within .btn--icon[aria-haspopup='menu'],
+.member-row .btn--icon[aria-expanded='true'] {
+  opacity: 1;
+}
+.member-row .btn--icon[aria-haspopup='menu']:hover {
+  background: rgba(var(--ink), 0.06);
+  color: var(--text);
 }
 .section-label {
   font-size: 12px;

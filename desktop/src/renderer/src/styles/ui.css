@@ -375,13 +375,14 @@
     transform 0.24s var(--ease-out),
     background-color 0.24s ease;
 }
+/* On: the off-white of the primary text, not the red accent (red is for Send, Join and Live). */
 .switch[aria-checked='true'] {
-  background: var(--accent);
+  background: var(--text);
   border-color: transparent;
 }
 .switch[aria-checked='true']::after {
   transform: translateX(20px);
-  background: #fff;
+  background: var(--bg);
 }
 .switch:disabled {
   opacity: 0.5;
