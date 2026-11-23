@@ -321,3 +321,26 @@ rules reject jam previews and jam join requests. Logs: `adb logcat -s SyncItDiag
 | C4 | Friend sends / clears the box / presses back / home | Indicator disappears at once |
 | C5 | Friend force-stops the app or turns on airplane mode mid-typing | Indicator disappears within ~6 s |
 | C6 | Long and short messages, light + dark theme | Time sits on the last line when it fits, otherwise on its own line; readable |
+
+## PC voice channels and room voice (added 2026-11-22)
+After the rules and the relay are deployed. Two PCs signed in as two friends in the same group (V8: a phone too).
+
+| # | Test | Expected |
+|---|---|---|
+| V1 | Open the group on both PCs | Channel column: #general + "General" voice; admins see + next to each section |
+| V2 | Admin creates #off-topic and a "Gaming" voice channel | Appears on the other PC at once; text names become lowercase-with-dashes |
+| V3 | Write in #off-topic on one PC | Shows on the other with a white unread pill until opened; phones still show only #general |
+| V4 | Click Gaming on both PCs (allow the mic) | Both listed under Gaming with the timer counting; talking lights the green ring; you hear each other |
+| V5 | Sidebar panel | "Voice connected · Gaming / <group>", "<city> · NN ms" (hover: server code, edge, round trip). Note the city |
+| V6 | Mute, deafen, disconnect from the panel and from the stage; Settings → mic/speaker change while in voice | Icons update on the other PC; audio switches device without rejoining |
+| V7 | Set a channel status, then everyone leaves | Status shows under the channel; cleared after the last one leaves; kill one app → its entry disappears (onDisconnect) |
+| V8 | Room on PC + phone, both Join voice | PC and phone hear each other; PC room panel shows "<city> · NN ms" |
+| V9 | PC A: Share screen → Applications → a game or a video player, 1080p · 60, Share sound on → Go Live | A's tile shows the share; A gets LIVE in the channel list on both PCs; "Stop sharing · 0 watching" |
+| V10 | PC B: Watch on A's tile | Within a few seconds the share fills B's stage, smooth; A's button says "1 watching" |
+| V11 | Sound: play something on A while both talk | B hears A's game/video sound and A's voice once, without an echo of B's own voice |
+| V12 | Deafen on B | Stream sound stops too; undeafen brings it back |
+| V13 | A: Stop sharing, or close the shared window | B's view closes with "The stream ended"; LIVE badge goes away |
+| V14 | Picker on A with a Netflix tab open in Edge | That window is greyed out: "Shows black when shared. Watch it in a room" |
+| V15 | 4K · 60 on A, two viewers | Plays if A's upload allows (~25 Mbps each); otherwise lower quality is the fix |
+| V16 | One PC on a mobile hotspot | If Watch fails with "may block direct connections", TURN isn't set up: add the Cloudflare TURN key (PLAN.md) |
+

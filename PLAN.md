@@ -681,3 +681,68 @@ button and a Discord server has a voice channel.
   Colours: dark base `#0A0606`, accent burnt orange `#C2410C`, accent 2 magenta `#BE185D`, startup-animation
   reds `#FF2E4D` / `#FF7A45`. Font Inter (`web/fonts`, OFL). Logo: play triangle inside two sync arrows
   (`app/src/main/res/drawable/ic_launcher_foreground.xml`).
+
+## Group channels + voice on the PC, Discord style (built 2026-11-22, unreleased)
+
+User's ask: "add discord like voice channels in pc and text channels", showing the server's ping ("Mumbai").
+Groups became the servers (they already have members, admins and settings); only the PC shows channels so far.
+
+Data (rules in database.rules.json, emulator-checked):
+- `groups/{gid}/channels/{cid}` {name ≤ 32, kind text|voice (fixed), order, createdBy, createdAt}: admins only.
+  Not stored, always there: `general` (text = `groupMessages/{gid}`, what phones show) and `lounge` (voice, "General").
+- `groupChannelMessages/{gid}/{cid}/{msgId}` {from, text ≤ 1000, sentAt}: members, text channels only, the group's
+  "only admins send" setting applies; admins may clear a channel (on delete).
+- `groupChannelReads/{uid}/{gid}/{cid}`: read-up-to server time (unread marks).
+- `groupVoice/{gid}/{cid}/{uid}` {name, since (fixed), muted, deafened}: yourself, voice channels only, onDisconnect
+  removes it; admins may remove others (channel delete). Call timer = now - min(since).
+- `groupVoiceStatus/{gid}/{cid}` {text ≤ 60, by, at}: anyone currently in that voice channel; the last one out clears it.
+
+Relay (push-relay/src/voice.js): `GET /voice/g/<gid>/<cid>` (members of the group; lounge or a kind=voice channel;
+16 people), token also as subprotocol `bingejam-voice, <ID token>` (answered with `Sec-WebSocket-Protocol:
+bingejam-voice`), hello carries `server` (DO colo via cdn-cgi/trace, cached per DO instance) and `edge`
+(request.cf.colo), `ping` → `pong` auto-response. Phones ignore the new hello fields.
+
+PC (desktop/): `voice/engine.ts` (getUserMedia with echo cancel/noise suppression → 48 kHz AudioContext →
+MediaStreamTrackProcessor → voice activity (port of VoiceActivity.kt) → AudioEncoder Opus 20 ms, 2 per message;
+per-slot AudioDecoder → AudioBufferSource on the audio clock, 80 ms cushion, reset past 400 ms; setSinkId for the
+speaker pick; push-to-talk in-window), `live/useVoice.ts` (one voice chat app-wide, presence entries, mute/deafen
+remembered), `data/channels.ts` + `channelModel.ts`, `screens/Channels.tsx` (column + voice stage),
+`ui/VoiceDock.tsx` (sidebar panel), `styles/channels.css`. Demo: `BJ_DEMO=1 BJ_SCREEN=channel|voice`.
+
+Where voice runs (tested 2026-11-22 with a throwaway Worker, since deleted): from the main PC (Cloudflare edge
+HYD, Hyderabad) every brand-new Durable Object landed in SIN (Singapore), with no location hint and with
+`apac` alike. Cloudflare doesn't run Durable Objects in India, so the relay keeps `locationHint: 'apac'`.
+Voice served from India would need another host (e.g. a free Oracle Cloud VM in Mumbai/Hyderabad running the same
+WebSocket protocol) or Cloudflare Realtime (WebRTC SFU at every edge; a rewrite of voice on phone and PC).
+
+Not done yet: channels on the phone; notifications for channel messages (the relay's group_message reads only
+`groupMessages`); channel unread in the Chats badge; per-person volume UI (engine has setVolume); categories,
+reordering, private channels; free-plan budget for long voice hangouts (see the 2026-11-22 suggestions).
+
+## Screen share in voice channels, Go Live (built 2026-11-22, unreleased)
+
+User's ask: "here i should be able to screen share too" (a PC voice channel). Built as PLAN.md's free setup said:
+peer-to-peer WebRTC, public STUN, Cloudflare TURN as an optional fallback, set-up messages through our relay.
+
+- Relay (push-relay/src/voice.js): text `{"t":"signal","to":slot,"data":…}` is passed to that one slot as
+  `{"t":"signal","from":slot,"data":…}` (≤ 32 KB, never to yourself or the echo room); `live` rides in `state` and in
+  peers (phones send none, so false). `GET /ice` (signed in): STUN (Cloudflare + Google) and, once the secrets
+  `TURN_KEY_ID` + `TURN_KEY_API_TOKEN` exist (Cloudflare dashboard → Realtime → TURN Server), 24 h TURN credentials
+  from `rtc.live.cloudflare.com/v1/turn/keys/<id>/credentials/generate`. Without TURN, PCs behind strict NAT
+  (some mobile hotspots) can't connect; the viewer gets "One of your networks may block direct connections".
+- Rules: `groupVoice/{gid}/{cid}/{uid}/live` boolean (the LIVE badge in the channel list for people not in the call).
+- PC main (src/main/screenShare.ts): `screen:sources` (desktopCapturer screens + windows with thumbnails; windows
+  titled Netflix / Prime Video / JioHotstar / Hotstar / Disney+ are `blocked`: DRM shows black and sharing breaks
+  their terms, see "Hard limit"), `screen:choose`, and `setDisplayMediaRequestHandler` that only serves the source
+  our picker chose, with Windows loopback sound when asked.
+- PC renderer: `voice/stream.ts` StreamHost (one sendonly RTCPeerConnection per viewer, H.264 first for hardware
+  encoders, maxBitrate/maxFramerate per preset, `contentHint` motion or detail, at most 6 viewers) and StreamViewer;
+  `voice/streamModel.ts` presets 720p30 2.5 Mbps / 1080p60 8 (default) / 1440p60 14 / 4K60 25 per viewer;
+  `live/useVoice.ts` startShare / stopShare / watch / stopWatching; `screens/GoLive.tsx` picker, StreamView,
+  LIVE badge; the voice stage shows Share screen / Stop sharing · N watching, Watch on live tiles, the stream
+  filling the stage with people as a strip, and our own share on our tile.
+- Sound: `getDisplayMedia({ audio: { restrictOwnAudio: true } })`. Checked in Electron 45 on the main PC: our own
+  tone vanished from the loopback (noise floor) while another program's beep came through, so viewers hear the
+  game without the call echoing. Capture also works without a click gesture (the IPC await is fine), 1920×1080 @ 60.
+- Rooms: the engine and relay support it there too, but only voice channels have the UI. Phones can't watch.
+

@@ -4,6 +4,44 @@ Android watch-party app: each person plays the same movie in the official Netfli
 app on their own phone, and Sync it keeps play/pause/position in sync through Android
 MediaSession. Only control events are synced, never video or audio.
 
+**PC app 0.1.0 released 2026-11-22 (user's go-ahead):** first Windows installer, `npm run dist:win` in desktop/
+(electron-builder NSIS, per user, unsigned, installs into `%LOCALAPPDATA%\Programs\BingeJam` via build/installer.nsh),
+published as GitHub release `pc-v0.1.0` on aritraroy02/sync-it-releases (not "latest"; the relay's phone update
+check only reads `v` tags). Website (deployed): "Download for Windows" on Home (first on Windows, a quiet link on
+Android) and on /join pages, `web/download.js` `PC_VERSION`. No auto-update in the PC app yet (electron-updater
+was approved 2026-11-14 but isn't built): new PC versions need a new release + `PC_VERSION` bump + hosting deploy.
+
+**Unreleased (2026-11-22): Go Live (screen share) in PC voice channels.** Peer to peer (WebRTC), set-up through the
+voice relay (`signal`, `live`, `GET /ice` with optional Cloudflare TURN secrets `TURN_KEY_ID`/`TURN_KEY_API_TOKEN`),
+rule `groupVoice/…/live`. Picker of screens/app windows (Netflix/Prime/JioHotstar windows blocked), quality
+720p30…4K60, share sound without the call (`restrictOwnAudio`, checked in Electron). See PLAN.md "Screen share in
+voice channels". Relay tests 12, rules emulator 59, desktop tests 195. **Rules and relay deployed 2026-11-23**
+(user's go-ahead; relay version c1e49904; TURN secrets not set yet). **PC 0.1.1 released 2026-11-23** (`pc-v0.1.1`,
+not latest; the website `PC_VERSION` bump was handed to the session that owns web/). Two-PC test: V9-V16.
+**Bug found right after (2026-11-23): every chat showed the first opened chat's messages** (0.1.0 and 0.1.1):
+`useLiveMany` keyed listeners by name ("msgs") only, so a new chat with the same names kept the old listener.
+Fixed in `data/live.ts` + `data/liveDiff.ts` (listener = key + path; values filtered to the current path; 5 tests).
+**PC 0.1.2 published 2026-11-23** (`pc-v0.1.2`, not latest, user's go-ahead) and installed on the main PC. The
+website's button (web/download.js `PC_VERSION` + fallback hrefs) points at 0.1.2 in git, **but hosting isn't
+deployed**: web/ also holds the website session's undeployed unslop pass, so the live button still hands out 0.1.0.
+
+**2026-11-22, shipped in PC 0.1.0: Discord-style channels + voice on the PC.** Every group gets a channel column on the PC
+(it takes the chat list's place while the group is open; back arrow returns): text channels (#general = the old
+group chat, which phones keep showing; more in `groupChannelMessages/{gid}/{cid}`) and voice channels (built-in
+"General" = id `lounge`, more in `groups/{gid}/channels/{cid}` with kind voice; admins add/rename/delete). Who's in a
+voice channel: `groupVoice/{gid}/{cid}/{uid}` (onDisconnect), call timer from the first one still in, "Set a channel
+status" (`groupVoiceStatus`), unread marks (`groupChannelReads`). **PC voice engine** (`desktop/src/renderer/src/voice/`):
+WebCodecs Opus 48 kHz mono, same wire format and relay as the phones, so PC↔phone works; also powers room voice on
+the PC (was "comes soon"). "Voice connected" panel above the account card on every screen shows the voice server's
+city and ping ("Mumbai · 28 ms"): the relay now sends `server` (the Durable Object's colo, from
+cloudflare.com/cdn-cgi/trace) and `edge` in hello, answers text "ping" with "pong" (auto-response, doesn't wake
+the DO), accepts the ID token as WebSocket subprotocol (`bingejam-voice`, browsers can't set headers) and serves
+`/voice/g/<gid>/<cid>` (16 people; rooms stay 8). Rules checked in the emulator (55 cases), relay voice in a Node
+harness (9), Opus/track reader/setSinkId checked inside Electron 45. **Database rules and relay deployed 2026-11-22**
+(user's go-ahead; relay version 75cff3c4; wrangler is now signed in on the main machine). Next: a two-PC (and PC +
+phone room voice) test, RUN_ON_MY_MACHINE.md V1-V8; the PC app with this code isn't installed or released yet.
+Unslop skill installed at `~/.claude/skills/unslop`.
+
 **Unreleased on main (2026-11-02):** "Play in JioHotstar" opens the host's exact title by its content ID;
 WhatsApp-style in-room bar (timer, mute, Exit) over every other screen; DM long-press Copy / Forward / Delete
 (for me / for everyone); "Watched X together" cards in DMs; **bottom tab bar** (Home, Chats, Add friends,
