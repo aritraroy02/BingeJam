@@ -1,10 +1,17 @@
-// Shared by index.html and join.html: the "Get BingeJam" button (opens BingeJam on the Indus
-// Appstore, the only place it's distributed and updated from), help after tapping it, and a warning
-// for in-app browsers (Instagram, Facebook, Snapchat...) that can't open app stores.
+// Shared by index.html, join.html and add.html: the "Get BingeJam" button (opens BingeJam on the Indus
+// Appstore, the only place it's distributed and updated from), help after tapping it, a warning for
+// in-app browsers (Instagram, Facebook, Snapchat...) that can't open app stores, and the Windows app.
+// One main and one second action per device: Android gets the store badge (#phone), a computer gets
+// the PC app and a QR code for the phone (#not-android).
 (function () {
   const STORE = 'https://indusapp.store/qcsredto';
+  // The Windows app: an installer attached to a GitHub release of the public releases repo, tagged
+  // pc-vX.Y.Z so the phones' update check (v-tags only) never mistakes it for a phone release.
+  const PC_VERSION = '0.1.2';
+  const PC_URL = 'https://github.com/aritraroy02/sync-it-releases/releases/download/pc-v' + PC_VERSION + '/BingeJam-Setup-' + PC_VERSION + '.exe';
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
+  const isWindows = /Windows NT/i.test(ua);
   // Chrome Custom Tabs (WhatsApp, Telegram, Gmail) report as Chrome and work fine. Full in-app
   // WebViews mark themselves with "; wv)" or their app name, and drop APK downloads.
   const inAppBrowser = /; wv\)|FBAN|FBAV|FB_IAB|Instagram|Snapchat|Line\/|MicroMessenger|LinkedInApp/i.test(ua);
@@ -21,14 +28,41 @@
 
   window.SyncItDownload = {
     STORE: STORE,
+    PC_URL: PC_URL,
+    PC_VERSION: PC_VERSION,
+
+    /**
+     * Wires a "Download for Windows" link: on a Windows PC it goes first and, once clicked, shows
+     * #after-pc-download (the SmartScreen steps); on a phone it stays a quiet link.
+     */
+    setupPc: function (link) {
+      if (!link) return;
+      link.href = PC_URL;
+      if (isWindows) {
+        const row = link.closest('.get');
+        if (row) row.classList.add('pc-first');
+      } else if (isAndroid) {
+        link.classList.add('pc-quiet');
+      } else {
+        const note = link.querySelector('small');
+        if (note) note.textContent = 'Windows 10 and 11 only for now';
+      }
+      link.addEventListener('click', function () {
+        // No preventDefault: the download starts as usual; the steps appear under it.
+        show('after-pc-download');
+      });
+    },
 
     /** Wires a download button. beforeDownload() may return a promise (e.g. a clipboard copy). */
     setup: function (button, beforeDownload) {
       button.href = STORE;
       if (!isAndroid) {
+        // A computer can't install from the store page: its visitors get the QR code instead.
+        button.hidden = true;
         show('not-android');
         return;
       }
+      show('phone');
       if (inAppBrowser) {
         show('in-app');
         const open = document.getElementById('open-chrome');

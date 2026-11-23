@@ -4,29 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Add a friend · BingeJam</title>
-<meta name="description" content="A friend invited you to BingeJam. Watch Netflix or JioHotstar together, in sync.">
+<meta name="description" content="A friend invited you to BingeJam. Watch Netflix, Prime Video or JioHotstar together, in sync.">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <main class="card">
-  <p class="eyebrow" id="eyebrow">A friend invited you</p>
-  <h1 class="brand">BingeJam</h1>
-  <p class="lead">Watch Netflix or JioHotstar together, each on your own phone. When anyone plays, pauses or skips, everyone follows.</p>
+  <a class="wordmark" href="/">BingeJam</a>
+  <h1 class="invite-title" id="title">A friend invited you to be friends</h1>
+  <p class="lead">Watch Netflix, Prime Video or JioHotstar together, each on your own phone or PC. When anyone plays, pauses or skips, everyone follows.</p>
 
   <div class="notice" id="in-app" hidden>
     <b>This in-app browser can't install apps.</b> Open this page in Chrome to get BingeJam.
     <a class="btn primary" id="open-chrome" href="#">Open in Chrome</a>
-  </div>
-  <div class="notice" id="not-android" hidden>
-    <b>BingeJam is for Android phones.</b> Open this link on your Android phone to add your friend, or:
-    <img class="qr" src="/indus-qr.svg" width="180" height="180" alt="QR code: BingeJam on the PhonePe Appstore">
-    Scan it with your phone's camera to get BingeJam from the PhonePe Appstore.
-  </div>
-
-  <div class="notice" id="pc" hidden>
-    <b>Have BingeJam for PC?</b> Open this invite in the PC app.
-    <a class="btn primary" id="open-pc" href="#">Open in BingeJam for PC</a>
   </div>
   <section id="ok" hidden>
     <div class="code-box">
@@ -34,15 +24,30 @@
       <strong class="handle" id="who"></strong>
     </div>
 
-    <a class="store-badge" id="download" href="https://indusapp.store/qcsredto"><img src="/phonepe-badge.png" width="217" height="69" alt="Get it on PhonePe Appstore"></a>
-    <a class="btn" id="open" href="#">I already have BingeJam</a>
-    <p class="fine" id="copied" hidden>Invite copied, so BingeJam can add your friend after installing.</p>
+    <!-- A Windows PC: the PC app first. -->
+    <div class="actions" id="pc" hidden>
+      <a class="btn primary" id="open-pc" href="#">Open in BingeJam for PC</a>
+      <a class="btn" id="download-pc" href="https://github.com/aritraroy02/sync-it-releases/releases/download/pc-v0.1.2/BingeJam-Setup-0.1.2.exe">Download for Windows</a>
+      <p class="fine" id="after-pc-download" hidden>Open <b>BingeJam-Setup</b> from your downloads. If Windows says it protected your PC, click <b>More info</b>, then <b>Run anyway</b>. Then come back and click Open in BingeJam for PC.</p>
+    </div>
+
+    <!-- An Android phone: the store, or the app if it's installed. -->
+    <div class="actions" id="phone" hidden>
+      <a class="store-badge" id="download" href="https://indusapp.store/qcsredto"><img src="/phonepe-badge.png" width="217" height="69" alt="Get it on PhonePe Appstore"></a>
+      <a class="btn" id="open" href="#">I already have BingeJam</a>
+      <p class="fine" id="copied" hidden>Invite copied, so BingeJam can add your friend after installing.</p>
+    </div>
   </section>
 
   <section id="bad" hidden>
     <p class="lead">This invite link looks incomplete. Ask your friend to send it again, or search their username in BingeJam.</p>
     <a class="store-badge" id="download-bad" href="https://indusapp.store/qcsredto"><img src="/phonepe-badge.png" width="217" height="69" alt="Get it on PhonePe Appstore"></a>
   </section>
+
+  <div class="scan" id="not-android" hidden>
+    <img class="qr" src="/indus-qr.svg" width="72" height="72" alt="QR code: BingeJam on the PhonePe Appstore">
+    <p><b>On your Android phone instead?</b> Scan to get BingeJam from the PhonePe Appstore, then open this link there</p>
+  </div>
 
   <section class="help" id="after-download" hidden>
     <h2>Installing BingeJam</h2>
@@ -58,7 +63,7 @@
     <p class="fine">Can't open the link after installing? Search <b id="who-again"></b> in BingeJam, under Chats, +, Add friends.</p>
   </section>
 
-  <p class="fine">Android only. BingeJam shares play, pause, position and what's playing with the room, never your video, audio or notifications.</p>
+  <p class="fine">Android phones and Windows PCs. BingeJam shares play, pause, position and what's playing with the room, never your video, audio or notifications.</p>
   <p class="fine"><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/delete-account">Delete account</a></p>
 </main>
 
@@ -78,10 +83,13 @@
     if (/Windows NT/.test(navigator.userAgent)) {
       document.getElementById('pc').hidden = false;
       document.getElementById('open-pc').href = 'bingejam://add/' + username + '/' + token;
+      const pcLink = document.getElementById('download-pc');
+      pcLink.href = SyncItDownload.PC_URL;
+      pcLink.addEventListener('click', function () { document.getElementById('after-pc-download').hidden = false; });
     }
     document.getElementById('who').textContent = '@' + username;
     document.getElementById('who-again').textContent = '@' + username;
-    document.getElementById('eyebrow').textContent = '@' + username + ' invited you to be friends';
+    document.getElementById('title').textContent = '@' + username + ' invited you to be friends';
     const link = 'https://syncit-watchparty.web.app/add/' + username + '/' + token;
 
     // Installed: opens the app on this invite. Not installed: comes back here.
