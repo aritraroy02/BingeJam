@@ -6,24 +6,39 @@ import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSyn
 import { join } from 'node:path'
 import { DOWNLOAD_PREFIX, pickUpdate, RELEASES_API, type PcRelease, type UpdateState } from '@shared/update'
 
-// In-app updates (2026-11-23): the app finds a newer PC release on GitHub, downloads its installer
-// in the background (checked against the release's SHA-256), and "Restart to update" runs it silently
-// (/S) and reopens BingeJam (--force-run). No browser, no admin rights, and no SmartScreen prompt: a
+// In-app updates (2026-11-23): the app finds a newer PC release on GitHub and says so at once
+// ("A new version is available · Update") while it downloads the installer in the background (checked
+// against the release's SHA-256). Update runs it silently (/S) and reopens BingeJam (--force-run); pressed
+// mid-download, it installs as soon as the download is checked. No browser, no admin rights, and no SmartScreen prompt: a
 // file the app downloads itself carries no "downloaded from the internet" mark.
 //
 // Only in the installed app. For testing, BJ_UPDATE_FEED points at a JSON file (or URL) shaped like
 // GitHub's releases list and BJ_UPDATE_DOWNLOADS at where its installers may come from.
 
 const FIRST_CHECK_MS = 15_000
-const CHECK_EVERY_MS = 6 * 60 * 60_000
+const CHECK_EVERY_MS = 60 * 60_000
+/** Coming back to the window checks again if the last check is older than this (GitHub allows 60/hour). */
+const FOCUS_CHECK_AFTER_MS = 15 * 60_000
 
 let state: UpdateState = { status: 'idle' }
 let ready: { release: PcRelease; file: string } | null = null
 let busy = false
+/** Update was pressed before the download finished: install as soon as it's checked. */
+let installWhenReady = false
+let lastCheckAt = 0
+let quitApp: () => void = () => undefined
 
 function publish(next: UpdateState): void {
   state = next
-  for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('update:state', state)
+  // A window that's closing can't take it; that must never break the update itself.
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.isDestroyed()) continue
+    try {
+      w.webContents.send('update:state', state)
+    } catch (e) {
+      console.warn('Update state not sent', e)
+    }
+  }
 }
 
 async function loadFeed(): Promise<unknown> {
@@ -90,6 +105,8 @@ async function download(release: PcRelease): Promise<string> {
 async function check(manual: boolean): Promise<void> {
   if (busy || state.status === 'ready') return
   busy = true
+  lastCheckAt = Date.now()
+  let downloading = false
   if (manual) publish({ status: 'checking' })
   try {
     const release = pickUpdate(await loadFeed(), app.getVersion(), process.env['BJ_UPDATE_DOWNLOADS'] || DOWNLOAD_PREFIX)
@@ -97,29 +114,68 @@ async function check(manual: boolean): Promise<void> {
       publish({ status: 'current', checkedAt: Date.now() })
       return
     }
+    downloading = true
     const file = await download(release)
     ready = { release, file }
     publish({ status: 'ready', version: release.version, notes: release.notes })
+    if (installWhenReady) install()
   } catch (e) {
+    installWhenReady = false
     console.warn('Update check failed', e)
-    publish(manual || state.status === 'downloading' ? { status: 'error', message: "Couldn't update. Check your connection and try again." } : { status: 'idle' })
+    publish(manual || downloading ? { status: 'error', message: "Couldn't update. Check your connection and try again." } : { status: 'idle' })
   } finally {
     busy = false
   }
 }
 
+/** Silent install over this copy; the installer waits for us to exit, then reopens BingeJam. */
+function install(): void {
+  if (!ready) return
+  const update = ready
+  // If Windows can't start it (now or a moment later), stay open, drop the file and say so.
+  const fail = (e: unknown): void => {
+    console.warn('Update installer did not start', e)
+    installWhenReady = false
+    ready = null
+    rmSync(update.file, { force: true })
+    publish({ status: 'error', message: "Couldn't start the update. Try again." })
+  }
+  let child: ReturnType<typeof spawn>
+  try {
+    child = spawn(update.file, ['/S', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true })
+  } catch (e) {
+    fail(e)
+    return
+  }
+  // Quit only once Windows has started the installer.
+  child.once('spawn', () => {
+    child.unref()
+    setTimeout(quitApp, 200)
+  })
+  child.once('error', fail)
+}
+
 export function setupUpdater({ quit }: { quit: () => void }): void {
+  quitApp = quit
   ipcMain.handle('update:get', () => state)
   ipcMain.handle('update:check', () => void check(true))
+  // true = installing now, or as soon as the download in progress is checked; false = nothing to install.
   ipcMain.handle('update:install', () => {
-    if (!ready) return false
-    // Silent install over this copy; the installer waits for us to exit, then reopens BingeJam.
-    spawn(ready.file, ['/S', '--force-run'], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
-    setTimeout(quit, 200)
-    return true
+    if (ready) {
+      install()
+      return true
+    }
+    if (state.status === 'downloading') {
+      installWhenReady = true
+      return true
+    }
+    return false
   })
   const enabled = app.isPackaged || !!process.env['BJ_UPDATE_FEED']
   if (!enabled || process.platform !== 'win32') return
   setTimeout(() => void check(false), FIRST_CHECK_MS)
   setInterval(() => void check(false), CHECK_EVERY_MS)
+  app.on('browser-window-focus', () => {
+    if (Date.now() - lastCheckAt > FOCUS_CHECK_AFTER_MS) void check(false)
+  })
 }

@@ -16,6 +16,7 @@ import type {
 } from '@/ui/models'
 import { DEMO_CHANNEL_MESSAGES, DEMO_CHANNELS, DEMO_VOICE } from './channels'
 import { DEMO_SOURCES, demoScreen } from './screens'
+import { useUpdateState } from '@/live/updates'
 import type { ShellData } from '@/shell'
 import {
   DEMO_BROWSER,
@@ -371,6 +372,8 @@ export function useDemo(profileUid: string | null = null): ShellData {
 
   const unread = chats.reduce((n, c) => n + c.unread, 0)
   const appearance = useAppearance()
+  // The real updater (it stays idle unless a test feed is set; see desktop/README).
+  const update = useUpdateState()
   return {
     me: DEMO_ME,
     home: DEMO_HOME,
@@ -382,6 +385,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
     channelMessages: (id, channelId) => channelMessages[`${id}#${channelId}`] ?? [],
     voice,
     voiceMedia,
+    update,
     friendPeople: people,
     room,
     roomChat,
@@ -400,6 +404,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
     alerts: DEMO_ALERTS,
     act: {
       ...act,
+      update: { check: () => void window.bingejam.update?.check(), install: () => void window.bingejam.update?.install() },
       preferences: {
         theme: appearance.setTheme,
         density: appearance.setDensity,

@@ -349,8 +349,8 @@ Needs two published PC versions with the updater (0.1.3 and a later one). Checke
 
 | # | Test | Expected |
 |---|---|---|
-| U1 | Open the older version, wait ~15 s | "BingeJam X is ready · Restart to update" appears on top; Settings → About shows the same |
-| U2 | Restart to update | The window closes, BingeJam reopens on the new version within ~20 s, a note says "Updated to X"; no browser, no Windows prompt |
+| U1 | Open the older version, wait ~15 s | "A new version of BingeJam is available X · N%" with Update and Later appears on top while it downloads; Settings → About shows the same |
+| U2 | Press Update (during or after the download) | "Updating… N%", then the window closes and BingeJam reopens on the new version within ~20 s, a note says "Updated to X"; no browser, no Windows prompt |
 | U3 | Settings → About → Check for updates on the newest version | "Up to date" |
 | U4 | Wi-Fi off, Check for updates | "Couldn't update. Check your connection and try again." |
 

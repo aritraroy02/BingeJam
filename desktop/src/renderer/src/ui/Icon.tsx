@@ -193,7 +193,8 @@ const STROKE: Record<string, JSX.Element> = {
   hangUp: (
     <path d="M22 15.5v-2.2a2 2 0 0 0-1.4-1.9 28 28 0 0 0-17.2 0A2 2 0 0 0 2 13.3v2.2a1.5 1.5 0 0 0 1.8 1.5l3.4-.7a1.5 1.5 0 0 0 1.2-1.4l.1-1.6a17 17 0 0 1 7 0l.1 1.6a1.5 1.5 0 0 0 1.2 1.4l3.4.7a1.5 1.5 0 0 0 1.8-1.5z" />
   ),
-  signal: <path d="M4 20v-3M9 20v-7M14 20v-11M19 20V5" />
+  signal: <path d="M4 20v-3M9 20v-7M14 20v-11M19 20V5" />,
+  download: <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
 }
 
 const FILL: Record<string, JSX.Element> = {

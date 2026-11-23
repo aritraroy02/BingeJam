@@ -814,7 +814,7 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
         check: () => void window.bingejam.update?.check(),
         install: () =>
           void window.bingejam.update?.install().then((ok) => {
-            if (!ok) setNotice("The update isn't ready yet")
+            if (!ok) setNotice('No update to install right now')
           })
       },
       groups: {

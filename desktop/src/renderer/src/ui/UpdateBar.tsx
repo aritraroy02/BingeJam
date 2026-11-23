@@ -3,33 +3,40 @@ import type { UpdateState } from '@shared/update'
 import { Icon } from './Icon'
 import { Button } from './primitives'
 
-// "BingeJam 0.1.3 is ready": shown on every screen once an update has downloaded in the background.
-// Restart installs it silently and reopens the app; Later hides it until the next start.
+// "A new version of BingeJam is available" at the top of every screen as soon as the app finds one
+// (it downloads in the background meanwhile). Update restarts into it, at once if the download is done,
+// else as soon as it is. Later hides the bar for that version until the next start.
 
 export function UpdateBar({ state, onInstall }: { state: UpdateState; onInstall: () => void }): JSX.Element | null {
   const [later, setLater] = useState<string | null>(null)
-  const [installing, setInstalling] = useState(false)
-  if (state.status !== 'ready' || later === state.version) return null
+  const [pressed, setPressed] = useState<string | null>(null)
+  if (state.status !== 'downloading' && state.status !== 'ready') return null
+  if (later === state.version) return null
+  const updating = pressed === state.version
+  const percent = state.status === 'downloading' ? Math.round(state.progress * 100) : 100
   return (
     <div className="update-bar" role="status" aria-live="polite">
-      <Icon name="check" size={16} />
+      <Icon name="download" size={16} />
       <span className="update-bar__text">
-        <b>BingeJam {state.version}</b> is ready
+        A new version of BingeJam is available <span className="update-bar__version">{state.version}</span>
       </span>
+      {state.status === 'downloading' && !updating ? <span className="update-bar__progress tabular">{percent}%</span> : null}
       <Button
         size="sm"
         variant="primary"
-        disabled={installing}
+        disabled={updating}
         onClick={() => {
-          setInstalling(true)
+          setPressed(state.version)
           onInstall()
         }}
       >
-        {installing ? 'Restarting…' : 'Restart to update'}
+        {updating ? (state.status === 'ready' ? 'Restarting…' : `Updating… ${percent}%`) : 'Update'}
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => setLater(state.version)}>
-        Later
-      </Button>
+      {updating ? null : (
+        <Button size="sm" variant="ghost" onClick={() => setLater(state.version)}>
+          Later
+        </Button>
+      )}
     </div>
   )
 }
@@ -40,11 +47,20 @@ export function UpdateStatus({ state, onCheck, onInstall }: { state: UpdateState
     case 'checking':
       return <span className="muted small">Checking…</span>
     case 'downloading':
-      return <span className="muted small tabular">Downloading {state.version} · {Math.round(state.progress * 100)}%</span>
+      return (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="muted small tabular">
+            {state.version} available · {Math.round(state.progress * 100)}%
+          </span>
+          <Button size="sm" variant="primary" onClick={onInstall}>
+            Update
+          </Button>
+        </span>
+      )
     case 'ready':
       return (
         <Button size="sm" variant="primary" onClick={onInstall}>
-          Restart to update to {state.version}
+          Update to {state.version}
         </Button>
       )
     case 'current':

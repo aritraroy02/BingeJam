@@ -28,10 +28,12 @@ go-ahead) together with the website session's unslop pass (one main action per d
 store badge on Android).
 
 **PC in-app updates (2026-11-23, published as PC 0.1.3, `pc-v0.1.3`, user's go-ahead):** `src/main/updater.ts` checks the releases
-repo 15 s after start and every 6 h (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
+repo 15 s after start, every hour and on window focus after 15 min (was 6 h in 0.1.3/0.1.4) (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
 ignored; `src/shared/update.ts` + tests), downloads the installer in the background with `net.fetch` to
 %TEMP%\BingeJam-update, checks size + SHA-256 (GitHub asset digest, else the "SHA-256:" line in the notes), then a
-"BingeJam X is ready · Restart to update" bar (every screen) and Settings → About run it with `/S --force-run`: silent,
+"A new version of BingeJam is available X · N% · Update · Later" bar from the moment it's found (unreleased, user's
+ask 2026-11-23; 0.1.3/0.1.4 show it only once downloaded, as "is ready · Restart to update"); Update installs at once or as
+soon as the download is checked; Settings → About the same. The installer runs with `/S --force-run`: silent,
 per user, no browser, no SmartScreen (no download mark), the app reopens. Tested end to end on the main PC: installed
 0.1.3 + a local feed (`BJ_UPDATE_FEED` = JSON file, `BJ_UPDATE_DOWNLOADS` = allowed download prefix) updated itself to
 a test 0.1.4 and reopened; 0.1.3 was put back. Releases must keep the tag/asset names and the SHA-256 line.

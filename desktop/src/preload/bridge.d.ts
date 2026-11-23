@@ -90,7 +90,7 @@ export interface BingeJamBridge {
   update: {
     get(): Promise<UpdateState>
     check(): Promise<void>
-    /** false when nothing is downloaded yet. */
+    /** true = restarting into it now, or as soon as the download in progress finishes; false = nothing to install. */
     install(): Promise<boolean>
     onState(listener: (state: UpdateState) => void): () => void
   }
