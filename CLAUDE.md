@@ -31,8 +31,8 @@ store badge on Android).
 repo 15 s after start, every hour and on window focus after 15 min (was 6 h in 0.1.3/0.1.4) (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
 ignored; `src/shared/update.ts` + tests), downloads the installer in the background with `net.fetch` to
 %TEMP%\BingeJam-update, checks size + SHA-256 (GitHub asset digest, else the "SHA-256:" line in the notes), then a
-"A new version of BingeJam is available X · N% · Update · Later" bar from the moment it's found (unreleased, user's
-ask 2026-11-23; 0.1.3/0.1.4 show it only once downloaded, as "is ready · Restart to update"); Update installs at once or as
+"A new version of BingeJam is available X · N% · Update · Later" bar from the moment it's found (**PC 0.1.5**, published
+2026-11-23, user's ask; website points at 0.1.5; 0.1.3/0.1.4 show it only once downloaded, as "is ready · Restart to update"); Update installs at once or as
 soon as the download is checked; Settings → About the same. The installer runs with `/S --force-run`: silent,
 per user, no browser, no SmartScreen (no download mark), the app reopens. Tested end to end on the main PC: installed
 0.1.3 + a local feed (`BJ_UPDATE_FEED` = JSON file, `BJ_UPDATE_DOWNLOADS` = allowed download prefix) updated itself to
