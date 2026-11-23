@@ -22,7 +22,8 @@ not latest; the website `PC_VERSION` bump was handed to the session that owns we
 `useLiveMany` keyed listeners by name ("msgs") only, so a new chat with the same names kept the old listener.
 Fixed in `data/live.ts` + `data/liveDiff.ts` (listener = key + path; values filtered to the current path; 5 tests).
 **PC 0.1.2 published 2026-11-23** (`pc-v0.1.2`, not latest, user's go-ahead) and installed on the main PC. The
-website (web/download.js `PC_VERSION` + fallback hrefs) now points at **0.1.3**; **hosting deployed 2026-11-23** (user's
+website (web/download.js `PC_VERSION` + fallback hrefs) now points at **0.1.4** (PC 0.1.4 = the pulled channels/voice/Go Live
+polish, published 2026-11-23, reaches 0.1.3 installs as an in-app update; not installed on the main PC by the user's wish); **hosting deployed 2026-11-23** (user's
 go-ahead) together with the website session's unslop pass (one main action per device: PC button on computers,
 store badge on Android).
 

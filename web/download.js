@@ -7,7 +7,7 @@
   const STORE = 'https://indusapp.store/qcsredto';
   // The Windows app: an installer attached to a GitHub release of the public releases repo, tagged
   // pc-vX.Y.Z so the phones' update check (v-tags only) never mistakes it for a phone release.
-  const PC_VERSION = '0.1.3';
+  const PC_VERSION = '0.1.4';
   const PC_URL = 'https://github.com/aritraroy02/sync-it-releases/releases/download/pc-v' + PC_VERSION + '/BingeJam-Setup-' + PC_VERSION + '.exe';
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
