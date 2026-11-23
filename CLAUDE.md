@@ -25,7 +25,7 @@ Fixed in `data/live.ts` + `data/liveDiff.ts` (listener = key + path; values filt
 website's button (web/download.js `PC_VERSION` + fallback hrefs) points at 0.1.2 in git, **but hosting isn't
 deployed**: web/ also holds the website session's undeployed unslop pass, so the live button still hands out 0.1.0.
 
-**PC in-app updates (2026-11-23, built as 0.1.3, not published yet):** `src/main/updater.ts` checks the releases
+**PC in-app updates (2026-11-23, published as PC 0.1.3, `pc-v0.1.3`, user's go-ahead):** `src/main/updater.ts` checks the releases
 repo 15 s after start and every 6 h (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
 ignored; `src/shared/update.ts` + tests), downloads the installer in the background with `net.fetch` to
 %TEMP%\BingeJam-update, checks size + SHA-256 (GitHub asset digest, else the "SHA-256:" line in the notes), then a
