@@ -1,5 +1,8 @@
 package com.syncit.app.ui.chat
 
+import com.syncit.app.ui.glass.GlassPanel
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -122,6 +125,10 @@ fun DmScreen(
         lastMenu = message
     }
 
+    val friendReadAt by viewModel.friendReadAt.collectAsStateWithLifecycle()
+    val asked by viewModel.asked.collectAsStateWithLifecycle()
+    val lastMineId = list?.lastOrNull { it.fromUid == viewModel.myUid && it.watched == null }?.id
+
     // Opening the chat, and each message arriving while it's open, counts as read.
     LaunchedEffect(list?.size) { viewModel.markRead() }
 
@@ -172,26 +179,16 @@ fun DmScreen(
                                 else -> viewModel.statusLine(friend)
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (typing) p.accent else p.textSecondary,
+                            color = when {
+                                typing -> p.accent
+                                com.syncit.app.social.ActivityText.visibleActivity(friend?.presence) != null -> p.success
+                                else -> p.textSecondary
+                            },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                }
-                // The chat's room, like WhatsApp's call button (user's request, 2026-11-05).
-                if (!notFriends && friend != null) {
-                    Spacer(Modifier.width(8.dp))
-                    val live = room
-                    if (live != null) {
-                        GlassSmallButton("Join · ${live.inRoom.size}", onClick = { viewModel.joinRoom(live.code) { onOpenRoom(it, null) } })
-                    } else {
-                        GlassSmallButton(
-                            if (startingRoom) "Starting…" else "Start room",
-                            onClick = { viewModel.startRoom { code -> onOpenRoom(code, viewModel.friendUid) } },
-                            enabled = !startingRoom,
-                        )
-                    }
                 }
                 Spacer(Modifier.width(8.dp))
                 GlassIconButton(Icons.Filled.MoreVert, "More", { chatMenu = true }, plain = true)
@@ -208,6 +205,17 @@ fun DmScreen(
                         }) { Text("Delete chat", color = p.danger) }
                     },
                     dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+                )
+            }
+
+            if (!notFriends && friend != null) {
+                PinnedWatch(
+                    activity = com.syncit.app.social.ActivityText.visibleActivity(friend.presence),
+                    room = room,
+                    asked = asked,
+                    serverNow = viewModel::serverNowMs,
+                    onJoin = { code -> viewModel.joinRoom(code) { onOpenRoom(it, null) } },
+                    onAsk = viewModel::askToJoin,
                 )
             }
 
@@ -271,6 +279,7 @@ fun DmScreen(
                                         onLongPress = { openMenu(message) },
                                     )
                                 } else {
+                                    val seen = mine && message.id == lastMineId && (friendReadAt ?: 0L) >= message.sentAt
                                     MessageBubble(
                                         when {
                                             !message.deleted -> message.text
@@ -279,7 +288,7 @@ fun DmScreen(
                                         },
                                         senderName = null,
                                         isMine = mine,
-                                        time = row.time,
+                                        time = if (seen) "${row.time} · Seen" else row.time,
                                         grouped = row.grouped,
                                         forwarded = message.forwarded,
                                         deleted = message.deleted,
@@ -303,12 +312,31 @@ fun DmScreen(
                         modifier = Modifier.padding(vertical = 16.dp),
                     )
                 } else {
-                    ChatInputBar(
-                        viewModel::send,
-                        "Message ${name.substringBefore(' ')}",
-                        Modifier.padding(bottom = 8.dp),
-                        onTextChange = viewModel::onDraftChanged,
-                    )
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        val live = room
+                        // Watch together, where the thumb already is: join the chat's room, or start one.
+                        GlassIconButton(
+                            ImageVector.vectorResource(com.syncit.app.R.drawable.ic_tab_watch),
+                            when {
+                                live != null -> "Join the room, ${live.inRoom.size} in"
+                                startingRoom -> "Starting the room"
+                                else -> "Watch together: start a room"
+                            },
+                            {
+                                if (live != null) viewModel.joinRoom(live.code) { onOpenRoom(it, null) }
+                                else viewModel.startRoom { code -> onOpenRoom(code, viewModel.friendUid) }
+                            },
+                            modifier = Modifier.padding(bottom = 12.dp),
+                            enabled = !startingRoom,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        ChatInputBar(
+                            viewModel::send,
+                            "Message ${name.substringBefore(' ')}",
+                            Modifier.weight(1f).padding(bottom = 8.dp),
+                            onTextChange = viewModel::onDraftChanged,
+                        )
+                    }
                 }
             }
         }
@@ -320,6 +348,8 @@ fun DmScreen(
         MessageActionsSheet(
             visible = menuFor != null,
             onDismiss = { menuFor = null },
+            quote = menuMessage?.takeIf { hasText }?.text,
+            quoteMeta = menuMessage?.let { m -> if (m.fromUid == viewModel.myUid) "You" else name.substringBefore(' ') },
             onCopy = if (hasText) {
                 {
                     menuMessage?.let { if (copyToClipboard(context, it.text) && !systemShowsCopies()) viewModel.showNotice("Message copied") }
@@ -428,5 +458,59 @@ private fun TypingRow(visible: Boolean, name: String) {
         exit = fadeOut(tween(160)) + shrinkVertically(tween(200), shrinkTowards = Alignment.Top),
     ) {
         TypingBubble(name, Modifier.padding(top = 8.dp))
+    }
+}
+
+/**
+ * Pinned under the header: what they're watching with Ask to join, or the chat's live room with
+ * Join (2026-11-25 redesign). Nothing when neither.
+ */
+@Composable
+private fun PinnedWatch(
+    activity: com.syncit.core.model.Activity?,
+    room: com.syncit.core.model.ChatRoomLink?,
+    asked: Boolean,
+    serverNow: () -> Long,
+    onJoin: (String) -> Unit,
+    onAsk: (com.syncit.core.model.Activity) -> Unit,
+) {
+    if (activity == null && room == null) return
+    val p = Glass.palette
+    GlassPanel(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), contentPadding = PaddingValues(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (activity != null) {
+                com.syncit.app.ui.social.ActivityThumb(activity, size = 48.dp)
+            } else {
+                Box(Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(p.raised), contentAlignment = Alignment.Center) {
+                    com.syncit.app.ui.glass.SyncDots()
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                val title = activity?.let { a -> listOfNotNull(a.title, a.subtitle).joinToString(" · ").ifBlank { a.app.displayName } } ?: "Room live"
+                Text(title, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val minutes = activity?.startedAt?.takeIf { it > 0 }?.let { ((serverNow() - it) / 60_000).coerceAtLeast(0) }
+                Text(
+                    when {
+                        room != null -> "${room.inRoom.size} in the room"
+                        activity != null && minutes != null -> "${activity.app.displayName} · $minutes min in"
+                        else -> activity?.app?.displayName.orEmpty()
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textSecondary,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            when {
+                room != null -> GlassSmallButton("Join · ${room.inRoom.size}", onClick = { onJoin(room.code) })
+                activity != null && com.syncit.app.social.RoomWording.canAsk(activity) ->
+                    GlassSmallButton(
+                        if (asked) "Asked" else com.syncit.app.social.RoomWording.askLabel(com.syncit.app.social.RoomWording.isJam(activity.app), false),
+                        onClick = { onAsk(activity) },
+                        enabled = !asked,
+                    )
+            }
+        }
     }
 }

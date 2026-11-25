@@ -91,6 +91,33 @@ class DmViewModel(val friendUid: String, private val container: AppContainer) : 
         }
     }
 
+    /** When they last read this chat: "Seen" under our last message they've read. */
+    val friendReadAt: StateFlow<Long?> = social.dms.observeFriendRead(friendUid)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _asked = MutableStateFlow(false)
+
+    /** We asked to join what they're watching (until they answer or it changes). */
+    val asked: StateFlow<Boolean> = _asked.asStateFlow()
+
+    /** "Ask to join" on their pinned activity (same request as the friend sheet's). */
+    fun askToJoin(activity: com.syncit.core.model.Activity) {
+        if (_asked.value) return
+        _asked.value = true
+        viewModelScope.launch {
+            try {
+                social.watchInvites.requestToJoin(friendUid, activity.app, activity.title)
+                _error.value = "Asked ${profile.value?.displayName?.substringBefore(' ') ?: "them"} to let you in"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _asked.value = false
+                _error.value = "Couldn't ask to join"
+            }
+        }
+    }
+
     /** Joins the room that's already live in this chat. */
     fun joinRoom(code: String, onJoin: (code: String) -> Unit) {
         container.chatRooms.joined(code, friendUid = friendUid)

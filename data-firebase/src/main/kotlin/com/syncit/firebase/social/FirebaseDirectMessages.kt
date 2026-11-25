@@ -262,6 +262,10 @@ class FirebaseDirectMessages internal constructor(
             }
     }
 
+    override fun observeFriendRead(friendUid: String): Flow<Long?> = session.uid.flatMapLatest { me ->
+        if (me == null) flowOf(null) else db.getReference("dmReads").child(friendUid).child(me).snapshots().map { it?.long() }
+    }
+
     override suspend fun markRead(friendUid: String) {
         val me = session.requireUid()
         db.getReference("dmReads").child(me).child(friendUid).setValue(ServerValue.TIMESTAMP).await()

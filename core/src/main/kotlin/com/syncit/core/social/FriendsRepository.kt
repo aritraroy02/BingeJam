@@ -82,6 +82,9 @@ interface DirectMessages {
 
     suspend fun markRead(friendUid: String)
 
+    /** When [friendUid] last read our chat (server time), for "Seen" under our last message. */
+    fun observeFriendRead(friendUid: String): Flow<Long?> = flowOf(null)
+
     /**
      * Typing indicator, WhatsApp-style (user's request, 2026-10-29). Call with true as the user
      * types (implementations throttle the writes) and false when the box is cleared, the message

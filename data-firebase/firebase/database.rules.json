@@ -303,6 +303,7 @@
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid && !newData.exists()",
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
         "$friend": {
+          ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $friend && root.child('friends').child($friend).child($uid).exists()",
           ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
           ".validate": "newData.isNumber() && newData.val() <= now"
         }

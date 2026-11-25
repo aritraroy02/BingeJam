@@ -1,5 +1,8 @@
 package com.syncit.app.ui.chat
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -68,8 +71,9 @@ internal fun copyToClipboard(context: Context, text: String): Boolean {
 internal fun systemShowsCopies(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
 /**
- * Long-press menu for a message, WhatsApp-style: Copy, Forward, Delete. A null action hides its
- * row (deleted messages and watched-together cards can only be deleted for me).
+ * Long-press menu for a message (2026-11-25 redesign): the message quoted on top, so it's clear
+ * what you act on, then Copy, Forward and Delete as three large buttons in thumb reach. A null
+ * action hides its button (deleted messages and watched-together cards can only be deleted for me).
  */
 @Composable
 internal fun MessageActionsSheet(
@@ -78,13 +82,45 @@ internal fun MessageActionsSheet(
     onCopy: (() -> Unit)? = null,
     onForward: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
+    quote: String? = null,
+    quoteMeta: String? = null,
 ) {
+    val p = Glass.palette
     GlassBottomSheet(visible = visible, onDismiss = onDismiss) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            onCopy?.let { GlassRow("Copy", icon = CopyIcon, onClick = it) }
-            onForward?.let { GlassRow("Forward", icon = Icons.AutoMirrored.Filled.ArrowForward, onClick = it) }
-            onDelete?.let { GlassRow("Delete", icon = Icons.Filled.Delete, onClick = it) }
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (!quote.isNullOrBlank()) {
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.raised).padding(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    Text(quote, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                    quoteMeta?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = p.textTertiary, modifier = Modifier.padding(top = 4.dp)) }
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                onCopy?.let { ActionTile("Copy", CopyIcon, p.textPrimary, it, Modifier.weight(1f)) }
+                onForward?.let { ActionTile("Forward", Icons.AutoMirrored.Filled.ArrowForward, p.textPrimary, it, Modifier.weight(1f)) }
+                onDelete?.let { ActionTile("Delete", Icons.Filled.Delete, p.accentText, it, Modifier.weight(1f)) }
+            }
         }
+    }
+}
+
+@Composable
+private fun ActionTile(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: androidx.compose.ui.graphics.Color, onClick: () -> Unit, modifier: Modifier) {
+    val p = Glass.palette
+    Column(
+        modifier
+            .height(72.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(p.raised)
+            .border(1.dp, p.hairline, RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = tint)
     }
 }
 
