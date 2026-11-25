@@ -467,6 +467,8 @@ private fun PersonTile(person: VoiceOccupant, isMe: Boolean, photoUrl: String?, 
                 )
             }
         }
+        // Not by the ring's colour alone: say it.
+        if (speaking) Text("Talking", style = MaterialTheme.typography.labelSmall, color = p.success)
         if (person.live) {
             Spacer(Modifier.size(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -1,5 +1,8 @@
 package com.syncit.app.ui.chat
 
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.foundation.border
 import com.syncit.app.ui.channels.ChannelModel
 import com.syncit.app.ui.channels.ChannelsSheet
 import com.syncit.core.social.ChannelKind
@@ -420,42 +423,71 @@ fun GroupChatScreen(
                 GlassIconButton(Icons.Filled.Info, "Group info", onOpenInfo, plain = true)
             }
 
-            // Channels, Discord style: which text channel is on screen, and who's talking in voice.
+            // Channels as a strip under the header (2026-11-25 redesign): tap a text channel to switch,
+            // a voice channel to open it (who's in, LIVE), the list button for every channel and admin tools.
             val channelName = channelsUi.text.firstOrNull { it.channel.id == channelId }?.channel?.name ?: "general"
-            val otherUnread = channelsUi.text.any { it.unread && it.channel.id != channelId }
-            val talking = channelsUi.voice.filter { it.people.isNotEmpty() }
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            androidx.compose.foundation.lazy.LazyRow(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(
-                    Modifier.clip(RoundedCornerShape(20.dp)).background(p.glassFallback).clickable { showChannels = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("# $channelName", style = MaterialTheme.typography.labelLarge, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (otherUnread) {
-                        Spacer(Modifier.width(6.dp))
-                        Box(Modifier.size(6.dp).clip(CircleShape).background(p.textPrimary))
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    Text("▾", style = MaterialTheme.typography.labelLarge, color = p.textTertiary)
-                }
-                if (talking.isNotEmpty()) {
-                    val first = talking.first()
-                    val count = talking.sumOf { it.people.size }
+                items(channelsUi.text.size, key = { "t:" + channelsUi.text[it].channel.id }) { i ->
+                    val row = channelsUi.text[i]
+                    val on = row.channel.id == channelId
                     Row(
-                        Modifier.clip(RoundedCornerShape(20.dp)).background(p.glassFallback).clickable { onOpenVoice(first.channel.id) }.padding(horizontal = 12.dp, vertical = 8.dp),
+                        Modifier
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (on) p.raised else androidx.compose.ui.graphics.Color.Transparent)
+                            .border(1.dp, p.hairline, RoundedCornerShape(10.dp))
+                            .clickable(onClickLabel = "Open #${row.channel.name}") { viewModel.selectChannel(row.channel.id) }
+                            .padding(horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(Modifier.size(6.dp).clip(CircleShape).background(p.success))
+                        Text("#", style = MaterialTheme.typography.labelLarge, color = p.textTertiary)
+                        Spacer(Modifier.width(4.dp))
+                        Text(row.channel.name, style = MaterialTheme.typography.labelLarge, color = if (on || row.unread) p.textPrimary else p.textSecondary, maxLines = 1)
+                        if (row.unread && !on) {
+                            Spacer(Modifier.width(6.dp))
+                            Box(Modifier.size(6.dp).clip(CircleShape).background(p.textPrimary))
+                        }
+                    }
+                }
+                items(channelsUi.voice.size, key = { "v:" + channelsUi.voice[it].channel.id }) { i ->
+                    val row = channelsUi.voice[i]
+                    Row(
+                        Modifier
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (row.connected) p.raised else androidx.compose.ui.graphics.Color.Transparent)
+                            .border(1.dp, p.hairline, RoundedCornerShape(10.dp))
+                            .clickable(onClickLabel = "Open voice channel ${row.channel.name}") { onOpenVoice(row.channel.id) }
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(ImageVector.vectorResource(com.syncit.voice.R.drawable.ic_voice_headset), null, tint = if (row.people.isNotEmpty()) p.textPrimary else p.textTertiary, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text(
-                            "$count in ${first.channel.name}" + if (first.people.any { it.live }) " · LIVE" else "",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = p.textPrimary,
-                            maxLines = 1,
-                        )
+                        Text(row.channel.name, style = MaterialTheme.typography.labelLarge, color = if (row.people.isNotEmpty()) p.textPrimary else p.textSecondary, maxLines = 1)
+                        if (row.people.isNotEmpty()) {
+                            Spacer(Modifier.width(6.dp))
+                            Text("${row.people.size}", style = MaterialTheme.typography.labelMedium, color = p.success)
+                        }
+                        if (row.people.any { it.live }) {
+                            Spacer(Modifier.width(6.dp))
+                            com.syncit.app.ui.channels.LiveBadge()
+                        }
+                    }
+                }
+                item(key = "all") {
+                    Box(
+                        Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(1.dp, p.hairline, RoundedCornerShape(10.dp))
+                            .clickable(onClickLabel = "All channels") { showChannels = true },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.List, "All channels", tint = p.textSecondary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
