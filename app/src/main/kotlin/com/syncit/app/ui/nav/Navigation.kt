@@ -380,6 +380,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
             ongoing?.let { o ->
                 OngoingRoomBar(
                     ongoing = o,
+                    serverNow = roomBar::serverNow,
                     onOpen = { nav.openRoom(o.code) },
                     onMute = roomBar::setMuted,
                     onLeave = roomBar::leave,

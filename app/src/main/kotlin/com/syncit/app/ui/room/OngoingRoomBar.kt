@@ -1,5 +1,9 @@
 package com.syncit.app.ui.room
 
+import com.syncit.core.model.PlaybackStatus
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -65,15 +69,43 @@ class OngoingRoomViewModel(private val container: AppContainer) : ViewModel() {
         val sinceMs: Long,
         val inVoice: Boolean,
         val muted: Boolean,
+        /** What the room plays ("Dune: Part Two"), once the host has a title. */
+        val title: String? = null,
+        /** The room's play state: position at [stateAt] (server time), and whether it runs on. */
+        val positionMs: Long? = null,
+        val stateAt: Long = 0L,
+        val playing: Boolean = false,
     )
 
     private val roomCode = container.sessionController.state.map { it.roomCode }.distinctUntilChanged()
 
-    val ongoing: StateFlow<Ongoing?> = combine(roomCode, container.voice.state) { code, voice ->
+    /** The room's title and play state, while we're in one. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val roomInfo = roomCode.flatMapLatest { code ->
+        if (code == null) flowOf(null to null)
+        else combine(
+            container.transport.observePreview(code).catch { emit(null) },
+            container.transport.observeRoom(code).catch { emit(null) },
+        ) { preview, room -> preview to room }
+    }
+
+    val ongoing: StateFlow<Ongoing?> = combine(roomCode, container.voice.state, roomInfo) { code, voice, info ->
         code ?: return@combine null
         val inVoice = voice.roomCode == code && voice.status != VoiceStatus.OFF && voice.status != VoiceStatus.FAILED
-        Ongoing(code, joinedAt(code), inVoice, voice.muted)
+        val (preview, room) = info
+        val state = room?.state
+        val title = preview?.title?.takeIf { it.isNotBlank() }?.let { t -> preview.subtitle?.takeIf { it.isNotBlank() }?.let { "$t · $it" } ?: t }
+        Ongoing(
+            code, joinedAt(code), inVoice, voice.muted,
+            title = title,
+            positionMs = state?.positionMs,
+            stateAt = state?.updatedAt ?: 0L,
+            playing = state?.status == PlaybackStatus.PLAYING,
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Server time now (the room's position is anchored to it). */
+    fun serverNow(): Long = container.transport.serverClock.serverNowMs()
 
     init {
         viewModelScope.launch {
@@ -113,6 +145,7 @@ class OngoingRoomViewModel(private val container: AppContainer) : ViewModel() {
 @Composable
 fun OngoingRoomBar(
     ongoing: OngoingRoomViewModel.Ongoing,
+    serverNow: () -> Long,
     onOpen: () -> Unit,
     onMute: (Boolean) -> Unit,
     onLeave: () -> Unit,
@@ -127,8 +160,13 @@ fun OngoingRoomBar(
         }
     }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
-    val label = if (ongoing.inVoice) "In a room · voice on" else "In a room"
-    val time = elapsed(now - ongoing.sinceMs)
+    // "Dune: Part Two · 1:20:15" (the room's own position) once a title plays; else time in the room.
+    val title = ongoing.title
+    val label = title ?: if (ongoing.inVoice) "In a room · voice on" else "In a room"
+    val time = if (title != null && ongoing.positionMs != null) {
+        val pos = ongoing.positionMs + if (ongoing.playing) (serverNow() - ongoing.stateAt).coerceAtLeast(0) else 0
+        elapsed(pos).trimStart('0').let { if (it.startsWith(":")) "0$it" else it }
+    } else elapsed(now - ongoing.sinceMs)
 
     Row(
         modifier
@@ -143,7 +181,7 @@ fun OngoingRoomBar(
     ) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(Color.White))
         Text(
-            "$label  $time",
+            "$label · $time",
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
             color = Color.White,
             maxLines = 1,

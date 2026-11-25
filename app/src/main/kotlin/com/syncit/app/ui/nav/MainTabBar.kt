@@ -1,5 +1,6 @@
 package com.syncit.app.ui.nav
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,10 +56,11 @@ enum class MainTab { WATCH, CHATS, WATCHLIST, YOU }
 val LocalBottomBarInset = compositionLocalOf { 0.dp }
 
 /** Bar height plus the gap under it. */
-val TabBarInset: Dp = 84.dp
+val TabBarInset: Dp = 88.dp
 
 /**
- * Floating glass bar with icons only: Watch, Chats, You. The Chats badge counts unread messages
+ * Floating glass bar: Watch, Chats, Watchlist, You, each with its label under the icon (2026-11-25
+ * redesign: icon-only tabs made people guess). The Chats badge counts unread messages
  * plus friend requests (those are answered behind Chats' "+").
  */
 @Composable
@@ -76,8 +78,8 @@ fun MainTabBar(
             .padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
             .widthIn(max = 420.dp)
             .fillMaxWidth()
-            .height(60.dp)
-            .shadow(16.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.35f))
+            .height(64.dp)
+            .shadow(8.dp, shape, ambientColor = Color.Black.copy(alpha = 0.25f), spotColor = Color.Black.copy(alpha = 0.25f))
             .glass(shape, floating = true),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
@@ -95,43 +97,49 @@ fun MainTabBar(
 private fun TabIcon(icon: ImageVector, label: String, selected: Boolean, badge: Int, onClick: () -> Unit) {
     val p = Glass.palette
     val haptics = LocalHapticFeedback.current
-    val tint by animateColorAsState(if (selected) p.base else p.textSecondary, label = "tabTint")
-    val fill by animateColorAsState(if (selected) p.textPrimary else Color.Transparent, label = "tabFill")
-    // Only the round tap target is clipped; the badge sits on top of it, uncut.
-    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-        Box(
+    val tint by animateColorAsState(if (selected) p.textPrimary else p.textSecondary, label = "tabTint")
+    val fill by animateColorAsState(if (selected) p.raised else Color.Transparent, label = "tabFill")
+    // Only the tap target is clipped; the badge sits on top of it, uncut.
+    Box(Modifier.size(width = 72.dp, height = 52.dp), contentAlignment = Alignment.Center) {
+        Column(
             Modifier
-                .size(48.dp)
-                .clip(CircleShape)
+                .size(width = 72.dp, height = 52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(fill)
                 .clickable(role = Role.Tab) {
                     if (!selected) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                     onClick()
                 }
-                .semantics {
+                .semantics(mergeDescendants = true) {
                     contentDescription = if (badge > 0) "$label, $badge new" else label
                     this.selected = selected
                 },
-            contentAlignment = Alignment.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Box(Modifier.size(42.dp).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp))
-            }
+            Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp))
+            Text(
+                label,
+                color = tint,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, fontSize = 11.sp),
+                maxLines = 1,
+            )
         }
         if (badge > 0) {
             Box(
                 Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 4.dp, y = 2.dp)
-                    .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .align(Alignment.TopCenter)
+                    .offset(x = 14.dp, y = 2.dp)
+                    .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                    .clip(RoundedCornerShape(9.dp))
                     .background(p.accent)
-                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                    .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     if (badge > 99) "99+" else badge.toString(),
                     color = Color.White,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 10.sp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.sp),
                 )
             }
         }
