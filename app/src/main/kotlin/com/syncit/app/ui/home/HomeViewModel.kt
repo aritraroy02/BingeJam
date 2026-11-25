@@ -51,7 +51,7 @@ data class FriendRow(
     val isJam: Boolean get() = RoomWording.isJam(activity?.app)
 
     /** "Ask to jam" / "Ask to join" (or "Asked …"), null when there's nothing to join. */
-    val askLabel: String? get() = activity?.takeIf { it.app.joinable }?.let { RoomWording.askLabel(isJam, joinRequested) }
+    val askLabel: String? get() = activity?.takeIf { RoomWording.canAsk(it) }?.let { RoomWording.askLabel(isJam, joinRequested) }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

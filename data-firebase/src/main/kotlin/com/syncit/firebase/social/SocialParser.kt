@@ -48,13 +48,14 @@ internal object SocialParser {
             lastSeen = status.lastSeen,
             // The phone's own activity first; else what an online PC is playing in its browser.
             activity = activity(s.child("activity"))
-                ?: onlineDevices.firstNotNullOfOrNull { activity(it.child("activity")) },
+                ?: onlineDevices.firstNotNullOfOrNull { activity(it.child("activity"), onComputer = true) },
             game = onlineDevices.firstNotNullOfOrNull { it.child("game").child("name").string()?.trim()?.takeIf(String::isNotEmpty)?.take(60) },
             dnd = onlineDevices.any { it.child("status").string() == "dnd" },
         )
     }
 
-    fun activity(s: DataSnapshot): Activity? {
+    /** [onComputer]: read from a PC's devices/{id}/activity. */
+    fun activity(s: DataSnapshot, onComputer: Boolean = false): Activity? {
         if (!s.exists()) return null
         return Activity(
             app = ActivityApp.fromWire(s.child("app").string()) ?: return null,
@@ -66,6 +67,7 @@ internal object SocialParser {
             startedAt = s.child("startedAt").long() ?: 0L,
             inWatchParty = s.child("inWatchParty").bool() ?: false,
             watchingWith = s.child("watchingWith").string()?.takeIf { it.isNotBlank() },
+            onComputer = onComputer,
         )
     }
 

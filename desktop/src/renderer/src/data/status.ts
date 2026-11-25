@@ -62,11 +62,16 @@ export function headerStatus(p: Presence | null, now: number): string {
   return lastSeenText(p.lastSeen, now)
 }
 
-/** "Ask to join" for a watch party, "Ask to jam" for music/YouTube; nothing to join → null. */
+/**
+ * "Ask to join" for a watch party, "Ask to jam" for music/YouTube; nothing to join → null. Music on
+ * a PC (Spotify desktop) has no jam to join: jams run on phones.
+ */
 export function friendAction(p: Presence | null): FriendAction {
   const a = visibleActivity(p)
   if (!a) return null
-  return isJam(APPS[a.app].kind) ? 'jam' : 'join'
+  const jam = isJam(APPS[a.app].kind)
+  if (jam && a.onComputer) return null
+  return jam ? 'jam' : 'join'
 }
 
 export interface FriendRecord {

@@ -56,6 +56,8 @@ export function parseProfile(uid: string, v: unknown): Profile | null {
 
 export interface Activity {
   app: AppId
+  /** Published by a PC (devices/{id}/activity): its music can't host a jam. */
+  onComputer?: boolean
   title: string | null
   subtitle: string | null
   playing: boolean
@@ -147,7 +149,7 @@ export function deviceActivity(devices: readonly unknown[]): Activity | null {
     const device = obj(entry)
     if (device?.online !== true) continue
     const a = parseActivity(device.activity)
-    if (a) return a
+    if (a) return { ...a, onComputer: true }
   }
   return null
 }

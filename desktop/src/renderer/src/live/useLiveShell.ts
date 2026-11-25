@@ -39,6 +39,8 @@ import {
   type Profile
 } from '@/data'
 import { agoShort } from '@/data/format'
+import { pcActivity } from '@/data/pcActivity'
+import type { NowPlaying } from '@shared/music'
 import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUser, unfriend, useBlockedGroups, useBlockedPeople } from '@/data/safety'
 import { checkUsername, createProfile, removePhoto, setBirthDate, updateProfile, uploadPhoto, useMyBirthDate } from '@/data/profile'
 import { cancelFriendRequest } from '@/data/friends'
@@ -101,7 +103,7 @@ const ACTIVITY_APP: Partial<Record<ServiceId, DeviceActivity['app']>> = {
   YOUTUBE: 'youtube'
 }
 
-const APP_NAME: Record<DeviceActivity['app'], string> = { netflix: 'Netflix', jiohotstar: 'JioHotstar', primevideo: 'Prime Video', youtube: 'YouTube' }
+const APP_NAME: Record<DeviceActivity['app'], string> = { netflix: 'Netflix', jiohotstar: 'JioHotstar', primevideo: 'Prime Video', youtube: 'YouTube', spotify: 'Spotify' }
 
 const SERVICE_HOME: Partial<Record<ServiceId, string>> = {
   NETFLIX: 'https://www.netflix.com/browse',
@@ -186,6 +188,17 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
     }
   }, [])
   useEffect(() => setDeviceGame(uid, game?.name ?? null), [game?.name, uid, sharing, myStatus])
+  // The song playing in Spotify on this PC (src/main/music.ts).
+  const [music, setMusic] = useState<NowPlaying | null>(null)
+  useEffect(() => {
+    let live = true
+    void window.bingejam.music?.current().then((m) => live && setMusic(m))
+    const off = window.bingejam.music?.onChange((m) => setMusic(m))
+    return () => {
+      live = false
+      off?.()
+    }
+  }, [])
   async function changeStatus(next: 'online' | 'dnd' | 'invisible'): Promise<void> {
     // The flag first, so the reconnect that ends Invisible already writes the right status.
     await setDnd(next === 'dnd', uid)
@@ -463,8 +476,8 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
     window.bingejam.extension.overlay(overlayState)
   }, [overlayState])
 
-  // ---------- "Watching X" for friends (devices/{id}/activity) ----------
-  const myActivity = useMemo((): DeviceActivity | null => {
+  // ---------- "Watching X" / "Listening to X" for friends (devices/{id}/activity) ----------
+  const watchActivity = useMemo((): DeviceActivity | null => {
     const tabs = linked.flatMap((c) => c.tabs)
     const tab =
       tabs.find((t) => t.tabId === room.state.tabId) ?? tabs.find((t) => t.playing) ?? tabs.find((t) => linked.some((c) => c.activeTabId === t.tabId)) ?? null
@@ -481,11 +494,14 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
       watchingWith: others.length > 0 ? others.join(', ').slice(0, 100) : null
     }
   }, [ext, room.state.tabId, room.state.members, room.state.durationMs, room.active])
+  const myActivity = useMemo(() => pcActivity(watchActivity, music, game !== null), [watchActivity, music, game])
   useEffect(() => setDeviceActivity(uid, myActivity), [myActivity, uid, sharing, myStatus])
   const myActivityLine = game
     ? `Playing ${game.name}`
     : myActivity
-      ? `${myActivity.playing ? 'Watching' : 'Paused'} ${myActivity.title ?? ''} · ${APP_NAME[myActivity.app]}`.replace('  ', ' ')
+      ? myActivity.app === 'spotify'
+        ? `Listening to ${myActivity.title ?? ''} · Spotify`
+        : `${myActivity.playing ? 'Watching' : 'Paused'} ${myActivity.title ?? ''} · ${APP_NAME[myActivity.app]}`.replace('  ', ' ')
       : null
 
 

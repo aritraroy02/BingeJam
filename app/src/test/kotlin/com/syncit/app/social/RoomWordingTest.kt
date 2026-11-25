@@ -1,5 +1,6 @@
 package com.syncit.app.social
 
+import com.syncit.core.model.Activity
 import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.JoinRequest
 import com.syncit.core.model.JoinStatus
@@ -15,6 +16,14 @@ class RoomWordingTest {
         JoinRequest("host", "riya", "riya", "Riya", app, title, JoinStatus.PENDING, null, 0L)
 
     private fun invite(app: ActivityApp?, title: String?) = RoomInvite("riya", "riya", "Riya", "ABC123", app, title, 0L)
+
+    @Test fun musicOnAComputerHasNoJamToAskInto() {
+        fun activity(app: ActivityApp, onComputer: Boolean) = Activity(app, "Sitaare", "Arijit Singh", null, true, null, 0L, false, onComputer = onComputer)
+        assertTrue(RoomWording.canAsk(activity(ActivityApp.SPOTIFY, onComputer = false)))
+        assertFalse(RoomWording.canAsk(activity(ActivityApp.SPOTIFY, onComputer = true)))
+        // A PC's browser tab is still a watch party friends can ask to join.
+        assertTrue(RoomWording.canAsk(activity(ActivityApp.NETFLIX, onComputer = true)))
+    }
 
     @Test fun jamAppsAreMusicAndYouTube() {
         for (app in listOf(ActivityApp.SPOTIFY, ActivityApp.YOUTUBE_MUSIC, ActivityApp.AMAZON_MUSIC, ActivityApp.YOUTUBE)) {

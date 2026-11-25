@@ -2,6 +2,7 @@ package com.syncit.app.social
 
 import com.syncit.core.config.Brand
 import com.syncit.core.config.RoomLinks
+import com.syncit.core.model.Activity
 import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.JoinRequest
 import com.syncit.core.model.RoomInvite
@@ -17,6 +18,12 @@ object RoomWording {
     fun isJam(app: ActivityApp?): Boolean = app?.syncService?.isJam == true
 
     fun isJam(service: StreamingService?): Boolean = service?.isJam == true
+
+    /**
+     * There's a room to ask into: a watch party, or a jam on their phone. Music on their PC (Spotify
+     * desktop) has none, since jams run on phones; the friend sheet still offers "Open in Spotify".
+     */
+    fun canAsk(activity: Activity): Boolean = activity.app.joinable && !(activity.onComputer && isJam(activity.app))
 
     /** "jam" / "watch party". */
     fun roomNoun(jam: Boolean): String = if (jam) "jam" else "watch party"

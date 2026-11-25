@@ -56,3 +56,13 @@ test('a game shows as "Playing X"; Do not disturb when nothing else', () => {
   assert.equal(friendStatus({ ...base, dnd: true }, 10), 'Do not disturb')
   assert.equal(headerStatus({ ...base, game: { name: 'VALORANT', startedAt: 0 } }, 10), 'Playing VALORANT')
 })
+
+test("a PC's Spotify shows the song but offers no jam (jams run on phones)", () => {
+  const pc: Presence = {
+    online: true,
+    lastSeen: NOW,
+    activity: { app: 'spotify', title: 'Sitaare', subtitle: 'Arijit Singh', playing: true, durationMs: null, startedAt: NOW, inWatchParty: false, watchingWith: null, onComputer: true }
+  }
+  assert.equal(friendStatus(pc, NOW), 'Sitaare · Spotify')
+  assert.equal(friendAction(pc), null)
+})

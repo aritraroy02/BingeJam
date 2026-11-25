@@ -66,7 +66,8 @@ data class Presence(
  * [inWatchParty] is true while they're in a synced room for it. The room code itself is never
  * published (friends join only through "Ask to join", which the host approves). [startedAt] is
  * server time. [watchingWith]: the other room members' names ("Somesh and Ayan"), while
- * [inWatchParty]; display names are already visible to every signed-in user.
+ * [inWatchParty]; display names are already visible to every signed-in user. [onComputer]: read from
+ * a PC's devices/{id}/activity (its browser tab or Spotify desktop, 2026-11-25), not set on the wire.
  */
 class Activity(
     val app: ActivityApp,
@@ -78,15 +79,16 @@ class Activity(
     val startedAt: Long,
     val inWatchParty: Boolean,
     val watchingWith: String? = null,
+    val onComputer: Boolean = false,
 ) {
     override fun equals(other: Any?): Boolean =
         other is Activity && app == other.app && title == other.title && subtitle == other.subtitle &&
             playing == other.playing && durationMs == other.durationMs && startedAt == other.startedAt &&
             inWatchParty == other.inWatchParty && watchingWith == other.watchingWith &&
-            artworkJpeg.contentEquals(other.artworkJpeg)
+            onComputer == other.onComputer && artworkJpeg.contentEquals(other.artworkJpeg)
 
     override fun hashCode(): Int =
-        listOf(app, title, subtitle, playing, durationMs, startedAt, inWatchParty, watchingWith).hashCode() * 31 +
+        listOf(app, title, subtitle, playing, durationMs, startedAt, inWatchParty, watchingWith, onComputer).hashCode() * 31 +
             artworkJpeg.contentHashCode()
 
     override fun toString(): String =

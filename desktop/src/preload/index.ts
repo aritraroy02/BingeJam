@@ -14,6 +14,10 @@ const bridge: BingeJamBridge = {
     current: () => ipcRenderer.invoke('games:current'),
     onChange: (listener) => subscribe('games:current', listener)
   },
+  music: {
+    current: () => ipcRenderer.invoke('music:current'),
+    onChange: (listener) => subscribe('music:current', listener)
+  },
   desktop: {
     get: () => ipcRenderer.invoke('desktop:get'),
     setStartWithWindows: (on) => ipcRenderer.invoke('desktop:set-start-with-windows', on),

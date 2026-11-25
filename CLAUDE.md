@@ -27,6 +27,13 @@ polish, published 2026-11-23, reaches 0.1.3 installs as an in-app update; not in
 go-ahead) together with the website session's unslop pass (one main action per device: PC button on computers,
 store badge on Android).
 
+**Unreleased (2026-11-25, PC):** Streams tab removed (screen share lives in voice channels); sidebar "In a room ·
+Back to room · Leave" card + the chat's room card says "You're in the room" with Open room / Leave (End room when
+alone); **Spotify activity**: `src/main/music.ts` keeps a PowerShell helper (`musicScript.ts`) reading Windows media
+sessions every 3 s, Spotify's only, → devices/{id}/activity app `spotify` (no rules change); a running game hides the
+song; friends get no Jam button for PC music (`onComputer` in parse.ts / phone `Activity.onComputer`, phone code
+unreleased). web/privacy.html has a PC section (hosting not deployed).
+
 **PC in-app updates (2026-11-23, published as PC 0.1.3, `pc-v0.1.3`, user's go-ahead):** `src/main/updater.ts` checks the releases
 repo 15 s after start, every hour and on window focus after 15 min (was 6 h in 0.1.3/0.1.4) (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
 ignored; `src/shared/update.ts` + tests), downloads the installer in the background with `net.fetch` to

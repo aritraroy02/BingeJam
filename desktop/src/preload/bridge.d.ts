@@ -3,6 +3,7 @@ import type { BridgeMessage } from '@shared/player'
 import type { AddToBrowserResult, BrowserId, DetectedBrowser, ExtensionStatus, OverlayInput, OverlayState } from '@shared/extension'
 import type { DesktopPrefs, GlobalShortcutId, MiniAction, MiniRoomState, NotifyRequest } from '@shared/desktop'
 import type { ScreenSource } from '@shared/screen'
+import type { NowPlaying } from '@shared/music'
 import type { UpdateState } from '@shared/update'
 
 export interface BingeJamBridge {
@@ -28,6 +29,11 @@ export interface BingeJamBridge {
   games: {
     current(): Promise<{ name: string; since: number } | null>
     onChange(listener: (game: { name: string; since: number } | null) => void): () => void
+  }
+  /** The song playing in Spotify on this PC (src/main/music.ts), for "Listening to … on Spotify". */
+  music: {
+    current(): Promise<NowPlaying | null>
+    onChange(listener: (song: NowPlaying | null) => void): () => void
   }
   /** The bingejam:// link the app was started with (once; null afterwards). */
   takeDeepLink(): Promise<string | null>

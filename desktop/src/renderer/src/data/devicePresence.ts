@@ -157,7 +157,7 @@ export async function setInvisible(invisible: boolean, uid: string | null = want
 // ---------- What this PC is playing (devices/{id}/activity) ----------
 
 export interface DeviceActivity {
-  app: 'netflix' | 'jiohotstar' | 'primevideo' | 'youtube'
+  app: 'netflix' | 'jiohotstar' | 'primevideo' | 'youtube' | 'spotify'
   title: string | null
   subtitle: string | null
   playing: boolean
