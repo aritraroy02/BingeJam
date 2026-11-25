@@ -136,6 +136,30 @@ class UserProfileViewModel(val uid: String, private val container: AppContainer)
         _notice.value = if (block) "Reported and blocked" else "Thanks. Your report was sent."
     }
 
+    /** Titles you watched together (the watched-together cards in your chat), newest first. */
+    val watchedTogether: StateFlow<List<com.syncit.core.model.WatchedTogether>> = social.dms.observe(uid)
+        .map { list -> list.mapNotNull { it.watched }.reversed().distinctBy { com.syncit.app.social.WatchTogether.headline(it) }.take(8) }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _asked = MutableStateFlow(false)
+    val asked: StateFlow<Boolean> = _asked.asStateFlow()
+
+    /** Ask to join what they're watching (2026-11-25 redesign: right on their profile). */
+    fun askToJoin(activity: com.syncit.core.model.Activity) {
+        if (_asked.value) return
+        _asked.value = true
+        act("Couldn't ask to join") {
+            try {
+                social.watchInvites.requestToJoin(uid, activity.app, activity.title)
+                _notice.value = "Asked to join"
+            } catch (e: Exception) {
+                _asked.value = false
+                throw e
+            }
+        }
+    }
+
     fun dismissNotice() {
         _notice.value = null
     }
@@ -159,6 +183,8 @@ class UserProfileViewModel(val uid: String, private val container: AppContainer)
 
 @Composable
 fun UserProfileScreen(viewModel: UserProfileViewModel, onBack: () -> Unit, onMessage: (uid: String) -> Unit) {
+    val watched by viewModel.watchedTogether.collectAsStateWithLifecycle()
+    val asked by viewModel.asked.collectAsStateWithLifecycle()
     val p = Glass.palette
     val state by viewModel.state.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
@@ -225,11 +251,19 @@ fun UserProfileScreen(viewModel: UserProfileViewModel, onBack: () -> Unit, onMes
                             color = p.textTertiary,
                             textAlign = TextAlign.Center,
                         )
-                        f.presence?.activity?.let { activity ->
-                            GlassPanel(Modifier.fillMaxWidth()) {
+                        ActivityText.visibleActivity(f.presence)?.let { activity ->
+                            GlassPanel(Modifier.fillMaxWidth(), spacing = 12.dp) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    ActivityThumb(activity, size = 40.dp)
+                                    ActivityThumb(activity, size = 56.dp)
                                     Text(ActivityText.activityLine(activity), style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
+                                }
+                                if (com.syncit.app.social.RoomWording.canAsk(activity)) {
+                                    GlassButton(
+                                        if (asked) "Asked" else com.syncit.app.social.RoomWording.askLabel(com.syncit.app.social.RoomWording.isJam(activity.app), false),
+                                        onClick = { viewModel.askToJoin(activity) },
+                                        enabled = !asked,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
                                 }
                             }
                         }
@@ -247,6 +281,21 @@ fun UserProfileScreen(viewModel: UserProfileViewModel, onBack: () -> Unit, onMes
                                 GlassButton("Unblock", onClick = viewModel::unblock, style = GlassButtonStyle.Secondary, loading = busy, modifier = Modifier.fillMaxWidth())
                             UserProfileViewModel.Relation.NONE ->
                                 GlassButton("Add friend", onClick = viewModel::add, loading = busy, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    if (watched.isNotEmpty()) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            com.syncit.app.ui.glass.SectionLabel("Watched together")
+                            GlassPanel(Modifier.fillMaxWidth(), spacing = 8.dp) {
+                                for (card in watched) {
+                                    Text(
+                                        com.syncit.app.social.WatchTogether.headline(card).removePrefix("Watched ").removePrefix("Listened to ").removeSuffix(" together"),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = p.textPrimary,
+                                        maxLines = 1,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
