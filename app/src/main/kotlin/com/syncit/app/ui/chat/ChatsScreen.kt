@@ -1,5 +1,18 @@
 package com.syncit.app.ui.chat
 
+import com.syncit.app.ui.social.ActivityThumb
+import com.syncit.app.ui.glass.GlassChip
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.LazyRow
 import android.text.format.DateFormat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -109,6 +122,32 @@ data class ChatRow(val friend: Friend, val last: DirectMessage, val unread: Int)
 /** One group in the Chats list; [last] null = no messages yet; [inRoom] = people in its room now. */
 data class GroupRow(val group: Group, val last: DirectMessage?, val unread: Int, val inRoom: Int)
 
+/** "Watching now" at the top of Chats: a friend playing something, or a group's live room. */
+sealed interface WatchingCard {
+    val key: String
+
+    data class FriendWatching(val friend: Friend, val activity: com.syncit.core.model.Activity) : WatchingCard {
+        override val key get() = "f:${friend.profile.uid}"
+    }
+
+    data class GroupLive(val group: Group, val inRoom: Int) : WatchingCard {
+        override val key get() = "g:${group.id}"
+    }
+}
+
+/** Chats filter chips (2026-11-25 redesign). */
+enum class ChatFilter(val label: String) { ALL("All"), UNREAD("Unread"), GROUPS("Groups"), LIVE("Live") }
+
+internal fun ChatEntry.matches(filter: ChatFilter): Boolean = when (filter) {
+    ChatFilter.ALL -> true
+    ChatFilter.UNREAD -> when (this) {
+        is ChatEntry.Dm -> row.unread > 0
+        is ChatEntry.Grp -> row.unread > 0
+    }
+    ChatFilter.GROUPS -> this is ChatEntry.Grp
+    ChatFilter.LIVE -> this is ChatEntry.Grp && row.inRoom > 0
+}
+
 /** Chats tab entries: 1:1 chats and groups together, newest first. */
 sealed interface ChatEntry {
     val key: String
@@ -181,6 +220,34 @@ class ChatsViewModel(container: AppContainer) : ViewModel() {
     }
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _filter = MutableStateFlow(ChatFilter.ALL)
+    val filter: StateFlow<ChatFilter> = _filter.asStateFlow()
+
+    fun setFilter(value: ChatFilter) {
+        _filter.value = value
+    }
+
+    /** The rows the chips let through. */
+    val shown: StateFlow<List<ChatEntry>?> = combine(rows, _filter) { list, f -> list?.filter { it.matches(f) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Friends playing something right now (online), then groups with a live room. */
+    val watching: StateFlow<List<WatchingCard>> = combine(friends, myGroups, roomCounts) { list, grps, rooms ->
+        val playing = list.orEmpty().mapNotNull { f ->
+            com.syncit.app.social.ActivityText.visibleActivity(f.presence)?.let { WatchingCard.FriendWatching(f, it) }
+        }.sortedByDescending { it.activity.startedAt }
+        val live = grps.mapNotNull { g -> rooms[g.id]?.takeIf { it > 0 }?.let { WatchingCard.GroupLive(g, it) } }
+        live + playing
+    }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Groups whose name contains the search. */
+    val groupMatches: StateFlow<List<Group>> = combine(myGroups, _query) { list, q ->
+        val t = q.trim().lowercase()
+        if (t.isEmpty()) emptyList() else list.filter { it.name.lowercase().contains(t) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val invites: StateFlow<List<GroupInvite>> = groups.observeInvites()
         .catch { emit(emptyList()) }
@@ -257,7 +324,11 @@ fun ChatsScreen(
     onViewProfile: ((uid: String) -> Unit)? = null,
 ) {
     val p = Glass.palette
-    val rows by viewModel.rows.collectAsStateWithLifecycle()
+    val rows by viewModel.shown.collectAsStateWithLifecycle()
+    val allRows by viewModel.rows.collectAsStateWithLifecycle()
+    val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val watching by viewModel.watching.collectAsStateWithLifecycle()
+    val groupMatches by viewModel.groupMatches.collectAsStateWithLifecycle()
     val invites by viewModel.invites.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val matches by viewModel.matches.collectAsStateWithLifecycle()
@@ -280,7 +351,11 @@ fun ChatsScreen(
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             GlassTopBar(title = "Chats", actions = {
                 Box {
-                    GlassIconButton(Icons.Filled.Add, if (friendRequests > 0) "New, $friendRequests friend requests" else "New", { plusOpen = true })
+                    GlassIconButton(
+                        ImageVector.vectorResource(R.drawable.ic_tab_add_friend),
+                        if (friendRequests > 0) "Add friends, $friendRequests friend requests" else "Add friends",
+                        onAddFriends,
+                    )
                     if (friendRequests > 0) {
                         Box(Modifier.align(Alignment.TopEnd).size(8.dp).clip(CircleShape).background(p.danger))
                     }
@@ -289,7 +364,7 @@ fun ChatsScreen(
             GlassTextField(
                 value = query,
                 onValueChange = viewModel::onQueryChange,
-                placeholder = "Search friends",
+                placeholder = "Search chats and friends",
                 leadingIcon = Icons.Filled.Search,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Search),
                 trailing = if (query.isNotEmpty()) {
@@ -301,28 +376,54 @@ fun ChatsScreen(
             )
             val list = rows
             when {
-                query.isNotBlank() -> SearchResults(matches, bottom, onOpenChat)
+                query.isNotBlank() -> SearchResults(matches, groupMatches, bottom, onOpenChat, onOpenGroup, onAddFriends)
 
                 list == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = p.accent)
                 }
 
-                list.isEmpty() && invites.isEmpty() -> Box(
-                    Modifier.fillMaxSize().navigationBarsPadding().padding(bottom = bottom).padding(32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "No chats yet. Tap + to add friends or start a group.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = p.textSecondary,
-                    )
-                }
+                allRows?.isEmpty() == true && invites.isEmpty() && watching.isEmpty() -> FirstChat(
+                    bottom = bottom,
+                    onInvite = onInvite,
+                    onAddFriends = onAddFriends,
+                    onNewGroup = onNewGroup,
+                )
 
                 else -> LazyColumn(
                     Modifier.fillMaxSize().navigationBarsPadding(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + bottom),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp + bottom),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    // What friends are watching right now: tap a friend for their profile (Ask to join), a group to open it.
+                    if (watching.isNotEmpty()) {
+                        item(key = "watching") {
+                            WatchingStrip(
+                                watching,
+                                onFriend = { uid -> if (onViewProfile != null) onViewProfile(uid) else profileUid = uid },
+                                onGroup = onOpenGroup,
+                            )
+                        }
+                    }
+                    item(key = "filters") {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (f in ChatFilter.entries) GlassChip(f.label, onClick = { viewModel.setFilter(f) }, selected = filter == f)
+                        }
+                    }
+                    if (list.isEmpty()) {
+                        item(key = "none") {
+                            Text(
+                                when (filter) {
+                                    ChatFilter.UNREAD -> "You're all caught up"
+                                    ChatFilter.GROUPS -> "No groups yet"
+                                    ChatFilter.LIVE -> "No rooms live right now"
+                                    ChatFilter.ALL -> "No chats yet"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = p.textSecondary,
+                                modifier = Modifier.padding(vertical = 24.dp, horizontal = 4.dp),
+                            )
+                        }
+                    }
                     items(invites, key = { "invite:${it.groupId}" }) { invite ->
                         InviteCard(invite, onJoin = { viewModel.accept(invite, onOpenGroup) }, onDecline = { viewModel.decline(invite) })
                     }
@@ -344,6 +445,23 @@ fun ChatsScreen(
                     }
                 }
             }
+        }
+        // "New chat" in thumb reach: Add friends, Invite link, New group.
+        Row(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(end = 20.dp, bottom = bottom + 16.dp)
+                .shadow(6.dp, RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .background(p.textPrimary)
+                .clickable(role = Role.Button, onClickLabel = "New chat") { plusOpen = true }
+                .padding(start = 14.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Edit, null, tint = p.base, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("New chat", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = p.base)
         }
         // Our own notices first, then the friend sheet's (Ask to join, Start a room...).
         val shown = notice ?: homeUi.message
@@ -488,61 +606,173 @@ private fun ChatRowMenuSheet(entry: ChatEntry, visible: Boolean, onDismiss: () -
 @Composable
 private fun InviteCard(invite: GroupInvite, onJoin: () -> Unit, onDecline: () -> Unit) {
     val p = Glass.palette
-    GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), spacing = 12.dp) {
-        Text(
-            "${invite.fromName.ifBlank { "A friend" }} invited you to ${invite.groupName}",
-            style = MaterialTheme.typography.titleSmall,
-            color = p.textPrimary,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Avatar(invite.groupName, size = 40.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("${invite.groupName} invited you", style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("From ${invite.fromName.ifBlank { "a friend" }}", style = MaterialTheme.typography.bodySmall, color = p.textSecondary, maxLines = 1)
+            }
             GlassSmallButton("Join", onClick = onJoin)
-            GlassSmallButton("Decline", onClick = onDecline, primary = false)
+            GlassIconButton(Icons.Filled.Close, "Decline", onDecline, plain = true)
         }
     }
 }
 
-/** Friends matching the search; tap to open (or start) the chat. */
+/** Friends playing something and live group rooms, as small poster cards (the chat's main moment). */
 @Composable
-private fun SearchResults(matches: List<Friend>, bottom: Dp, onOpenChat: (String) -> Unit) {
+private fun WatchingStrip(cards: List<WatchingCard>, onFriend: (String) -> Unit, onGroup: (String) -> Unit) {
     val p = Glass.palette
-    if (matches.isEmpty()) {
-        Text(
-            "No friends match that",
-            style = MaterialTheme.typography.bodyMedium,
-            color = p.textSecondary,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-        )
-        return
-    }
-    LazyColumn(
-        Modifier.fillMaxSize().imePadding().navigationBarsPadding(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + bottom),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(matches, key = { it.profile.uid }) { friend ->
-            GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(12.dp), onClick = { onOpenChat(friend.profile.uid) }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(
-                        friend.profile.displayName,
-                        size = 44.dp,
-                        online = friend.presence?.online == true,
-                        photoUrl = friend.profile.photoUrl,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            friend.profile.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = p.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text("@${friend.profile.username}", style = MaterialTheme.typography.bodySmall, color = p.textSecondary, maxLines = 1)
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Text("Watching now", style = MaterialTheme.typography.labelLarge, color = p.textSecondary, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(cards, key = { it.key }) { card ->
+                Column(
+                    Modifier
+                        .width(136.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(p.surface)
+                        .border(1.dp, p.hairline, RoundedCornerShape(16.dp))
+                        .clickable {
+                            when (card) {
+                                is WatchingCard.FriendWatching -> onFriend(card.friend.profile.uid)
+                                is WatchingCard.GroupLive -> onGroup(card.group.id)
+                            }
+                        },
+                ) {
+                    when (card) {
+                        is WatchingCard.FriendWatching -> {
+                            Box(Modifier.fillMaxWidth().height(76.dp)) {
+                                ActivityThumb(card.activity, modifier = Modifier.fillMaxSize(), size = 136.dp)
+                                Text(
+                                    card.activity.app.displayName,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = Color.White,
+                                    modifier = Modifier.padding(8.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                            Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Avatar(card.friend.profile.displayName, size = 24.dp, photoUrl = card.friend.profile.photoUrl)
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(card.friend.profile.displayName.substringBefore(' '), style = MaterialTheme.typography.labelMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(card.activity.title ?: card.activity.app.displayName, style = MaterialTheme.typography.labelSmall, color = p.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                        is WatchingCard.GroupLive -> {
+                            Box(Modifier.fillMaxWidth().height(76.dp).background(p.raised), contentAlignment = Alignment.Center) {
+                                SyncDots(size = 10.dp)
+                            }
+                            Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Avatar(card.group.name, size = 24.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(card.group.name, style = MaterialTheme.typography.labelMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("Room live · ${card.inRoom} in", style = MaterialTheme.typography.labelSmall, color = p.success, maxLines = 1)
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/** No chats yet: what chats are for, and the three ways in. */
+@Composable
+private fun FirstChat(bottom: Dp, onInvite: () -> Unit, onAddFriends: () -> Unit, onNewGroup: () -> Unit) {
+    val p = Glass.palette
+    Column(
+        Modifier.fillMaxSize().navigationBarsPadding().padding(bottom = bottom).padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(width = 100.dp, height = 64.dp).clip(RoundedCornerShape(12.dp)).background(p.surface).border(1.dp, p.hairline, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) { SyncDots(size = 10.dp) }
+        Spacer(Modifier.height(20.dp))
+        Text("Watch with your first friend", style = MaterialTheme.typography.titleLarge, color = p.textPrimary)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Chats are where watch parties start. Add a friend, then press play together.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = p.textSecondary,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(24.dp))
+        GlassPanel(Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 4.dp), spacing = 0.dp) {
+            GlassRow("Send your invite link", subtitle = "Whoever opens it becomes your friend", icon = ImageVector.vectorResource(R.drawable.ic_qr_code), onClick = onInvite)
+            GlassRow("Find by username", subtitle = "Their exact @username", icon = Icons.Filled.Search, onClick = onAddFriends)
+            GlassRow("Start a group", subtitle = "Chat and watch with several friends", icon = Icons.Filled.Add, onClick = onNewGroup)
+        }
+    }
+}
+
+/** Friends and groups matching the search; nothing matches → find someone by username. */
+@Composable
+private fun SearchResults(
+    matches: List<Friend>,
+    groups: List<Group>,
+    bottom: Dp,
+    onOpenChat: (String) -> Unit,
+    onOpenGroup: (String) -> Unit,
+    onAddFriends: () -> Unit,
+) {
+    val p = Glass.palette
+    LazyColumn(
+        Modifier.fillMaxSize().imePadding().navigationBarsPadding(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + bottom),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (matches.isNotEmpty()) item(key = "friends-label") { SearchLabel("Friends") }
+        items(matches, key = { "f:${it.profile.uid}" }) { friend ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onOpenChat(friend.profile.uid) }.padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Avatar(friend.profile.displayName, size = 44.dp, online = friend.presence?.online == true, photoUrl = friend.profile.photoUrl)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(friend.profile.displayName, style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        listOfNotNull("@${friend.profile.username}", com.syncit.app.social.ActivityText.visibleActivity(friend.presence)?.let { com.syncit.app.social.ActivityText.activityLine(it) }).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                GlassSmallButton("Message", onClick = { onOpenChat(friend.profile.uid) }, primary = false)
+            }
+        }
+        if (groups.isNotEmpty()) item(key = "groups-label") { SearchLabel("Groups") }
+        items(groups, key = { "g:${it.id}" }) { group ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onOpenGroup(group.id) }.padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Avatar(group.name, size = 44.dp)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(group.name, style = MaterialTheme.typography.titleMedium, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${group.members.size} members", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
+                }
+            }
+        }
+        item(key = "find") {
+            SearchLabel("Not a friend yet?")
+            GlassRow("Find by username", subtitle = "Send a friend request", icon = Icons.Filled.Search, onClick = onAddFriends)
+        }
+    }
+}
+
+@Composable
+private fun SearchLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.labelLarge, color = Glass.palette.textSecondary, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
 }
 
 @Composable
@@ -575,7 +805,7 @@ private fun ChatRowView(row: ChatRow, myUid: String?, onClick: () -> Unit, onLon
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         row.friend.profile.displayName,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Medium),
                         color = p.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -638,7 +868,7 @@ private fun GroupRowView(row: GroupRow, myUid: String?, onClick: () -> Unit, onL
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         row.group.name,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Medium),
                         color = p.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -652,7 +882,7 @@ private fun GroupRowView(row: GroupRow, myUid: String?, onClick: () -> Unit, onL
                     if (row.inRoom > 0) {
                         SyncDots()
                         Spacer(Modifier.width(8.dp))
-                        Text("Live · ${row.inRoom}", style = MaterialTheme.typography.labelMedium, color = p.textPrimary)
+                        Text("Room live · ${row.inRoom} in", style = MaterialTheme.typography.labelMedium, color = p.textPrimary)
                         Spacer(Modifier.width(8.dp))
                     }
                     val last = row.last
@@ -680,7 +910,11 @@ private fun UnreadBadge(count: Int) {
     val p = Glass.palette
     Spacer(Modifier.width(8.dp))
     Box(
-        Modifier.clip(CircleShape).background(p.accent).padding(horizontal = 8.dp, vertical = 2.dp),
+        Modifier
+            .clip(CircleShape)
+            .background(p.accent)
+            .semantics { contentDescription = if (count == 1) "1 unread message" else "$count unread messages" }
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
