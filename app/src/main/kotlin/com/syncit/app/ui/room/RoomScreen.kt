@@ -1,5 +1,10 @@
 package com.syncit.app.ui.room
 
+import com.syncit.app.ui.glass.Avatar
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.MoreVert
+import com.syncit.app.ui.glass.GlassBottomSheet
 import android.Manifest
 import android.content.ClipData
 import android.content.Intent
@@ -124,7 +129,8 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit,
     val chat by viewModel.chat.collectAsStateWithLifecycle()
     val reactions by viewModel.reactions.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    // People and sync tools in one sheet (2026-11-25 redesign: the room is one screen, no tabs).
+    var peopleOpen by rememberSaveable { mutableStateOf(false) }
     var confirmLeave by rememberSaveable { mutableStateOf(false) }
     // Rooms started from a trending title open straight on "Invite friends".
     var inviteOpen by rememberSaveable { mutableStateOf(startWithInvite) }
@@ -283,13 +289,17 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit,
                 )
             }
 
-            val online = currentRoom?.members?.count { it.online } ?: 0
-            GlassSegmented(
-                options = listOf("Chat", "People · $online", "Sync"),
-                selected = tab,
-                onSelect = { tab = it },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
+            // Everyone in the room and how far each is from the room's position; tap for the full
+            // list and the sync tools (title link, countdown, access).
+            if (currentRoom != null) {
+                PeopleStrip(
+                    room = currentRoom,
+                    myUid = myUid,
+                    serverNow = serverNow,
+                    onOpen = { peopleOpen = true },
+                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                )
+            }
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (currentRoom == null) {
@@ -302,34 +312,45 @@ fun RoomScreen(viewModel: RoomViewModel, onBack: () -> Unit, onLeft: () -> Unit,
                         Text("Connecting to room…", color = p.textSecondary)
                     }
                 } else {
-                    when (tab) {
-                        0 -> ChatTab(
-                            chat = chat,
-                            myUid = myUid,
-                            reactions = reactions,
-                            onSend = viewModel::sendChat,
-                            onReact = viewModel::sendReaction,
-                            serverNowMs = viewModel::serverNowMs,
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).navigationBarsPadding(),
-                        )
-                        1 -> PeopleTab(
-                            room = currentRoom,
-                            myUid = myUid,
-                            serverNow = serverNow,
-                            myEngineDriftMs = sync.driftMs,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        else -> SyncTab(
-                            room = currentRoom,
-                            service = roomService,
-                            sync = sync,
-                            isHost = currentRoom.hostUid == myUid,
-                            onResume = viewModel::enter,
-                            onStartCountdown = viewModel::startCountdown,
-                            onSaveTitle = viewModel::setTitle,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
+                    ChatTab(
+                        chat = chat,
+                        myUid = myUid,
+                        reactions = reactions,
+                        onSend = viewModel::sendChat,
+                        onReact = viewModel::sendReaction,
+                        serverNowMs = viewModel::serverNowMs,
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).navigationBarsPadding(),
+                    )
+                }
+            }
+        }
+
+        val sheetRoom = currentRoom
+        GlassBottomSheet(visible = peopleOpen && sheetRoom != null, onDismiss = { peopleOpen = false }) {
+            if (sheetRoom != null) {
+                Text(
+                    "People and sync",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = p.textPrimary,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                Box(Modifier.fillMaxWidth().heightIn(max = 260.dp)) {
+                    PeopleTab(room = sheetRoom, myUid = myUid, serverNow = serverNow, myEngineDriftMs = sync.driftMs, modifier = Modifier.fillMaxWidth())
+                }
+                Box(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
+                    SyncTab(
+                        room = sheetRoom,
+                        service = roomService,
+                        sync = sync,
+                        isHost = sheetRoom.hostUid == myUid,
+                        onResume = viewModel::enter,
+                        onStartCountdown = {
+                            peopleOpen = false
+                            viewModel.startCountdown()
+                        },
+                        onSaveTitle = viewModel::setTitle,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
@@ -745,3 +766,59 @@ private fun WaitingBanner(friend: RoomViewModel.WaitingFriend, onCancel: () -> U
 
 /** Statuses where this phone is already playing along with the room. */
 private val IN_SYNC = setOf(SyncStatus.SYNCING, SyncStatus.CORRECTING, SyncStatus.CATCHING_UP)
+
+/** The room's people in a row: avatar, first name, and "Host", "In sync" or how far they are. */
+@Composable
+private fun PeopleStrip(room: Room, myUid: String?, serverNow: Long, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val p = Glass.palette
+    val expected = room.state?.let { com.syncit.sync.PositionMath.roomExpectedPositionMs(it, serverNow) }
+    val people = room.members.filter { it.online }.sortedWith(compareBy({ it.uid != room.hostUid }, { it.uid != myUid }, { it.name.lowercase() }))
+    androidx.compose.foundation.lazy.LazyRow(
+        modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(people.size, key = { people[it].uid }) { i ->
+            val m = people[i]
+            val drift = expected?.let { e ->
+                com.syncit.sync.PositionMath.memberExpectedPositionMs(m, room.state?.status, serverNow, 15_000L)?.let { it - e }
+            }
+            val behind = drift != null && kotlin.math.abs(drift) > 1_500
+            Column(
+                Modifier.width(60.dp).clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "People and sync", onClick = onOpen).padding(vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Avatar(m.name, size = 40.dp, online = true)
+                Text(
+                    if (m.uid == myUid) "You" else m.name.substringBefore(' '),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = p.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    when {
+                        behind -> "%+d s".format(drift!! / 1000)
+                        m.uid == room.hostUid -> "Host"
+                        drift != null -> "In sync"
+                        else -> "Watching"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (behind) p.warning else p.success,
+                    maxLines = 1,
+                )
+            }
+        }
+        item(key = "more") {
+            Column(
+                Modifier.width(60.dp).clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "People and sync", onClick = onOpen).padding(vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(Modifier.size(40.dp).clip(CircleShape).background(p.raised), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.MoreVert, null, tint = p.textSecondary, modifier = Modifier.size(18.dp))
+                }
+                Text("Sync", style = MaterialTheme.typography.labelMedium, color = p.textSecondary)
+            }
+        }
+    }
+}
