@@ -43,8 +43,10 @@ LIVE flags, screen-share signals), a "Voice connected · <city> · N ms" bar, **
 ARM-only via abiFilters). Profile: status Online / Do not disturb / Invisible (DND = this phone's
 presence/devices/{id} entry with status dnd + silent pop-ups) and "What friends see" from our own presence. App
 reports: `staffDevices/{uid}/{deviceId}` {kind, name, os, app, at} written by phones and PCs, readable by owner and
-developers (developers now get the Users tab without emails); **rules change needs deploying** (emulator: 14 + 59
-cases pass). Privacy policy updated (not deployed). Manual checks: RUN_ON_MY_MACHINE.md P1-P10.
+developers (developers now get the Users tab without emails); emulator: 14 + 59 cases pass. **Deployed 2026-11-25
+(user's go-ahead): database rules, hosting (privacy + PC 0.1.7 links). PC 0.1.7 published** (`pc-v0.1.7`, not latest;
+profile card, Spotify, room card, device record; not installed on the main PC by the user's wish). Phone 0.7.2
+(versionCode 21) built and saved to the Desktop as BingeJam-0.7.2.apk; not uploaded to Indus. Manual checks: RUN_ON_MY_MACHINE.md P1-P10.
 
 **PC in-app updates (2026-11-23, published as PC 0.1.3, `pc-v0.1.3`, user's go-ahead):** `src/main/updater.ts` checks the releases
 repo 15 s after start, every hour and on window focus after 15 min (was 6 h in 0.1.3/0.1.4) (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
