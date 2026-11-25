@@ -48,6 +48,14 @@ developers (developers now get the Users tab without emails); emulator: 14 + 59 
 profile card, Spotify, room card, device record; not installed on the main PC by the user's wish). Phone 0.7.2
 (versionCode 21) built and saved to the Desktop as BingeJam-0.7.2.apk; not uploaded to Indus. Manual checks: RUN_ON_MY_MACHINE.md P1-P10.
 
+**Unreleased (2026-11-25, phone redesign, user's "do it" on design/phone-app + design/phone-chat):** tab labels; in-room
+bar shows title + position; Chats: Watching now strip, All/Unread/Groups/Live chips, inline invites, "New chat" button,
+group search; DM: pinned activity with Ask to join, Watch together button by the box, "Seen" (rule: a friend may read
+dmReads/{uid}/{friend}, emulator 8 cases), quote + 3-button message sheet; group channel strip; room = one screen
+(hero, people strip with offsets, chat; People and sync sheet); full-screen countdown; Home: live room hero, Friends
+watching, title search (relay GET /search, TMDB multi + IN providers, KV search:v1:<q>); friend profile Ask to join +
+Watched together; Watchlist filters. **Needs deploying: database rules (dmReads read) and relay (search).**
+
 **PC in-app updates (2026-11-23, published as PC 0.1.3, `pc-v0.1.3`, user's go-ahead):** `src/main/updater.ts` checks the releases
 repo 15 s after start, every hour and on window focus after 15 min (was 6 h in 0.1.3/0.1.4) (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
 ignored; `src/shared/update.ts` + tests), downloads the installer in the background with `net.fetch` to

@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BingeJam phone chat redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #0b0a09;
+    --base: #121110;
+    --surface: #1a1917;
+    --raised: #24221f;
+    --raised-2: #2c2a26;
+    --hair: rgba(239, 233, 222, 0.08);
+    --hair-2: rgba(239, 233, 222, 0.14);
+    --text: #efe9de;
+    --text-2: #aaa398;
+    --text-3: #948e84;
+    --accent: #c8102e;
+    --accent-text: #ff5468;
+    --live: #4cc38a;
+    --friend-a: #ff2e4d;
+    --friend-b: #ff7a45;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 400 14px/1.45 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .intro { max-width: 1120px; margin: 0 auto; padding: 48px 32px 16px; }
+  .intro h1 { font-size: 28px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .intro p { color: var(--text-2); margin: 0; max-width: 720px; }
+  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(392px, 1fr)); gap: 48px 32px; max-width: 1760px; margin: 0 auto; padding: 32px; }
+  .shot { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+  .shot h2 { font-size: 16px; font-weight: 500; margin: 0; align-self: stretch; padding: 0 16px; }
+  .notes { align-self: stretch; padding: 0 16px; margin: 0; color: var(--text-2); font-size: 13px; }
+  .notes li { margin: 4px 0; }
+
+  /* ---------- Phone ---------- */
+  .phone { position: relative; width: 360px; height: 780px; border-radius: 40px; background: var(--base); color: var(--text); border: 1px solid var(--hair-2); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
+  .status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; font-weight: 500; color: var(--text); }
+  .status .r { display: flex; gap: 6px; align-items: center; color: var(--text-2); }
+  .scroll { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  svg.i { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  svg.i.s { width: 16px; height: 16px; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Buttons */
+  .ibtn { width: 48px; height: 48px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: var(--text); background: transparent; border: 0; }
+  .ibtn.raised { background: var(--raised); border: 1px solid var(--hair); }
+  .pill-btn { height: 40px; padding: 0 14px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; font: 500 13px Inter, system-ui, sans-serif; color: var(--text); background: var(--raised); border: 1px solid var(--hair); white-space: nowrap; }
+  .pill-btn.primary { background: var(--text); color: var(--base); border-color: transparent; }
+  .pill-btn.go { background: var(--live); color: #0d1f16; border-color: transparent; }
+
+  /* Avatars */
+  .av { position: relative; flex: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 500; color: #f3e9dd; }
+  .av.s24 { width: 24px; height: 24px; font-size: 11px; }
+  .av.s32 { width: 32px; height: 32px; font-size: 13px; }
+  .av.s40 { width: 40px; height: 40px; font-size: 16px; }
+  .av.s48 { width: 48px; height: 48px; font-size: 19px; }
+  .av.s56 { width: 56px; height: 56px; font-size: 22px; }
+  .av .dot { position: absolute; right: -1px; bottom: -1px; width: 14px; height: 14px; border-radius: 50%; background: var(--live); border: 3px solid var(--base); }
+  .av .dot.dnd { background: #e5484d; }
+  .t1 { background: #7a4b2a; } .t2 { background: #2f5d50; } .t3 { background: #6b3a52; } .t4 { background: #3d4f7a; } .t5 { background: #5a5a2e; } .t6 { background: #4a3a6b; }
+  .grp { width: 48px; height: 48px; position: relative; flex: none; }
+  .grp .av { position: absolute; border: 2px solid var(--base); }
+  .grp .av:first-child { left: 0; top: 0; } .grp .av:last-child { right: 0; bottom: 0; }
+
+  /* Sync dots: the signature (two friends, one beat) */
+  .sync { display: inline-flex; gap: 3px; align-items: center; }
+  .sync i { width: 6px; height: 6px; border-radius: 50%; background: var(--friend-a); }
+  .sync i + i { background: var(--friend-b); }
+
+  /* Chats list */
+  .topbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px 8px 20px; }
+  .topbar h3 { flex: 1; margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -0.01em; }
+  .search { margin: 4px 16px 12px; height: 40px; border-radius: 12px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--text-3); }
+  .search.active { border-color: var(--hair-2); color: var(--text); }
+  .search .caret { width: 1px; height: 18px; background: var(--text); }
+  .label { font-size: 13px; font-weight: 500; color: var(--text-2); padding: 0 20px; margin: 8px 0; display: flex; justify-content: space-between; }
+  .label a { color: var(--text-3); font-weight: 400; text-decoration: none; }
+
+  .live-strip { display: flex; gap: 12px; padding: 0 16px 16px; overflow: hidden; }
+  .live-card { flex: none; width: 136px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); overflow: hidden; }
+  .poster { height: 76px; position: relative; display: flex; align-items: flex-end; padding: 8px; font-size: 12px; font-weight: 600; color: #fff; }
+  .p1 { background: linear-gradient(160deg, #3a1520, #8a2335); }
+  .p2 { background: linear-gradient(160deg, #10263a, #1e4f7a); }
+  .p3 { background: linear-gradient(160deg, #2b2410, #7a5b1e); }
+  .p4 { background: linear-gradient(160deg, #1d2e1a, #3f6b33); }
+  .poster .app { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(0,0,0,.55); }
+  .live-card .who { display: flex; align-items: center; gap: 8px; padding: 8px; font-size: 12px; color: var(--text-2); }
+  .live-card .who b { color: var(--text); font-weight: 500; }
+
+  .chips { display: flex; gap: 8px; padding: 0 16px 8px; }
+  .chip { height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); background: transparent; border: 1px solid var(--hair); }
+  .chip.on { color: var(--base); background: var(--text); border-color: transparent; }
+  .chip .n { color: var(--text-3); font-weight: 400; }
+  .chip.on .n { color: rgba(18,17,16,.6); }
+
+  .invite { margin: 4px 16px 8px; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; gap: 12px; }
+  .invite .tx { flex: 1; min-width: 0; font-size: 13px; color: var(--text-2); }
+  .invite .tx b { color: var(--text); font-weight: 500; display: block; }
+
+  .row { display: flex; align-items: center; gap: 12px; height: 72px; padding: 0 16px; }
+  .row .mid { flex: 1; min-width: 0; }
+  .row .name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .prev { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+  .row .prev.live { color: var(--text); }
+  .row .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 12px; color: var(--text-3); }
+  .row.unread .name { font-weight: 600; }
+  .row.unread .prev { color: var(--text); }
+  .count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+  .count.muted { background: var(--raised-2); color: var(--text-2); }
+
+  .fab { position: absolute; right: 20px; bottom: 100px; height: 48px; padding: 0 16px 0 14px; border-radius: 16px; background: var(--text); color: var(--base); display: flex; align-items: center; gap: 8px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  .tabbar { position: absolute; left: 24px; right: 24px; bottom: 16px; height: 60px; border-radius: 28px; background: rgba(26,25,23,.92); border: 1px solid var(--hair); display: flex; justify-content: space-around; align-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+  .tabbar .t { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-2); position: relative; }
+  .tabbar .t.on { background: var(--text); color: var(--base); }
+  .tabbar .t .count { position: absolute; top: 0; right: -2px; min-width: 20px; height: 20px; font-size: 11px; }
+
+  /* Conversation */
+  .chat-head { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; border-bottom: 1px solid var(--hair); }
+  .chat-head .who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
+  .chat-head .nm { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-head .st { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-head .st.on { color: var(--live); }
+
+  .pinned { margin: 12px 16px 4px; padding: 8px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; gap: 12px; }
+  .pinned .thumb { width: 44px; height: 60px; border-radius: 8px; flex: none; }
+  .pinned .tx { flex: 1; min-width: 0; font-size: 12px; color: var(--text-2); }
+  .pinned .tx b { display: block; font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .msgs { flex: 1; overflow: hidden; padding: 8px 16px; display: flex; flex-direction: column; gap: 4px; justify-content: flex-end; }
+  .day { align-self: center; font-size: 11px; color: var(--text-3); padding: 4px 10px; border-radius: 8px; background: var(--surface); margin: 8px 0; }
+  .b { max-width: 76%; padding: 8px 12px; border-radius: 18px; font-size: 15px; line-height: 1.4; background: var(--raised); align-self: flex-start; position: relative; }
+  .b.me { align-self: flex-end; background: var(--accent); color: #fff; }
+  .b.mid-l { border-bottom-left-radius: 6px; } .b.end-l { border-top-left-radius: 6px; }
+  .b.mid-r { border-bottom-right-radius: 6px; } .b.end-r { border-top-right-radius: 6px; }
+  .b.deleted { background: transparent; border: 1px dashed var(--hair-2); color: var(--text-3); font-style: normal; }
+  .meta { font-size: 11px; color: var(--text-3); margin: 0 4px 8px; }
+  .meta.r { align-self: flex-end; }
+  .sender { font-size: 12px; font-weight: 500; color: var(--text-2); margin: 8px 4px 2px; }
+  .watched { align-self: center; width: 88%; margin: 8px 0; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); display: flex; gap: 12px; padding: 8px; align-items: center; }
+  .watched .thumb { width: 40px; height: 56px; border-radius: 8px; flex: none; }
+  .watched .tx { font-size: 12px; color: var(--text-2); }
+  .watched .tx b { display: block; font-size: 13px; font-weight: 500; color: var(--text); }
+  .typing { align-self: flex-start; display: flex; gap: 4px; padding: 12px; border-radius: 18px; background: var(--raised); }
+  .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
+  .event { align-self: center; font-size: 12px; color: var(--text-3); margin: 6px 0; display: flex; align-items: center; gap: 6px; }
+
+  .composer { padding: 8px 12px 16px; display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid var(--hair); background: var(--base); }
+  .field { flex: 1; min-height: 44px; border-radius: 22px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; padding: 0 16px; color: var(--text-3); font-size: 14px; }
+  .send { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+  .send.off { background: var(--raised); color: var(--text-3); }
+  .watch-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--raised); border: 1px solid var(--hair); color: var(--text); display: flex; align-items: center; justify-content: center; flex: none; }
+
+  /* Group: channel strip */
+  .strip { display: flex; gap: 8px; padding: 8px 16px; overflow: hidden; border-bottom: 1px solid var(--hair); }
+  .ch { height: 36px; padding: 0 10px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-2); border: 1px solid var(--hair); white-space: nowrap; flex: none; }
+  .ch.on { background: var(--raised); color: var(--text); border-color: var(--hair-2); }
+  .ch .hash { color: var(--text-3); font-weight: 400; }
+  .ch .ud { width: 6px; height: 6px; border-radius: 50%; background: var(--text); }
+  .ch.voice { color: var(--text); }
+  .ch.voice .stack { display: inline-flex; }
+  .ch.voice .stack .av { margin-left: -6px; border: 2px solid var(--base); }
+  .ch.voice .stack .av:first-child { margin-left: 0; }
+  .room-bar { margin: 8px 16px 0; padding: 10px 12px; border-radius: 14px; background: rgba(76,195,138,.10); border: 1px solid rgba(76,195,138,.22); display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .room-bar .tx { flex: 1; min-width: 0; }
+  .room-bar b { font-weight: 500; }
+  .room-bar .sub { color: var(--text-2); font-size: 12px; }
+
+  /* Sheets */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 24px 24px 0 0; background: var(--surface); border-top: 1px solid var(--hair-2); padding: 8px 16px 24px; }
+  .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--hair-2); margin: 0 auto 12px; }
+  .sheet h4 { margin: 4px 4px 12px; font-size: 18px; font-weight: 500; }
+  .sec { font-size: 13px; font-weight: 500; color: var(--text-2); margin: 16px 4px 4px; display: flex; justify-content: space-between; align-items: center; }
+  .item { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 8px; border-radius: 12px; font-size: 15px; color: var(--text-2); }
+  .item.on { background: var(--raised); color: var(--text); }
+  .item .grow { flex: 1; }
+  .item .ud { width: 8px; height: 8px; border-radius: 50%; background: var(--text); }
+  .item.bold { color: var(--text); font-weight: 500; }
+  .people { padding: 0 8px 4px 44px; display: flex; flex-direction: column; gap: 6px; }
+  .person { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+  .live-badge { font-size: 11px; font-weight: 600; color: #fff; background: #d6304a; padding: 1px 5px; border-radius: 4px; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .act { height: 72px; border-radius: 16px; background: var(--raised); border: 1px solid var(--hair); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: var(--text); }
+  .act.danger { color: var(--accent-text); }
+  .quote { margin: 0 4px 12px; padding: 10px 12px; border-radius: 14px; background: var(--raised); font-size: 14px; }
+  .quote small { display: block; color: var(--text-3); font-size: 11px; margin-top: 4px; }
+
+  /* Voice channel */
+  .stage { margin: 8px 16px 0; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; position: relative; }
+  .stage .game { position: absolute; inset: 0; background: linear-gradient(180deg, #1d2633 0%, #2d3a44 55%, #3b3226 56%, #1c1712 100%); }
+  .stage .crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px; border: 2px solid rgba(255,255,255,.85); border-radius: 50%; }
+  .stage .hud { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: rgba(255,255,255,.8); font-weight: 600; }
+  .stage .tag { position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; align-items: center; font-size: 12px; color: #fff; }
+  .stage .full { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 10px; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; color: #fff; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px; }
+  .tile { border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .tile .ring { padding: 3px; border-radius: 50%; border: 2px solid transparent; }
+  .tile .ring.talk { border-color: var(--live); }
+  .tile .nm { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+  .tile .nm svg { color: var(--text-3); }
+  .controls { margin-top: auto; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; border-top: 1px solid var(--hair); }
+  .server { font-size: 12px; color: var(--live); display: flex; align-items: center; gap: 6px; }
+  .round-row { display: flex; gap: 16px; }
+  .round { width: 56px; height: 56px; border-radius: 50%; background: var(--raised); border: 1px solid var(--hair); display: flex; align-items: center; justify-content: center; }
+  .round.on { background: var(--text); color: var(--base); }
+  .round.leave { background: #d6304a; color: #fff; border-color: transparent; }
+
+
+  .phone.light { --base: #f7f4ee; --surface: #fdfbf7; --raised: #efe9df; --raised-2: #e6dfd3; --hair: rgba(31,27,22,0.10); --hair-2: rgba(31,27,22,0.16); --text: #1f1b16; --text-2: #5e554a; --text-3: #6b6257; --accent-text: #b80f2b; --live: #15803d; }
+  .phone.light .b.me { color: #fff; }
+  .phone.light .pill-btn.go { color: #fff; }
+  .phone.light .av .dot { border-color: var(--base); }
+
+  /* Empty */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; text-align: center; }
+  .empty .art { width: 120px; height: 84px; position: relative; margin-bottom: 8px; }
+  .empty .art .screen { position: absolute; left: 10px; right: 10px; top: 0; height: 64px; border-radius: 10px; background: var(--surface); border: 1px solid var(--hair-2); display: flex; align-items: center; justify-content: center; }
+  .empty .art .seat { position: absolute; bottom: 0; width: 34px; height: 14px; border-radius: 8px 8px 4px 4px; background: var(--raised-2); }
+  .empty h5 { margin: 0; font-size: 18px; font-weight: 500; }
+  .empty p { margin: 0; color: var(--text-2); font-size: 14px; max-width: 260px; }
+  .suggest { text-align: left; align-self: stretch; margin-top: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); }
+  .suggest .row { height: 64px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5Z"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="m8 21 4-4 4 4"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4Z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8"/><path d="M22 21a7 7 0 0 0-5-6.7"/></symbol>
+  <symbol id="i-headset" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></symbol>
+  <symbol id="i-micoff" viewBox="0 0 24 24"><path d="M15 9.3V6a3 3 0 0 0-5.7-1.3"/><path d="M9 9v2a3 3 0 0 0 5.1 2.1"/><path d="M5 11a7 7 0 0 0 11.5 5.4"/><path d="M19 11a7 7 0 0 1-.3 2"/><path d="M12 18v3"/><path d="m3 3 18 18"/></symbol>
+  <symbol id="i-phoneoff" viewBox="0 0 24 24"><path d="M4 15.5c4.6-4.6 11.4-4.6 16 0l-2 2.5-3-1.5v-2.2a10 10 0 0 0-6 0v2.2L6 18Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="m15 5 6 6-6 6"/><path d="M21 11H9a6 6 0 0 0-6 6v2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M6 10v4M10 7v10M14 9v6M18 11v2"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+</svg>
+
+<header class="intro">
+  <h1>Chat, redesigned</h1>
+  <p>BingeJam's chat is where watch parties start, so every screen puts "watch together" one thumb away and shows what friends are watching right now. Same warm dark palette, Inter, one cinema red. The red-and-orange sync dots stay the only "in sync" mark. Nothing is built yet: tell me what to keep or change.</p>
+</header>
+
+<main class="board">
+
+<!-- 1. Chats list -->
+<section class="shot">
+  <h2>1 · Chats</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:04</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="scroll">
+      <div class="topbar"><h3>Chats</h3><button class="ibtn raised" aria-label="Add friends"><svg class="i"><use href="#i-users"/></svg></button></div>
+      <div class="search"><svg class="i s"><use href="#i-search"/></svg>Search chats and friends</div>
+      <div class="label"><span>Watching now</span><a>3 friends</a></div>
+      <div class="live-strip">
+        <div class="live-card"><div class="poster p1"><span class="app">Netflix</span>Midnight Signal</div><div class="who"><span class="av s24 t1">R</span><span><b>Riya</b> · S2:E4</span></div></div>
+        <div class="live-card"><div class="poster p2"><span class="app">Room · 3</span>Dune: Part Two</div><div class="who"><span class="sync"><i></i><i></i></span><span><b>Movie Night</b></span></div></div>
+        <div class="live-card"><div class="poster p4"><span class="app">Spotify</span>Sitaare</div><div class="who"><span class="av s24 t2">K</span><span><b>Kabir</b></span></div></div>
+      </div>
+      <div class="chips"><span class="chip on">All</span><span class="chip">Unread <span class="n tabular">3</span></span><span class="chip">Groups</span><span class="chip">Live</span></div>
+      <div class="invite"><div class="grp" style="width:40px;height:40px"><span class="av s32 t6">G</span></div><div class="tx"><b>Saturday Horror invited you</b>Meera added you · 5 members</div><span class="pill-btn primary">Join</span></div>
+      <div class="row unread"><div class="grp"><span class="av s32 t3">M</span><span class="av s32 t4">Z</span></div><div class="mid"><div class="name">Movie Night</div><div class="prev live"><span class="sync"><i></i><i></i></span>Room live · 3 in · Dune</div></div><div class="side"><span class="tabular">21:02</span><span class="count tabular">4</span></div></div>
+      <div class="row unread"><span class="av s48 t1">R<span class="dot"></span></span><div class="mid"><div class="name">Riya Sen</div><div class="prev">Starting episode 4, hop in</div></div><div class="side"><span class="tabular">20:58</span><span class="count tabular">2</span></div></div>
+      <div class="row"><span class="av s48 t2">K<span class="dot"></span></span><div class="mid"><div class="name">Kabir Mehta</div><div class="prev">You: that ending though</div></div><div class="side"><span>Mon</span></div></div>
+      <div class="row"><span class="av s48 t5">A</span><div class="mid"><div class="name">Ananya Iyer</div><div class="prev"><svg class="i s"><use href="#i-tv"/></svg>Watched Kesari together · 2 h 18 min</div></div><div class="side"><span>Sun</span></div></div>
+    </div>
+    <div class="fab"><svg class="i"><use href="#i-pen"/></svg>New chat</div>
+    <div class="tabbar"><span class="t"><svg class="i"><use href="#i-tv"/></svg></span><span class="t on"><svg class="i"><use href="#i-chat"/></svg><span class="count tabular">3</span></span><span class="t"><svg class="i"><use href="#i-bookmark"/></svg></span><span class="t"><svg class="i"><use href="#i-user"/></svg></span></div>
+  </div>
+  <ul class="notes">
+    <li><b>Watching now</b> row: friends' posters and live rooms, one tap to ask or join (the chat's main moment)</li>
+    <li>Filters: All, Unread, Groups, Live</li>
+    <li>Group invites sit inline with Join; "New chat" moves to the thumb zone (opens Add friends, Invite link, New group)</li>
+    <li>Rows are one height (72), unread = heavier name + red count, live rooms show the sync dots</li>
+  </ul>
+</section>
+
+<!-- 2. Search -->
+<section class="shot">
+  <h2>2 · Search, never blank</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:04</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="scroll">
+      <div class="topbar" style="padding-left:8px"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><div class="search active" style="flex:1;margin:0"><svg class="i s"><use href="#i-search"/></svg><span>ri</span><span class="caret"></span></div></div>
+      <div class="label"><span>Friends</span></div>
+      <div class="row"><span class="av s40 t1">R<span class="dot"></span></span><div class="mid"><div class="name">Riya Sen</div><div class="prev">@riya · Watching Midnight Signal</div></div><span class="pill-btn">Message</span></div>
+      <div class="row"><span class="av s40 t6">R</span><div class="mid"><div class="name">Rishabh Das</div><div class="prev">@rish · Last seen 2 h ago</div></div><span class="pill-btn">Message</span></div>
+      <div class="label"><span>Messages</span></div>
+      <div class="row" style="height:64px"><div class="grp" style="width:40px;height:40px"><span class="av s32 t3">M</span></div><div class="mid"><div class="name" style="font-size:14px">Movie Night</div><div class="prev">Kabir: we should <span style="color:var(--text);font-weight:500">ri</span>ng in the new year with Dune</div></div><div class="side">Tue</div></div>
+      <div class="label"><span>Not a friend yet?</span></div>
+      <div class="row" style="height:56px"><span class="ibtn raised"><svg class="i"><use href="#i-user"/></svg></span><div class="mid"><div class="name" style="font-size:14px">Find @ri</div><div class="prev">Send a friend request by username</div></div></div>
+      <div class="label" style="margin-top:16px"><span>Recent</span><a>Clear</a></div>
+      <div style="display:flex;gap:8px;padding:0 16px;flex-wrap:wrap"><span class="chip"><svg class="i s"><use href="#i-clock"/></svg>Kabir</span><span class="chip"><svg class="i s"><use href="#i-clock"/></svg>Saturday Horror</span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>One search for friends, groups and messages; results in sections</li>
+    <li>Empty search shows Recent and friends online, never a blank page</li>
+    <li>"Find @name" sends a request when nobody matches</li>
+  </ul>
+</section>
+
+<!-- 3. DM -->
+<section class="shot">
+  <h2>3 · A chat with a friend</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:05</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="chat-head"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><div class="who"><span class="av s40 t1">R<span class="dot"></span></span><div style="min-width:0"><div class="nm">Riya Sen</div><div class="st on">Watching Midnight Signal · Netflix</div></div></div><button class="ibtn"><svg class="i"><use href="#i-more"/></svg></button></div>
+    <div class="pinned"><div class="thumb p1"></div><div class="tx"><b>Midnight Signal · S2:E4</b>Netflix · 24 min in</div><span class="pill-btn go"><svg class="i s"><use href="#i-play"/></svg>Ask to join</span></div>
+    <div class="msgs">
+      <div class="day">Yesterday</div>
+      <div class="watched"><div class="thumb p2"></div><div class="tx"><b>Watched Dune: Part Two together</b>2 h 46 min · Prime Video</div></div>
+      <div class="day">Today</div>
+      <div class="b mid-l">are you free tonight</div>
+      <div class="b end-l">I'm starting episode 4 in 10</div>
+      <div class="meta">20:52</div>
+      <div class="b me mid-r">yes, give me 5</div>
+      <div class="b me end-r">popcorn is in the microwave</div>
+      <div class="meta r">20:53 · Seen</div>
+      <div class="b deleted">This message was deleted</div>
+      <div class="typing"><i></i><i></i><i></i></div>
+    </div>
+    <div class="composer"><span class="watch-btn" title="Watch together"><svg class="i"><use href="#i-tv"/></svg></span><div class="field">Message Riya</div><span class="send off"><svg class="i"><use href="#i-send"/></svg></span></div>
+  </div>
+  <ul class="notes">
+    <li>Header status says what they're doing; their show is pinned with "Ask to join" (or "Join · 2" when there's a room)</li>
+    <li>Messages from one person stack with tight corners; time once per group; "Seen" on your last one</li>
+    <li>"Watch together" sits next to the message box, where your thumb already is: Start room or Join</li>
+    <li>"Watched … together" cards and day pills stay; deleted messages read as a quiet outline</li>
+  </ul>
+</section>
+
+<!-- 4. Message actions -->
+<section class="shot">
+  <h2>4 · Long-press a message</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:05</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="chat-head"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><div class="who"><span class="av s40 t1">R<span class="dot"></span></span><div><div class="nm">Riya Sen</div><div class="st on">Watching Midnight Signal · Netflix</div></div></div><button class="ibtn"><svg class="i"><use href="#i-more"/></svg></button></div>
+    <div class="msgs"><div class="b mid-l">are you free tonight</div><div class="b end-l">I'm starting episode 4 in 10</div><div class="b me mid-r">yes, give me 5</div></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="quote">popcorn is in the microwave<small class="tabular">You · 20:53 · Seen</small></div>
+      <div class="actions">
+        <div class="act"><svg class="i"><use href="#i-copy"/></svg>Copy</div>
+        <div class="act"><svg class="i"><use href="#i-fwd"/></svg>Forward</div>
+        <div class="act danger"><svg class="i"><use href="#i-trash"/></svg>Delete</div>
+      </div>
+      <p style="margin:12px 4px 0;font-size:12px;color:var(--text-3)">Delete asks: for you, or for everyone (your own messages)</p>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>The pressed message is quoted at the top so it's clear what you act on</li>
+    <li>Three big targets in thumb reach instead of a list</li><li>TalkBack users get the same Copy / Forward / Delete as actions on the message, no long press needed</li>
+  </ul>
+</section>
+
+<!-- 5. Group with channels -->
+<section class="shot">
+  <h2>5 · A group, with channels</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:06</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="chat-head"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><div class="who"><div class="grp" style="width:40px;height:40px"><span class="av s32 t3">M</span></div><div style="min-width:0"><div class="nm">Movie Night</div><div class="st">6 members · 3 in the room</div></div></div><button class="ibtn"><svg class="i"><use href="#i-more"/></svg></button></div>
+    <div class="strip">
+      <span class="ch on"><span class="hash">#</span>general</span>
+      <span class="ch"><span class="hash">#</span>movie-picks<span class="ud"></span></span>
+      <span class="ch voice"><svg class="i s"><use href="#i-headset"/></svg>Gaming<span class="stack"><span class="av s24 t1">R</span><span class="av s24 t2">K</span></span><span class="live-badge">LIVE</span></span>
+      <span class="ch" aria-label="All channels"><svg class="i s"><use href="#i-list"/></svg></span>
+    </div>
+    <div class="room-bar"><span class="sync"><i></i><i></i></span><div class="tx"><b>Room live · Dune: Part Two</b><div class="sub tabular">Riya, Kabir, Meera · 1:12:04</div></div><span class="pill-btn go">Join</span></div>
+    <div class="msgs">
+      <div class="event"><span class="sync"><i></i><i></i></span>Riya started a room · 20:40</div>
+      <div class="sender">Kabir</div>
+      <div class="b mid-l">joining from my phone</div>
+      <div class="b end-l">who's got snacks</div>
+      <div class="sender">Meera</div>
+      <div class="b">save me a seat</div>
+      <div class="b me">on my way</div>
+      <div class="meta r">21:05</div>
+    </div>
+    <div class="composer"><span class="watch-btn"><svg class="i"><use href="#i-tv"/></svg></span><div class="field">Message #general</div><span class="send off"><svg class="i"><use href="#i-send"/></svg></span></div>
+  </div>
+  <ul class="notes">
+    <li>Channels are a scrollable strip under the header: no sheet needed for the usual switch; unread dot; a list button at the end opens all channels</li>
+    <li>Voice channels show who's in and LIVE right in the strip; tap opens the voice screen</li>
+    <li>The live room is one compact bar with Join</li>
+  </ul>
+</section>
+
+<!-- 6. All channels -->
+<section class="shot">
+  <h2>6 · All channels</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:06</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="chat-head"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><div class="who"><div class="grp" style="width:40px;height:40px"><span class="av s32 t3">M</span></div><div><div class="nm">Movie Night</div><div class="st">6 members</div></div></div></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h4>Movie Night</h4>
+      <div class="sec"><span>Text channels</span><span class="ibtn" style="width:32px;height:32px"><svg class="i s"><use href="#i-plus"/></svg></span></div>
+      <div class="item on"><span style="color:var(--text-3)">#</span><span class="grow">general</span></div>
+      <div class="item bold"><span style="color:var(--text-3)">#</span><span class="grow">movie-picks</span><span class="ud"></span></div>
+      <div class="item"><span style="color:var(--text-3)">#</span><span class="grow">off-topic</span></div>
+      <div class="sec"><span>Voice channels</span><span class="ibtn" style="width:32px;height:32px"><svg class="i s"><use href="#i-plus"/></svg></span></div>
+      <div class="item"><svg class="i s"><use href="#i-headset"/></svg><span class="grow">General</span></div>
+      <div class="item bold"><svg class="i s"><use href="#i-headset"/></svg><span class="grow">Gaming</span><span class="tabular" style="font-size:12px;color:var(--text-3)">15:05</span></div>
+      <div class="people">
+        <div style="font-size:12px;color:var(--text-3)">Valorant ranked, then Dune</div>
+        <div class="person"><span class="av s24 t1">R</span>Riya Sen <span class="live-badge">LIVE</span></div>
+        <div class="person"><span class="av s24 t2">K</span>Kabir Mehta <svg class="i s"><use href="#i-micoff"/></svg></div>
+      </div>
+      <p style="margin:16px 4px 0;font-size:12px;color:var(--text-3)">Admins: long-press a channel to rename or delete it</p>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>The list button at the end of the channel strip (or a pull down) opens every channel, with who's in voice, status and timer</li><li>Admins add with +, and rename or delete from a channel's ⋯ button as well as a long press</li>
+  </ul>
+</section>
+
+<!-- 7. Voice channel -->
+<section class="shot">
+  <h2>7 · Voice channel, watching Go Live</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:07</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="chat-head" style="border:0"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><div class="who"><div style="min-width:0"><div class="nm">Gaming</div><div class="st tabular">Movie Night · 15:12</div></div></div><button class="ibtn"><svg class="i"><use href="#i-chat"/></svg></button></div>
+    <div style="padding:0 16px;font-size:13px;color:var(--text-2)">Valorant ranked, then Dune</div>
+    <div class="stage"><div class="game"></div><div class="crosshair"></div><div class="hud tabular">7 – 5 · 1:32</div><div class="tag"><span class="live-badge">LIVE</span>Riya</div><div class="full"><svg class="i s"><use href="#i-expand"/></svg></div></div>
+    <div class="tiles">
+      <div class="tile"><span class="ring talk"><span class="av s48 t1">R</span></span><span class="nm">Riya <svg class="i s" style="color:var(--live)" aria-label="Talking"><use href="#i-wave"/></svg><span class="live-badge">LIVE</span></span></div>
+      <div class="tile"><span class="ring"><span class="av s48 t2">K</span></span><span class="nm">Kabir <svg class="i s"><use href="#i-micoff"/></svg></span></div>
+      <div class="tile"><span class="ring talk"><span class="av s48 t5">A</span></span><span class="nm">You <svg class="i s" style="color:var(--live)" aria-label="Talking"><use href="#i-wave"/></svg></span></div>
+    </div>
+    <div class="controls">
+      <span class="server"><span class="sync"><i></i><i></i></span>Voice connected · Singapore · 42 ms</span>
+      <div class="round-row"><span class="round"><svg class="i"><use href="#i-mic"/></svg></span><span class="round"><svg class="i"><use href="#i-headset"/></svg></span><span class="round leave"><svg class="i"><use href="#i-phoneoff"/></svg></span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>The stream leads; people below with a green ring and a sound-wave mark when they talk (not colour alone)</li>
+    <li>Chat icon opens the group's text channel without leaving voice</li>
+    <li>Mute, deafen, leave at the bottom; server and ping right above</li>
+  </ul>
+</section>
+
+<!-- 8. Empty -->
+<section class="shot">
+  <h2>8 · First time, no chats</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:08</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="topbar"><h3>Chats</h3></div>
+    <div class="empty">
+      <div class="art"><div class="screen"><span class="sync"><i></i><i></i></span></div><div class="seat" style="left:18px"></div><div class="seat" style="right:18px"></div></div>
+      <h5>Watch with your first friend</h5>
+      <p>Chats are where watch parties start. Add a friend, then press play together.</p>
+      <div class="suggest">
+        <div class="row"><span class="ibtn raised"><svg class="i"><use href="#i-link"/></svg></span><div class="mid"><div class="name" style="font-size:14px">Send your invite link</div><div class="prev">Whoever opens it becomes your friend</div></div></div>
+        <div class="row"><span class="ibtn raised"><svg class="i"><use href="#i-search"/></svg></span><div class="mid"><div class="name" style="font-size:14px">Find by username</div><div class="prev">Their exact @username</div></div></div>
+        <div class="row"><span class="ibtn raised"><svg class="i"><use href="#i-users"/></svg></span><div class="mid"><div class="name" style="font-size:14px">Start a group</div><div class="prev">Chat and watch with several friends</div></div></div>
+      </div>
+    </div>
+    <div class="tabbar"><span class="t"><svg class="i"><use href="#i-tv"/></svg></span><span class="t on"><svg class="i"><use href="#i-chat"/></svg></span><span class="t"><svg class="i"><use href="#i-bookmark"/></svg></span><span class="t"><svg class="i"><use href="#i-user"/></svg></span></div>
+  </div>
+  <ul class="notes">
+    <li>Empty state explains what chats are for and offers the three real ways in</li>
+    <li>A small drawing of two seats facing one screen, with the sync dots</li>
+  </ul>
+</section>
+
+<!-- 9. Light -->
+<section class="shot">
+  <h2>9 · Light theme</h2>
+  <div class="phone light">
+    <div class="status"><span class="tabular">21:05</span><span class="r">5G ▮▮▮ 82%</span></div>
+    <div class="chat-head"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><div class="who"><span class="av s40 t1">R<span class="dot"></span></span><div style="min-width:0"><div class="nm">Riya Sen</div><div class="st on">Watching Midnight Signal · Netflix</div></div></div><button class="ibtn"><svg class="i"><use href="#i-more"/></svg></button></div>
+    <div class="pinned"><div class="thumb p1"></div><div class="tx"><b>Midnight Signal · S2:E4</b>Netflix · 24 min in</div><span class="pill-btn go"><svg class="i s"><use href="#i-play"/></svg>Ask to join</span></div>
+    <div class="msgs">
+      <div class="day">Yesterday</div>
+      <div class="watched"><div class="thumb p2"></div><div class="tx"><b>Watched Dune: Part Two together</b>2 h 46 min · Prime Video</div></div>
+      <div class="day">Today</div>
+      <div class="b mid-l">are you free tonight</div>
+      <div class="b end-l">I'm starting episode 4 in 10</div>
+      <div class="meta">20:52</div>
+      <div class="b me mid-r">yes, give me 5</div>
+      <div class="b me end-r">popcorn is in the microwave</div>
+      <div class="meta r">20:53 · Seen</div>
+      <div class="b deleted">This message was deleted</div>
+      <div class="typing"><i></i><i></i><i></i></div>
+    </div>
+    <div class="composer"><span class="watch-btn" title="Watch together"><svg class="i"><use href="#i-tv"/></svg></span><div class="field">Message Riya</div><span class="send off"><svg class="i"><use href="#i-send"/></svg></span></div>
+  </div>
+  <ul class="notes"><li>The same chat in the light theme (System / Light / Dark stays in Settings); every text colour checked at 4.5:1 or more</li></ul>
+</section>
+
+
+</main>
+</body>
+</html>

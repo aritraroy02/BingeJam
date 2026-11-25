@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BingeJam phone app redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #0b0a09;
+    --base: #121110;
+    --surface: #1a1917;
+    --raised: #24221f;
+    --raised-2: #2c2a26;
+    --hair: rgba(239, 233, 222, 0.08);
+    --hair-2: rgba(239, 233, 222, 0.14);
+    --text: #efe9de;
+    --text-2: #aaa398;
+    --text-3: #948e84;
+    --accent: #c8102e;
+    --accent-text: #ff5468;
+    --live: #4cc38a;
+    --friend-a: #ff2e4d;
+    --friend-b: #ff7a45;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 400 14px/1.45 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .intro { max-width: 1120px; margin: 0 auto; padding: 48px 32px 16px; }
+  .intro h1 { font-size: 28px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .intro p { color: var(--text-2); margin: 0; max-width: 720px; }
+  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(392px, 1fr)); gap: 48px 32px; max-width: 1760px; margin: 0 auto; padding: 32px; }
+  .shot { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+  .shot h2 { font-size: 16px; font-weight: 500; margin: 0; align-self: stretch; padding: 0 16px; }
+  .notes { align-self: stretch; padding: 0 16px; margin: 0; color: var(--text-2); font-size: 13px; }
+  .notes li { margin: 4px 0; }
+
+  /* ---------- Phone ---------- */
+  .phone { position: relative; width: 360px; height: 780px; border-radius: 40px; background: var(--base); color: var(--text); border: 1px solid var(--hair-2); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
+  .status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; font-weight: 500; color: var(--text); }
+  .status .r { display: flex; gap: 6px; align-items: center; color: var(--text-2); }
+  .scroll { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  svg.i { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  svg.i.s { width: 16px; height: 16px; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Buttons */
+  .ibtn { width: 48px; height: 48px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: var(--text); background: transparent; border: 0; }
+  .ibtn.raised { background: var(--raised); border: 1px solid var(--hair); }
+  .pill-btn { height: 40px; padding: 0 14px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; font: 500 13px Inter, system-ui, sans-serif; color: var(--text); background: var(--raised); border: 1px solid var(--hair); white-space: nowrap; }
+  .pill-btn.primary { background: var(--text); color: var(--base); border-color: transparent; }
+  .pill-btn.go { background: var(--live); color: #0d1f16; border-color: transparent; }
+
+  /* Avatars */
+  .av { position: relative; flex: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 500; color: #f3e9dd; }
+  .av.s24 { width: 24px; height: 24px; font-size: 11px; }
+  .av.s32 { width: 32px; height: 32px; font-size: 13px; }
+  .av.s40 { width: 40px; height: 40px; font-size: 16px; }
+  .av.s48 { width: 48px; height: 48px; font-size: 19px; }
+  .av.s56 { width: 56px; height: 56px; font-size: 22px; }
+  .av .dot { position: absolute; right: -1px; bottom: -1px; width: 14px; height: 14px; border-radius: 50%; background: var(--live); border: 3px solid var(--base); }
+  .av .dot.dnd { background: #e5484d; }
+  .t1 { background: #7a4b2a; } .t2 { background: #2f5d50; } .t3 { background: #6b3a52; } .t4 { background: #3d4f7a; } .t5 { background: #5a5a2e; } .t6 { background: #4a3a6b; }
+  .grp { width: 48px; height: 48px; position: relative; flex: none; }
+  .grp .av { position: absolute; border: 2px solid var(--base); }
+  .grp .av:first-child { left: 0; top: 0; } .grp .av:last-child { right: 0; bottom: 0; }
+
+  /* Sync dots: the signature (two friends, one beat) */
+  .sync { display: inline-flex; gap: 3px; align-items: center; }
+  .sync i { width: 6px; height: 6px; border-radius: 50%; background: var(--friend-a); }
+  .sync i + i { background: var(--friend-b); }
+
+  /* Chats list */
+  .topbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px 8px 20px; }
+  .topbar h3 { flex: 1; margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -0.01em; }
+  .search { margin: 4px 16px 12px; height: 40px; border-radius: 12px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--text-3); }
+  .search.active { border-color: var(--hair-2); color: var(--text); }
+  .search .caret { width: 1px; height: 18px; background: var(--text); }
+  .label { font-size: 13px; font-weight: 500; color: var(--text-2); padding: 0 20px; margin: 8px 0; display: flex; justify-content: space-between; }
+  .label a { color: var(--text-3); font-weight: 400; text-decoration: none; }
+
+  .live-strip { display: flex; gap: 12px; padding: 0 16px 16px; overflow: hidden; }
+  .live-card { flex: none; width: 136px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); overflow: hidden; }
+  .poster { height: 76px; position: relative; display: flex; align-items: flex-end; padding: 8px; font-size: 12px; font-weight: 600; color: #fff; }
+  .p1 { background: linear-gradient(160deg, #3a1520, #8a2335); }
+  .p2 { background: linear-gradient(160deg, #10263a, #1e4f7a); }
+  .p3 { background: linear-gradient(160deg, #2b2410, #7a5b1e); }
+  .p4 { background: linear-gradient(160deg, #1d2e1a, #3f6b33); }
+  .poster .app { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(0,0,0,.55); }
+  .live-card .who { display: flex; align-items: center; gap: 8px; padding: 8px; font-size: 12px; color: var(--text-2); }
+  .live-card .who b { color: var(--text); font-weight: 500; }
+
+  .chips { display: flex; gap: 8px; padding: 0 16px 8px; }
+  .chip { height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); background: transparent; border: 1px solid var(--hair); }
+  .chip.on { color: var(--base); background: var(--text); border-color: transparent; }
+  .chip .n { color: var(--text-3); font-weight: 400; }
+  .chip.on .n { color: rgba(18,17,16,.6); }
+
+  .invite { margin: 4px 16px 8px; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; gap: 12px; }
+  .invite .tx { flex: 1; min-width: 0; font-size: 13px; color: var(--text-2); }
+  .invite .tx b { color: var(--text); font-weight: 500; display: block; }
+
+  .row { display: flex; align-items: center; gap: 12px; height: 72px; padding: 0 16px; }
+  .row .mid { flex: 1; min-width: 0; }
+  .row .name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .prev { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+  .row .prev.live { color: var(--text); }
+  .row .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 12px; color: var(--text-3); }
+  .row.unread .name { font-weight: 600; }
+  .row.unread .prev { color: var(--text); }
+  .count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+  .count.muted { background: var(--raised-2); color: var(--text-2); }
+
+  .fab { position: absolute; right: 20px; bottom: 100px; height: 48px; padding: 0 16px 0 14px; border-radius: 16px; background: var(--text); color: var(--base); display: flex; align-items: center; gap: 8px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  .tabbar { position: absolute; left: 24px; right: 24px; bottom: 16px; height: 60px; border-radius: 28px; background: rgba(26,25,23,.92); border: 1px solid var(--hair); display: flex; justify-content: space-around; align-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+  .tabbar .t { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-2); position: relative; }
+  .tabbar .t.on { background: var(--text); color: var(--base); }
+  .tabbar .t .count { position: absolute; top: 0; right: -2px; min-width: 20px; height: 20px; font-size: 11px; }
+
+  /* Conversation */
+  .chat-head { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; border-bottom: 1px solid var(--hair); }
+  .chat-head .who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
+  .chat-head .nm { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-head .st { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-head .st.on { color: var(--live); }
+
+  .pinned { margin: 12px 16px 4px; padding: 8px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; gap: 12px; }
+  .pinned .thumb { width: 44px; height: 60px; border-radius: 8px; flex: none; }
+  .pinned .tx { flex: 1; min-width: 0; font-size: 12px; color: var(--text-2); }
+  .pinned .tx b { display: block; font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .msgs { flex: 1; overflow: hidden; padding: 8px 16px; display: flex; flex-direction: column; gap: 4px; justify-content: flex-end; }
+  .day { align-self: center; font-size: 11px; color: var(--text-3); padding: 4px 10px; border-radius: 8px; background: var(--surface); margin: 8px 0; }
+  .b { max-width: 76%; padding: 8px 12px; border-radius: 18px; font-size: 15px; line-height: 1.4; background: var(--raised); align-self: flex-start; position: relative; }
+  .b.me { align-self: flex-end; background: var(--accent); color: #fff; }
+  .b.mid-l { border-bottom-left-radius: 6px; } .b.end-l { border-top-left-radius: 6px; }
+  .b.mid-r { border-bottom-right-radius: 6px; } .b.end-r { border-top-right-radius: 6px; }
+  .b.deleted { background: transparent; border: 1px dashed var(--hair-2); color: var(--text-3); font-style: normal; }
+  .meta { font-size: 11px; color: var(--text-3); margin: 0 4px 8px; }
+  .meta.r { align-self: flex-end; }
+  .sender { font-size: 12px; font-weight: 500; color: var(--text-2); margin: 8px 4px 2px; }
+  .watched { align-self: center; width: 88%; margin: 8px 0; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); display: flex; gap: 12px; padding: 8px; align-items: center; }
+  .watched .thumb { width: 40px; height: 56px; border-radius: 8px; flex: none; }
+  .watched .tx { font-size: 12px; color: var(--text-2); }
+  .watched .tx b { display: block; font-size: 13px; font-weight: 500; color: var(--text); }
+  .typing { align-self: flex-start; display: flex; gap: 4px; padding: 12px; border-radius: 18px; background: var(--raised); }
+  .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
+  .event { align-self: center; font-size: 12px; color: var(--text-3); margin: 6px 0; display: flex; align-items: center; gap: 6px; }
+
+  .composer { padding: 8px 12px 16px; display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid var(--hair); background: var(--base); }
+  .field { flex: 1; min-height: 44px; border-radius: 22px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; padding: 0 16px; color: var(--text-3); font-size: 14px; }
+  .send { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+  .send.off { background: var(--raised); color: var(--text-3); }
+  .watch-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--raised); border: 1px solid var(--hair); color: var(--text); display: flex; align-items: center; justify-content: center; flex: none; }
+
+  /* Group: channel strip */
+  .strip { display: flex; gap: 8px; padding: 8px 16px; overflow: hidden; border-bottom: 1px solid var(--hair); }
+  .ch { height: 36px; padding: 0 10px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-2); border: 1px solid var(--hair); white-space: nowrap; flex: none; }
+  .ch.on { background: var(--raised); color: var(--text); border-color: var(--hair-2); }
+  .ch .hash { color: var(--text-3); font-weight: 400; }
+  .ch .ud { width: 6px; height: 6px; border-radius: 50%; background: var(--text); }
+  .ch.voice { color: var(--text); }
+  .ch.voice .stack { display: inline-flex; }
+  .ch.voice .stack .av { margin-left: -6px; border: 2px solid var(--base); }
+  .ch.voice .stack .av:first-child { margin-left: 0; }
+  .room-bar { margin: 8px 16px 0; padding: 10px 12px; border-radius: 14px; background: rgba(76,195,138,.10); border: 1px solid rgba(76,195,138,.22); display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .room-bar .tx { flex: 1; min-width: 0; }
+  .room-bar b { font-weight: 500; }
+  .room-bar .sub { color: var(--text-2); font-size: 12px; }
+
+  /* Sheets */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 24px 24px 0 0; background: var(--surface); border-top: 1px solid var(--hair-2); padding: 8px 16px 24px; }
+  .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--hair-2); margin: 0 auto 12px; }
+  .sheet h4 { margin: 4px 4px 12px; font-size: 18px; font-weight: 500; }
+  .sec { font-size: 13px; font-weight: 500; color: var(--text-2); margin: 16px 4px 4px; display: flex; justify-content: space-between; align-items: center; }
+  .item { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 8px; border-radius: 12px; font-size: 15px; color: var(--text-2); }
+  .item.on { background: var(--raised); color: var(--text); }
+  .item .grow { flex: 1; }
+  .item .ud { width: 8px; height: 8px; border-radius: 50%; background: var(--text); }
+  .item.bold { color: var(--text); font-weight: 500; }
+  .people { padding: 0 8px 4px 44px; display: flex; flex-direction: column; gap: 6px; }
+  .person { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+  .live-badge { font-size: 11px; font-weight: 600; color: #fff; background: #d6304a; padding: 1px 5px; border-radius: 4px; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .act { height: 72px; border-radius: 16px; background: var(--raised); border: 1px solid var(--hair); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: var(--text); }
+  .act.danger { color: var(--accent-text); }
+  .quote { margin: 0 4px 12px; padding: 10px 12px; border-radius: 14px; background: var(--raised); font-size: 14px; }
+  .quote small { display: block; color: var(--text-3); font-size: 11px; margin-top: 4px; }
+
+  /* Voice channel */
+  .stage { margin: 8px 16px 0; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; position: relative; }
+  .stage .game { position: absolute; inset: 0; background: linear-gradient(180deg, #1d2633 0%, #2d3a44 55%, #3b3226 56%, #1c1712 100%); }
+  .stage .crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px; border: 2px solid rgba(255,255,255,.85); border-radius: 50%; }
+  .stage .hud { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: rgba(255,255,255,.8); font-weight: 600; }
+  .stage .tag { position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; align-items: center; font-size: 12px; color: #fff; }
+  .stage .full { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 10px; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; color: #fff; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px; }
+  .tile { border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .tile .ring { padding: 3px; border-radius: 50%; border: 2px solid transparent; }
+  .tile .ring.talk { border-color: var(--live); }
+  .tile .nm { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+  .tile .nm svg { color: var(--text-3); }
+  .controls { margin-top: auto; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; border-top: 1px solid var(--hair); }
+  .server { font-size: 12px; color: var(--live); display: flex; align-items: center; gap: 6px; }
+  .round-row { display: flex; gap: 16px; }
+  .round { width: 56px; height: 56px; border-radius: 50%; background: var(--raised); border: 1px solid var(--hair); display: flex; align-items: center; justify-content: center; }
+  .round.on { background: var(--text); color: var(--base); }
+  .round.leave { background: #d6304a; color: #fff; border-color: transparent; }
+
+
+  .phone.light { --base: #f7f4ee; --surface: #fdfbf7; --raised: #efe9df; --raised-2: #e6dfd3; --hair: rgba(31,27,22,0.10); --hair-2: rgba(31,27,22,0.16); --text: #1f1b16; --text-2: #5e554a; --text-3: #6b6257; --accent-text: #b80f2b; --live: #15803d; }
+  .phone.light .b.me { color: #fff; }
+  .phone.light .pill-btn.go { color: #fff; }
+  .phone.light .av .dot { border-color: var(--base); }
+
+  /* Empty */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; text-align: center; }
+  .empty .art { width: 120px; height: 84px; position: relative; margin-bottom: 8px; }
+  .empty .art .screen { position: absolute; left: 10px; right: 10px; top: 0; height: 64px; border-radius: 10px; background: var(--surface); border: 1px solid var(--hair-2); display: flex; align-items: center; justify-content: center; }
+  .empty .art .seat { position: absolute; bottom: 0; width: 34px; height: 14px; border-radius: 8px 8px 4px 4px; background: var(--raised-2); }
+  .empty h5 { margin: 0; font-size: 18px; font-weight: 500; }
+  .empty p { margin: 0; color: var(--text-2); font-size: 14px; max-width: 260px; }
+  .suggest { text-align: left; align-self: stretch; margin-top: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); }
+  .suggest .row { height: 64px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5Z"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="m8 21 4-4 4 4"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4Z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8"/><path d="M22 21a7 7 0 0 0-5-6.7"/></symbol>
+  <symbol id="i-headset" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></symbol>
+  <symbol id="i-micoff" viewBox="0 0 24 24"><path d="M15 9.3V6a3 3 0 0 0-5.7-1.3"/><path d="M9 9v2a3 3 0 0 0 5.1 2.1"/><path d="M5 11a7 7 0 0 0 11.5 5.4"/><path d="M19 11a7 7 0 0 1-.3 2"/><path d="M12 18v3"/><path d="m3 3 18 18"/></symbol>
+  <symbol id="i-phoneoff" viewBox="0 0 24 24"><path d="M4 15.5c4.6-4.6 11.4-4.6 16 0l-2 2.5-3-1.5v-2.2a10 10 0 0 0-6 0v2.2L6 18Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="m15 5 6 6-6 6"/><path d="M21 11H9a6 6 0 0 0-6 6v2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M6 10v4M10 7v10M14 9v6M18 11v2"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+</svg>
+
+<style>
+  .scroll > *, .phone > * { flex-shrink: 0; }
+  .phone > .scroll, .phone > .msgs { flex-shrink: 1; }
+  .flow { max-width: 1760px; margin: 0 auto; padding: 0 32px 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--text-2); font-size: 13px; }
+  .flow span.step { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--hair); color: var(--text); }
+  .flow span.arrow { color: var(--text-3); }
+  .part { max-width: 1760px; margin: 0 auto; padding: 40px 32px 0; font-size: 20px; font-weight: 500; }
+  .part small { display: block; font-size: 13px; color: var(--text-2); font-weight: 400; margin-top: 4px; }
+  .btn { height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; font: 500 15px Inter, system-ui, sans-serif; border: 1px solid var(--hair); background: var(--raised); color: var(--text); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .btn.light { background: var(--text); color: var(--base); border-color: transparent; }
+  .btn.go { background: var(--live); color: #0d1f16; border-color: transparent; }
+  .pad { padding: 0 16px; }
+  .h1 { font-size: 28px; font-weight: 500; line-height: 1.2; letter-spacing: -0.01em; margin: 0; }
+  .sub { color: var(--text-2); font-size: 15px; margin: 8px 0 0; }
+  .rail { display: flex; gap: 12px; padding: 0 16px; overflow: hidden; }
+  .pst { flex: none; width: 112px; }
+  .pst .art { height: 160px; border-radius: 12px; position: relative; display: flex; align-items: flex-end; padding: 8px; font-size: 12px; font-weight: 600; color: #fff; }
+  .pst .art .rate { position: absolute; top: 6px; right: 6px; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(0,0,0,.55); }
+  .pst .art .save { position: absolute; top: 6px; left: 6px; width: 28px; height: 28px; border-radius: 8px; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
+  .pst .cap { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+  .p5 { background: linear-gradient(160deg, #2a1033, #5e2a7a); }
+  .p6 { background: linear-gradient(160deg, #331a10, #8a4a1e); }
+  .p7 { background: linear-gradient(160deg, #10262b, #1f5a63); }
+  .seg { display: flex; padding: 4px; margin: 0 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--hair); }
+  .seg span { flex: 1; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; color: var(--text-2); }
+  .seg span.on { background: var(--raised-2); color: var(--text); }
+  .hero-live { margin: 4px 16px 16px; border-radius: 20px; overflow: hidden; background: var(--surface); border: 1px solid var(--hair); }
+  .hero-live .art { height: 132px; position: relative; padding: 12px; display: flex; flex-direction: column; justify-content: flex-end; color: #fff; }
+  .hero-live .art b { font-size: 18px; font-weight: 600; }
+  .hero-live .art small { font-size: 12px; opacity: .85; }
+  .hero-live .foot { display: flex; align-items: center; gap: 12px; padding: 12px; }
+  .hero-live .foot .tx { flex: 1; font-size: 13px; color: var(--text-2); }
+  .hero-live .foot .tx b { color: var(--text); font-weight: 500; }
+  .stack-av { display: inline-flex; }
+  .stack-av .av { margin-left: -8px; border: 2px solid var(--surface); }
+  .stack-av .av:first-child { margin-left: 0; }
+
+  /* Title sheet */
+  .title-art { height: 220px; border-radius: 24px 24px 0 0; margin: -8px -16px 16px; position: relative; display: flex; align-items: flex-end; padding: 16px; }
+  .title-art .t { font-size: 24px; font-weight: 600; color: #fff; }
+  .meta-row { display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); margin: 0 4px 12px; }
+  .apps { display: flex; gap: 8px; margin: 0 4px 16px; }
+  .apps span { height: 32px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; background: var(--raised); color: var(--text); border: 1px solid var(--hair); }
+
+  /* Room */
+  .room-top { position: relative; height: 240px; flex: none; }
+  .room-top .bg { position: absolute; inset: 0; }
+  .room-top .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(18,17,16,.15), rgba(18,17,16,1)); }
+  .room-top .bar { position: absolute; top: 4px; left: 8px; right: 8px; display: flex; align-items: center; }
+  .room-top .bar .ibtn { color: #fff; }
+  .room-top .info { position: absolute; left: 16px; right: 16px; bottom: 8px; }
+  .room-top .info .ctx { font-size: 12px; color: var(--text-2); }
+  .room-top .info .nm { font-size: 22px; font-weight: 600; margin-top: 2px; }
+  .sync-pill { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-radius: 9px; background: rgba(76,195,138,.14); color: var(--live); font-size: 12px; font-weight: 500; margin-top: 8px; }
+  .timeline { padding: 8px 16px 4px; }
+  .track { height: 4px; border-radius: 2px; background: var(--raised-2); position: relative; margin: 14px 0 8px; }
+  .track .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 46%; background: var(--text); border-radius: 2px; }
+  .track .who { position: absolute; top: -10px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--base); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
+  .times { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); }
+  .transport { display: flex; justify-content: center; align-items: center; gap: 24px; padding: 8px 0; }
+  .play { width: 64px; height: 64px; border-radius: 50%; background: var(--text); color: var(--base); display: flex; align-items: center; justify-content: center; }
+  .play svg { width: 28px; height: 28px; fill: currentColor; }
+  .seek { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text); background: var(--raised); border: 1px solid var(--hair); font-size: 12px; font-weight: 600; }
+  .people-row { display: flex; gap: 12px; padding: 8px 16px; overflow: hidden; }
+  .pp { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px; flex: none; font-size: 11px; color: var(--text-2); }
+  .pp .st { font-size: 11px; color: var(--live); }
+  .pp .st.warn { color: #e5a93b; }
+  .dock { margin-top: auto; padding: 8px 12px 16px; border-top: 1px solid var(--hair); display: flex; gap: 8px; align-items: center; }
+  .dock .field { min-height: 44px; }
+  .mini-chat { padding: 4px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .mini-chat .m { font-size: 13px; color: var(--text-2); }
+  .mini-chat .m b { color: var(--text); font-weight: 500; }
+  .react-row { display: flex; gap: 8px; padding: 4px 16px 8px; }
+  .react-row span { width: 40px; height: 40px; border-radius: 12px; background: var(--surface); border: 1px solid var(--hair); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .countdown { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(18,17,16,.82); }
+  .countdown .n { font-size: 96px; font-weight: 500; line-height: 1; }
+  .countdown small { color: var(--text-2); font-size: 14px; }
+
+  /* Ongoing room bar */
+  .ongoing { flex: none; height: 44px; background: var(--live); color: #0d1f16; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 16px; font-size: 13px; font-weight: 600; }
+  .ongoing .tx { flex: 1; }
+  .ongoing .x { height: 32px; padding: 0 12px; border-radius: 10px; background: rgba(13,31,22,.14); display: flex; align-items: center; }
+
+  /* Profile */
+  .prof-head { padding: 8px 16px 0; display: flex; flex-direction: column; gap: 4px; }
+  .prof-band { height: 96px; background: var(--surface); border-bottom: 1px solid var(--hair); }
+  .prof-av { margin: -40px 16px 0; }
+  .prof-av .av { border: 4px solid var(--base); }
+  .card { margin: 0 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); padding: 12px; }
+  .card .lbl { font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 8px; }
+  .act-row { display: flex; align-items: center; gap: 12px; }
+  .act-row .thumb { width: 48px; height: 64px; border-radius: 8px; flex: none; }
+  .act-row .tile { width: 48px; height: 48px; border-radius: 10px; flex: none; background: var(--raised-2); display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--text-2); }
+  .act-row b { font-weight: 500; display: block; }
+  .act-row small { color: var(--text-2); font-size: 12px; }
+  .bar2 { height: 4px; border-radius: 2px; background: var(--raised-2); margin-top: 6px; position: relative; }
+  .bar2 i { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; background: var(--text); border-radius: 2px; }
+  .seg3 { display: flex; gap: 6px; margin: 0 16px; }
+  .seg3 span { flex: 1 1 auto; white-space: nowrap; padding: 0 10px; height: 44px; border-radius: 12px; border: 1px solid var(--hair); display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-2); }
+  .seg3 span.on { background: var(--raised); color: var(--text); border-color: var(--hair-2); }
+  .sd { width: 8px; height: 8px; border-radius: 50%; }
+  .group-list { margin: 0 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); }
+  .group-list .li { height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-bottom: 1px solid var(--hair); font-size: 15px; }
+  .group-list .li:last-child { border-bottom: 0; }
+  .group-list .li .grow { flex: 1; }
+  .group-list .li .val { color: var(--text-3); font-size: 13px; }
+  .group-list .li svg { color: var(--text-2); }
+  .switch { width: 40px; height: 24px; border-radius: 12px; background: var(--raised-2); position: relative; }
+  .switch.on { background: var(--live); }
+  .switch i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .switch.on i { left: 19px; }
+  .qr { width: 176px; height: 176px; margin: 0 auto; border-radius: 16px; background: #fff; padding: 12px; display: grid; grid-template-columns: repeat(11, 1fr); gap: 2px; }
+  .qr i { background: #121110; border-radius: 1px; }
+  .qr i.w { background: transparent; }
+  .wl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 16px; }
+  .wl-grid .pst { width: auto; }
+  .wl-grid .pst .art { height: 148px; }
+  .sugg { max-width: 1120px; margin: 48px auto 80px; padding: 0 32px; }
+  .sugg h2 { font-size: 22px; font-weight: 500; margin: 0 0 16px; }
+  .sugg ol { margin: 0; padding-left: 20px; color: var(--text-2); }
+  .sugg li { margin: 10px 0; }
+  .sugg li b { color: var(--text); font-weight: 500; }
+  .tabbar.labels { height: 64px; }
+  .tabbar.labels .t { flex-direction: column; width: 64px; height: 52px; border-radius: 16px; gap: 2px; font-size: 11px; }
+  .tabbar.labels .t.on { background: var(--raised-2); color: var(--text); }
+</style>
+
+<header class="intro">
+  <h1>BingeJam on the phone, redesigned</h1>
+  <p>Same app, same steps, same palette: warm near-black, cream text, one cinema red, Inter, and the red-and-orange sync dots as the only "in sync" mark. What changes is that the thing people came for (watching with someone) is always one thumb away, and each screen shows the movie and the friends first. The chat screens are in the earlier design (design/phone-chat). Suggestions are at the bottom.</p>
+</header>
+<div class="flow"><span class="step">Sign in</span><span class="arrow">→</span><span class="step">Set up</span><span class="arrow">→</span><span class="step">Watch (Home)</span><span class="arrow">→</span><span class="step">A title</span><span class="arrow">→</span><span class="step">Room</span><span class="arrow">→</span><span class="step">Chats</span><span class="arrow">·</span><span class="step">Watchlist</span><span class="arrow">·</span><span class="step">You</span><span class="arrow">→</span><span class="step">Settings</span></div>
+
+<div class="part">Getting in<small>Sign in, then one short setup</small></div>
+<main class="board">
+
+<section class="shot">
+  <h2>1 · Sign in</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:00</span><span class="r">5G ▮▮▮ 90%</span></div>
+    <div class="scroll" style="padding:24px 24px 32px">
+      <div style="display:flex;align-items:center;gap:10px;font-weight:600;font-size:18px"><span class="sync"><i></i><i></i></span>BingeJam</div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:24px">
+        <div style="display:flex;gap:8px">
+          <div class="pst" style="width:96px"><div class="art p1" style="height:136px">Midnight Signal</div></div>
+          <div class="pst" style="width:96px;margin-top:24px"><div class="art p2" style="height:136px">Dune: Part Two</div></div>
+          <div class="pst" style="width:96px"><div class="art p6" style="height:136px">Kesari</div></div>
+        </div>
+        <div><h3 class="h1">Watch together, each on your own phone</h3><p class="sub">Netflix, Prime Video or JioHotstar. When anyone plays, pauses or skips, everyone follows.</p></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="btn light"><b style="font-weight:600">G</b>Continue with Google</div>
+        <div class="btn"><svg class="i s"><use href="#i-link"/></svg>Email me a sign-in link</div>
+        <p style="margin:4px 0 0;font-size:12px;color:var(--text-3);text-align:center">18+ · By continuing you agree to the Terms and Privacy Policy</p>
+      </div>
+    </div>
+  </div>
+  <ul class="notes"><li>Real posters show what the app is for before anyone reads a word</li><li>Google first (one tap), email link second; legal line under them</li></ul>
+</section>
+
+<section class="shot">
+  <h2>2 · Set up, one step at a time</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:01</span><span class="r">5G ▮▮▮ 90%</span></div>
+    <div class="scroll" style="padding:16px 24px 32px">
+      <div style="display:flex;gap:6px"><i style="flex:1;height:4px;border-radius:2px;background:var(--text)"></i><i style="flex:1;height:4px;border-radius:2px;background:var(--text)"></i><i style="flex:1;height:4px;border-radius:2px;background:var(--raised-2)"></i><i style="flex:1;height:4px;border-radius:2px;background:var(--raised-2)"></i></div>
+      <p style="font-size:12px;color:var(--text-3);margin:8px 0 32px">Step 2 of 4</p>
+      <div style="width:120px;height:120px;border-radius:24px;background:var(--surface);border:1px solid var(--hair);display:flex;align-items:center;justify-content:center;margin-bottom:24px"><span class="sync" style="transform:scale(2)"><i></i><i></i></span></div>
+      <h3 class="h1">Keep everyone in sync</h3>
+      <p class="sub">BingeJam needs Notification Access to see play, pause and the position in Netflix, Prime Video and JioHotstar. It never reads your notifications.</p>
+      <div class="card" style="margin:24px 0 0;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text-2)">
+        <div style="display:flex;gap:8px"><svg class="i s" style="color:var(--live)"><use href="#i-check"/></svg>Reads: playing or paused, position, title</div>
+        <div style="display:flex;gap:8px"><svg class="i s" style="color:var(--text-3)"><use href="#i-micoff"/></svg>Never: messages, notification text, your screen</div>
+      </div>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+        <div class="btn primary">Turn on Notification Access</div>
+        <div class="btn" style="background:transparent;border-color:transparent;color:var(--text-2)">Later</div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes"><li>One permission per page with why and what it never does (today: one long list)</li><li>Steps: username + birthday, sync access, microphone, notifications; each can be skipped and asked again when needed</li></ul>
+</section>
+
+</main>
+
+<div class="part">Watch<small>Home: what friends are watching, then what's trending</small></div>
+<main class="board">
+
+<section class="shot">
+  <h2>3 · Home</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:10</span><span class="r">5G ▮▮▮ 88%</span></div>
+    <div class="scroll">
+      <div class="topbar"><h3>Watch</h3><button class="ibtn raised" aria-label="Search titles"><svg class="i"><use href="#i-search"/></svg></button></div>
+      <div class="hero-live">
+        <div class="art p2"><small class="tabular">Movie Night · room · 1:12:04</small><b>Dune: Part Two</b></div>
+        <div class="foot"><span class="stack-av"><span class="av s32 t1">R</span><span class="av s32 t2">K</span><span class="av s32 t3">M</span></span><div class="tx"><b>Riya, Kabir and Meera</b><br>are watching now</div><span class="pill-btn go">Join</span></div>
+      </div>
+      <div class="label"><span>Friends watching</span><a>See all</a></div>
+      <div class="rail" style="margin-bottom:16px">
+        <div class="pst"><div class="art p1"><span class="rate">S2:E4</span>Midnight Signal</div><div class="cap" style="display:flex;gap:6px;align-items:center"><span class="av s24 t1">R</span>Riya</div></div>
+        <div class="pst"><div class="art p4"><span class="rate">Spotify</span>Sitaare</div><div class="cap" style="display:flex;gap:6px;align-items:center"><span class="av s24 t2">K</span>Kabir</div></div>
+        <div class="pst"><div class="art p5"><span class="rate">PC</span>VALORANT</div><div class="cap" style="display:flex;gap:6px;align-items:center"><span class="av s24 t5">A</span>Ananya</div></div>
+      </div>
+      <div class="seg"><span class="on">Movies</span><span>Web series</span></div>
+      <div class="chips" style="margin-top:12px;overflow:hidden"><span class="chip on">All</span><span class="chip">Hindi</span><span class="chip">Thriller</span><span class="chip">Comedy</span><span class="chip">Romance</span></div>
+      <div class="label"><span>Trending now</span></div>
+      <div class="rail">
+        <div class="pst"><div class="art p6"><span class="rate tabular">8.1</span><span class="save"><svg class="i s"><use href="#i-bookmark"/></svg></span>Kesari</div><div class="cap">Prime Video</div></div>
+        <div class="pst"><div class="art p7"><span class="rate tabular">7.6</span><span class="save"><svg class="i s"><use href="#i-bookmark"/></svg></span>Paper Kites</div><div class="cap">JioHotstar</div></div>
+        <div class="pst"><div class="art p3"><span class="rate tabular">7.9</span><span class="save"><svg class="i s"><use href="#i-bookmark"/></svg></span>Salt & Ember</div><div class="cap">Netflix</div></div>
+      </div>
+    </div>
+    <div class="tabbar labels"><span class="t on"><svg class="i"><use href="#i-tv"/></svg>Watch</span><span class="t"><svg class="i"><use href="#i-chat"/></svg>Chats<span class="count tabular">3</span></span><span class="t"><svg class="i"><use href="#i-bookmark"/></svg>Watchlist</span><span class="t"><svg class="i"><use href="#i-user"/></svg>You</span></div>
+  </div>
+  <ul class="notes"><li>Top: the live room your friends are in, with Join (today "Live now" sits lower)</li><li>"Friends watching": what each friend plays, on phone or PC; tap = their profile with Ask to join</li><li>Trending keeps Movies / Web series and the genre and language chips; save from the poster</li><li>Search titles from the top right (new); tab labels under the icons</li></ul>
+</section>
+
+<section class="shot">
+  <h2>4 · A title</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:11</span><span class="r">5G ▮▮▮ 88%</span></div>
+    <div class="scroll"><div class="topbar"><h3>Watch</h3></div></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="title-art p6"><span class="t">Kesari</span></div>
+      <div class="meta-row"><span class="tabular">2019 · 2 h 30 min · Hindi</span><span>·</span><span class="tabular">8.1</span></div>
+      <p style="margin:0 4px 12px;font-size:14px;color:var(--text-2)">A soldier and 21 men hold a fort against thousands, based on the Battle of Saragarhi.</p>
+      <div class="apps"><span>Prime Video</span><span style="color:var(--text-2)">Also on JioHotstar</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="btn primary"><svg class="i"><use href="#i-users"/></svg>Watch with friends</div>
+        <div style="display:flex;gap:8px"><div class="btn" style="flex:1">Watch alone</div><div class="btn" style="width:48px" aria-label="Save"><svg class="i"><use href="#i-bookmark"/></svg></div></div>
+      </div>
+      <p style="margin:12px 4px 0;font-size:12px;color:var(--text-3)">Kabir saved this · Riya watched it</p>
+    </div>
+  </div>
+  <ul class="notes"><li>Same two choices as today, Watch with friends first; Save sits beside Watch alone</li><li>One line of social proof from friends when there is some</li></ul>
+</section>
+
+</main>
+
+<div class="part">The room<small>One screen while you watch: the movie, everyone's position, the talk</small></div>
+<main class="board">
+
+<section class="shot">
+  <h2>5 · Room, while watching</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:20</span><span class="r">5G ▮▮▮ 86%</span></div>
+    <div class="room-top"><div class="bg p2"></div><div class="scrim"></div>
+      <div class="bar"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><span style="flex:1"></span><button class="ibtn" aria-label="Invite"><svg class="i"><use href="#i-users"/></svg></button><button class="ibtn"><svg class="i"><use href="#i-more"/></svg></button></div>
+      <div class="info"><div class="ctx">Movie Night · Prime Video</div><div class="nm">Dune: Part Two</div><span class="sync-pill"><span class="sync"><i></i><i></i></span>All in sync · ±0.2 s</span></div>
+    </div>
+    <div class="timeline"><div class="track"><div class="fill"></div><span class="who t1" style="left:44%">R</span><span class="who t5" style="left:46.5%">A</span></div><div class="times tabular"><span>1:12:04</span><span>2:46:00</span></div></div>
+    <div class="transport"><span class="seek">−10</span><span class="play"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span><span class="seek">+10</span></div>
+    <div class="people-row">
+      <div class="pp"><span class="av s40 t1">R</span>Riya<span class="st">Host</span></div>
+      <div class="pp"><span class="av s40 t2">K</span>Kabir<span class="st warn">+3 s</span></div>
+      <div class="pp"><span class="av s40 t3">M</span>Meera<span class="st">In sync</span></div>
+      <div class="pp"><span class="av s40 t5">A</span>You<span class="st">In sync</span></div>
+    </div>
+    <div class="mini-chat"><div class="m"><b>Kabir</b> the sandworm scene</div><div class="m"><b>Meera</b> pause for snacks?</div></div>
+    <div class="react-row"><span>😂</span><span>😮</span><span>😍</span><span>🔥</span><span>👏</span></div>
+    <div class="dock"><span class="watch-btn" aria-label="Voice"><svg class="i"><use href="#i-mic"/></svg></span><div class="field">Message the room</div><span class="send off"><svg class="i"><use href="#i-send"/></svg></span></div>
+  </div>
+  <ul class="notes"><li>Sync, People and Chat tabs become one screen: what plays, the shared timeline with everyone's dot, controls, people, chat</li><li>Anyone behind shows "+3 s" (Sync all to me stays in ⋯)</li><li>Reactions stay one tap away (they are content here, not decoration); voice sits left of the message box</li></ul>
+</section>
+
+<section class="shot">
+  <h2>6 · Starting together</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:19</span><span class="r">5G ▮▮▮ 86%</span></div>
+    <div class="room-top"><div class="bg p2"></div><div class="scrim"></div><div class="info"><div class="ctx">Movie Night · Prime Video</div><div class="nm">Dune: Part Two</div></div></div>
+    <div class="countdown" style="top:0"><div class="n tabular">2</div><small>Everyone presses play together</small><div style="display:flex;gap:8px;margin-top:16px"><span class="av s32 t1">R</span><span class="av s32 t2">K</span><span class="av s32 t3">M</span><span class="av s32 t5">A</span></div></div>
+  </div>
+  <ul class="notes"><li>The 3, 2, 1 countdown (already in the app) becomes the big moment: full screen, everyone's face</li><li>Calm, no confetti; then it fades into the room</li></ul>
+</section>
+
+<section class="shot">
+  <h2>7 · Invite to the room</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:21</span><span class="r">5G ▮▮▮ 86%</span></div>
+    <div class="room-top"><div class="bg p2"></div><div class="scrim"></div></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h4>Invite to Dune: Part Two</h4>
+      <div class="search" style="margin:0 0 8px"><svg class="i s"><use href="#i-search"/></svg>Search friends</div>
+      <div class="row" style="padding:0 4px;height:60px"><span class="av s40 t6">Z<span class="dot"></span></span><div class="mid"><div class="name">Zoe Williams</div><div class="prev">Online</div></div><span class="pill-btn primary">Invite</span></div>
+      <div class="row" style="padding:0 4px;height:60px"><span class="av s40 t4">N</span><div class="mid"><div class="name">Nikhil Rao</div><div class="prev">Last seen 1 h ago</div></div><span class="pill-btn">Invited</span></div>
+      <div class="row" style="padding:0 4px;height:60px"><span class="av s40 t5">I</span><div class="mid"><div class="name">Ishaan Kapoor</div><div class="prev">Watching Kota Factory</div></div><span class="pill-btn primary">Invite</span></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><div class="btn" style="flex:1"><svg class="i s"><use href="#i-link"/></svg>Copy link</div><div class="btn" style="flex:1">Share…</div></div>
+    </div>
+  </div>
+  <ul class="notes"><li>Online friends first; invited state stays visible</li><li>Link and Android share at the bottom for people not on BingeJam yet</li></ul>
+</section>
+
+<section class="shot">
+  <h2>8 · In a room, elsewhere in the app</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:30</span><span class="r">5G ▮▮▮ 85%</span></div>
+    <div class="ongoing"><span class="sync"><i></i><i></i></span><span class="tx tabular">Dune: Part Two · 1:20:15</span><span class="x"><svg class="i s"><use href="#i-mic"/></svg></span><span class="x">Leave</span></div>
+    <div class="scroll">
+      <div class="topbar"><h3>Chats</h3></div>
+      <div class="row unread"><div class="grp"><span class="av s32 t3">M</span><span class="av s32 t4">Z</span></div><div class="mid"><div class="name">Movie Night</div><div class="prev live"><span class="sync"><i></i><i></i></span>Room live · 4 in · Dune</div></div><div class="side"><span class="tabular">21:29</span><span class="count tabular">2</span></div></div>
+      <div class="row"><span class="av s48 t1">R<span class="dot"></span></span><div class="mid"><div class="name">Riya Sen</div><div class="prev">You: brb</div></div><div class="side"><span class="tabular">21:24</span></div></div>
+      <div class="row"><span class="av s48 t2">K</span><div class="mid"><div class="name">Kabir Mehta</div><div class="prev">that ending though</div></div><div class="side">Mon</div></div>
+    </div>
+    <div class="tabbar labels"><span class="t"><svg class="i"><use href="#i-tv"/></svg>Watch</span><span class="t on"><svg class="i"><use href="#i-chat"/></svg>Chats</span><span class="t"><svg class="i"><use href="#i-bookmark"/></svg>Watchlist</span><span class="t"><svg class="i"><use href="#i-user"/></svg>You</span></div>
+  </div>
+  <ul class="notes"><li>The green "in a room" bar stays on every other screen: title and position instead of a bare timer, mute, Leave</li><li>Tap it to go back to the room</li></ul>
+</section>
+
+</main>
+
+<div class="part">People<small>A friend's profile, adding friends, an invite link</small></div>
+<main class="board">
+
+<section class="shot">
+  <h2>9 · A friend's profile</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:12</span><span class="r">5G ▮▮▮ 88%</span></div>
+    <div class="prof-band"><div class="bar" style="display:flex;padding:4px 8px"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><span style="flex:1"></span><button class="ibtn"><svg class="i"><use href="#i-more"/></svg></button></div></div>
+    <div class="prof-av"><span class="av s56 t1" style="width:80px;height:80px;font-size:30px">R<span class="dot"></span></span></div>
+    <div class="prof-head"><div style="font-size:22px;font-weight:500">Riya Sen</div><div style="color:var(--text-2);font-size:14px">@riya · Friends since March</div></div>
+    <div class="card" style="margin-top:16px"><div class="lbl">Watching on Netflix</div><div class="act-row"><div class="thumb p1"></div><div style="flex:1"><b>Midnight Signal</b><small>S2:E4 · 24 min in</small><div class="bar2"><i></i></div></div></div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:16px">
+      <div class="btn go"><svg class="i s"><use href="#i-play"/></svg>Ask to join</div>
+      <div style="display:flex;gap:8px"><div class="btn" style="flex:1">Start a room</div><div class="btn" style="flex:1">Message</div></div>
+    </div>
+    <div class="label"><span>Watched together</span></div>
+    <div class="rail"><div class="pst" style="width:72px"><div class="art p2" style="height:100px"></div></div><div class="pst" style="width:72px"><div class="art p6" style="height:100px"></div></div><div class="pst" style="width:72px"><div class="art p3" style="height:100px"></div></div><div class="pst" style="width:72px"><div class="art p7" style="height:100px"></div></div></div>
+  </div>
+  <ul class="notes"><li>What they're watching, with progress, and the one right action: Ask to join (or Join when there's a room)</li><li>"Watched together" shows your history with them (from the existing watched-together cards)</li><li>Unfriend, Block, Report stay in ⋯</li></ul>
+</section>
+
+<section class="shot">
+  <h2>10 · Add friends</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:13</span><span class="r">5G ▮▮▮ 88%</span></div>
+    <div class="scroll">
+      <div class="topbar" style="padding-left:8px"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><h3 style="font-size:20px">Add friends</h3></div>
+      <div class="search"><svg class="i s"><use href="#i-search"/></svg>Search by username</div>
+      <div class="card" style="display:flex;align-items:center;gap:12px"><span class="ibtn raised"><svg class="i"><use href="#i-link"/></svg></span><div style="flex:1"><b style="font-weight:500">Your invite link</b><div style="font-size:12px;color:var(--text-2)">Whoever opens it becomes your friend</div></div><span class="pill-btn primary">Share</span></div>
+      <div class="label" style="margin-top:16px"><span>Requests</span><a>2</a></div>
+      <div class="row" style="height:64px"><span class="av s40 t4">N</span><div class="mid"><div class="name">Nikhil Rao</div><div class="prev">@nikhil · via your link</div></div><span class="pill-btn primary">Accept</span><span class="ibtn" aria-label="Decline"><svg class="i s"><use href="#i-plus" style="transform:rotate(45deg);transform-origin:center"/></svg></span></div>
+      <div class="row" style="height:64px"><span class="av s40 t6">S</span><div class="mid"><div class="name">Sana Ali</div><div class="prev">@sana · 2 mutual friends</div></div><span class="pill-btn primary">Accept</span><span class="ibtn" aria-label="Decline"><svg class="i s"><use href="#i-plus" style="transform:rotate(45deg);transform-origin:center"/></svg></span></div>
+      <div class="label"><span>Sent</span></div>
+      <div class="row" style="height:64px"><span class="av s40 t5">D</span><div class="mid"><div class="name">Dev Shah</div><div class="prev">@dev</div></div><span class="pill-btn">Requested</span></div>
+    </div>
+  </div>
+  <ul class="notes"><li>Requests, Sent and your link on one page (Blocked moves to Settings → Privacy)</li><li>Accept is the primary action; Decline an icon next to it</li></ul>
+</section>
+
+<section class="shot">
+  <h2>11 · Opened an invite link</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:40</span><span class="r">5G ▮▮▮ 84%</span></div>
+    <div class="scroll" style="padding:24px">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px;text-align:center">
+        <div class="pst" style="width:148px"><div class="art p2" style="height:212px;font-size:15px">Dune: Part Two</div></div>
+        <div><div style="font-size:13px;color:var(--text-2)">Riya invited you to watch</div><h3 class="h1" style="margin-top:4px">Dune: Part Two</h3><p class="sub">Prime Video · 3 watching · started 1 h ago</p></div>
+        <span class="stack-av"><span class="av s32 t1">R</span><span class="av s32 t2">K</span><span class="av s32 t3">M</span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px"><div class="btn go">Join the room</div><div class="btn" style="background:transparent;border-color:transparent;color:var(--text-2)">Not now</div></div>
+    </div>
+  </div>
+  <ul class="notes"><li>Shows the movie and who's in before you join, not a room code</li><li>Room code stays available under ⋯ for typing it on another device</li></ul>
+</section>
+
+</main>
+
+<div class="part">Yours<small>Watchlist, You, Settings</small></div>
+<main class="board">
+
+<section class="shot">
+  <h2>12 · Watchlist</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:14</span><span class="r">5G ▮▮▮ 88%</span></div>
+    <div class="scroll">
+      <div class="topbar"><h3>Watchlist</h3><span style="font-size:13px;color:var(--text-3)" class="tabular">9 titles</span></div>
+      <div class="chips"><span class="chip on">All</span><span class="chip">Movies</span><span class="chip">Web series</span></div>
+      <div class="wl-grid" style="margin-top:8px">
+        <div class="pst"><div class="art p6">Kesari</div><div class="cap">Kabir saved too</div></div>
+        <div class="pst"><div class="art p7">Paper Kites</div><div class="cap">JioHotstar</div></div>
+        <div class="pst"><div class="art p3">Salt & Ember</div><div class="cap">Netflix</div></div>
+        <div class="pst"><div class="art p5">Night Train</div><div class="cap">Prime Video</div></div>
+        <div class="pst"><div class="art p1">Midnight Signal</div><div class="cap">Riya is watching</div></div>
+        <div class="pst"><div class="art p4">Green Hour</div><div class="cap">Netflix</div></div>
+      </div>
+    </div>
+    <div class="tabbar labels"><span class="t"><svg class="i"><use href="#i-tv"/></svg>Watch</span><span class="t"><svg class="i"><use href="#i-chat"/></svg>Chats</span><span class="t on"><svg class="i"><use href="#i-bookmark"/></svg>Watchlist</span><span class="t"><svg class="i"><use href="#i-user"/></svg>You</span></div>
+  </div>
+  <ul class="notes"><li>A poster grid, three across; tap opens the same title sheet (Watch with friends / alone)</li><li>A friend line when someone saved it too or is watching it</li></ul>
+</section>
+
+<section class="shot">
+  <h2>13 · You</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:15</span><span class="r">5G ▮▮▮ 88%</span></div>
+    <div class="prof-band"><div style="display:flex;padding:4px 8px"><span style="flex:1"></span><button class="ibtn" aria-label="Settings"><svg class="i"><use href="#i-more"/></svg></button></div></div>
+    <div class="prof-av"><span class="av s56 t5" style="width:80px;height:80px;font-size:30px">A<span class="dot"></span></span></div>
+    <div class="prof-head"><div style="font-size:22px;font-weight:500">Aritra</div><div style="color:var(--text-2);font-size:14px">@aritra · 12 friends</div></div>
+    <div class="seg3" style="margin-top:16px"><span class="on"><i class="sd" style="background:var(--live)"></i>Online</span><span><i class="sd" style="background:#e5484d"></i>Do not disturb</span><span><i class="sd" style="border:2px solid var(--text-3)"></i>Invisible</span></div>
+    <div class="label" style="margin-top:16px"><span>What friends see</span><a>Playing VALORANT +1</a></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <div class="act-row"><div class="tile">V</div><div style="flex:1"><small>Playing on PC</small><b>VALORANT</b><small>for 32 min</small></div></div>
+      <div class="act-row"><div class="tile p4" style="color:#fff">S</div><div style="flex:1"><small>Listening on PC</small><b>Sitaare</b><small>Arijit Singh</small><div class="bar2"><i></i></div></div></div>
+    </div>
+    <div style="display:flex;gap:8px;padding:16px"><div class="btn" style="flex:1">Edit profile</div><div class="btn" style="flex:1">Invite friends</div></div>
+  </div>
+  <ul class="notes"><li>Your status and exactly what friends see, like the PC's profile card</li><li>Edit profile and Invite friends; Settings behind the top-right button</li></ul>
+</section>
+
+<section class="shot">
+  <h2>14 · Settings</h2>
+  <div class="phone">
+    <div class="status"><span class="tabular">21:16</span><span class="r">5G ▮▮▮ 88%</span></div>
+    <div class="scroll">
+      <div class="topbar" style="padding-left:8px"><button class="ibtn"><svg class="i"><use href="#i-back"/></svg></button><h3 style="font-size:20px">Settings</h3></div>
+      <div class="label"><span>Sharing</span></div>
+      <div class="group-list"><div class="li"><svg class="i s"><use href="#i-tv"/></svg><span class="grow">Activity sharing</span><span class="val">Netflix, Spotify</span></div><div class="li"><svg class="i s"><use href="#i-users"/></svg><span class="grow">Group invites</span><span class="val">Ask me first</span></div><div class="li"><svg class="i s"><use href="#i-user"/></svg><span class="grow">Blocked</span><span class="val tabular">2</span></div></div>
+      <div class="label" style="margin-top:16px"><span>Voice and sound</span></div>
+      <div class="group-list"><div class="li"><svg class="i s"><use href="#i-mic"/></svg><span class="grow">Microphone</span><span class="val">Automatic</span></div><div class="li"><svg class="i s"><use href="#i-headset"/></svg><span class="grow">Speaker</span><span class="val">Automatic</span></div></div>
+      <div class="label" style="margin-top:16px"><span>App</span></div>
+      <div class="group-list"><div class="li"><span class="grow">Theme</span><span class="val">System</span></div><div class="li"><span class="grow">Notifications</span><span class="switch on"><i></i></span></div><div class="li"><span class="grow">Setup and permissions</span><span class="val">All on</span></div></div>
+      <div class="label" style="margin-top:16px"><span>Account</span></div>
+      <div class="group-list"><div class="li"><span class="grow">Privacy Policy and Terms</span></div><div class="li"><span class="grow">Sign out</span></div><div class="li"><span class="grow" style="color:var(--accent-text)">Delete account</span></div></div>
+    </div>
+  </div>
+  <ul class="notes"><li>Grouped lists with the current value on the right, so you rarely need to open a row to know its state</li><li>Same settings as today, regrouped: Sharing, Voice, App, Account</li></ul>
+</section>
+
+</main>
+
+<section class="sugg">
+  <h2>Suggestions</h2>
+  <ol>
+    <li><b>Make the room one screen.</b> Today the room splits Sync, People and Chat into tabs, so mid-movie you switch tabs to talk or check who's behind. Screen 5 puts the timeline, people and chat together; this is the biggest win.</li>
+    <li><b>One "Watch together" sheet everywhere.</b> Rooms start from a title, a friend, a chat or a group, each slightly differently. One sheet (pick the title if none, then who) would make every start feel the same.</li>
+    <li><b>Ask for permissions when they're needed.</b> Notification Access when you first start or join a room, the microphone when you first tap voice. Fewer people stop at a wall of permissions on day one.</li>
+    <li><b>Design the end of a watch party.</b> When a room ends, show "You watched Dune with Riya and Kabir · 2 h 46 min" with "Next episode together" for series. The watched-together card already exists; this makes it the last thing people see.</li>
+    <li><b>Labels on the bottom tabs.</b> Icon-only tabs make people guess (the TV icon could be Home or Watch). Short labels under the icons fix that.</li>
+    <li><b>Title search on Home.</b> Today Home only shows trending; people who know what they want to watch have no way in. The PC already has search.</li>
+    <li><b>Accessibility pass while building:</b> 48dp tap areas, TalkBack names on icon buttons and avatars, larger-text layouts (rows grow instead of clipping), reduced motion respected (the countdown fades instead of scaling).</li>
+    <li><b>Keep the app ARM-only build in mind:</b> WebRTC made the APK bigger; if size matters for Indus, a split per CPU (arm64, armeabi-v7a) halves the download.</li>
+  </ol>
+</section>
+</body>
+</html>
