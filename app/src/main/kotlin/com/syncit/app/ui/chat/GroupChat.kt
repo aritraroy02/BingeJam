@@ -1,5 +1,12 @@
 package com.syncit.app.ui.chat
 
+import com.syncit.app.ui.channels.ChannelModel
+import com.syncit.app.ui.channels.ChannelsSheet
+import com.syncit.core.social.ChannelKind
+import com.syncit.core.social.GroupChannel
+import com.syncit.core.social.GroupChannels
+import com.syncit.core.social.VoiceOccupant
+import com.syncit.core.voice.parseGroupVoiceRoom
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -150,7 +157,90 @@ class GroupChatViewModel(val groupId: String, private val container: AppContaine
         .flatMapLatest { uids -> groups.observeInvited(groupId, uids).catch { emit(emptySet()) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    val messages: StateFlow<List<DirectMessage>?> = groups.observeMessages(groupId)
+    // ---------- Channels, Discord style (2026-11-25, like the PC) ----------
+
+    private val channelsApi = social.channels
+    private val _channelId = MutableStateFlow(GroupChannels.GENERAL)
+
+    /** The text channel on screen; #general is the group chat itself. */
+    val channelId: StateFlow<String> = _channelId.asStateFlow()
+
+    fun selectChannel(id: String) {
+        _channelId.value = id
+    }
+
+    data class TextChannelRow(val channel: GroupChannel, val unread: Boolean)
+
+    data class VoiceChannelRow(
+        val channel: GroupChannel,
+        val people: List<VoiceOccupant>,
+        val status: String?,
+        /** This phone is talking in it. */
+        val connected: Boolean,
+    )
+
+    data class ChannelsUi(val text: List<TextChannelRow>, val voice: List<VoiceChannelRow>, val canManage: Boolean)
+
+    private val storedChannels = channelsApi.observeChannels(groupId).catch { emit(emptyList()) }
+
+    /** The newest message of each stored text channel (unread dots). */
+    private val newest = storedChannels
+        .map { list -> list.filter { it.kind == ChannelKind.TEXT }.map { it.id } }
+        .distinctUntilChanged()
+        .flatMapLatest { ids ->
+            if (ids.isEmpty()) flowOf(emptyMap())
+            else combine(ids.map { id -> channelsApi.observeNewest(groupId, id).catch { emit(null) }.map { id to it } }) { it.toMap() }
+        }
+
+    private val generalUnread = groups.observeUnreadCounts().map { (it[groupId] ?: 0) > 0 }.catch { emit(false) }
+
+    private val connectedChannel = container.voice.state.map { v ->
+        parseGroupVoiceRoom(v.roomCode)?.takeIf { it.first == groupId && v.active }?.second
+    }.distinctUntilChanged()
+
+    val channels: StateFlow<ChannelsUi> = combine(
+        combine(storedChannels, newest, channelsApi.observeReads(groupId).catch { emit(emptyMap()) }) { a, b, c -> Triple(a, b, c) },
+        combine(channelsApi.observeVoice(groupId).catch { emit(emptyMap()) }, channelsApi.observeVoiceStatuses(groupId).catch { emit(emptyMap()) }) { a, b -> a to b },
+        generalUnread,
+        connectedChannel,
+        group,
+    ) { (stored, latest, reads), (voice, statuses), general, connected, g ->
+        val me = myUid
+        val (text, voiceChannels) = ChannelModel.list(stored)
+        ChannelsUi(
+            text = text.map { c ->
+                val n = latest[c.id]
+                TextChannelRow(c, if (c.id == GroupChannels.GENERAL) general else ChannelModel.unread(n?.fromUid, n?.sentAt ?: 0L, reads[c.id] ?: 0L, me))
+            },
+            voice = voiceChannels.map { c ->
+                val people = voice[c.id].orEmpty()
+                VoiceChannelRow(c, people, if (people.isNotEmpty()) statuses[c.id] else null, connected == c.id)
+            },
+            canManage = g.group?.isAdmin(me) == true,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ChannelsUi(emptyList(), emptyList(), false))
+
+    /** Server time now, for the voice channels' call timers. */
+    fun serverNow(): Long = container.transport.serverClock.serverNowMs()
+
+    fun createChannel(name: String, kind: ChannelKind) = action("Couldn't add the channel") {
+        val id = channelsApi.create(groupId, name, kind)
+        if (kind == ChannelKind.TEXT) _channelId.value = id
+    }
+
+    fun renameChannel(channel: GroupChannel, name: String) = action("Couldn't rename the channel") {
+        channelsApi.rename(groupId, channel.id, name, channel.kind)
+    }
+
+    fun deleteChannel(channel: GroupChannel) = action("Couldn't delete the channel") {
+        if (_channelId.value == channel.id) _channelId.value = GroupChannels.GENERAL
+        channelsApi.delete(groupId, channel.id)
+    }
+
+    val messages: StateFlow<List<DirectMessage>?> = _channelId
+        .flatMapLatest { cid ->
+            if (cid == GroupChannels.GENERAL) groups.observeMessages(groupId) else channelsApi.observeMessages(groupId, cid)
+        }
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -172,13 +262,17 @@ class GroupChatViewModel(val groupId: String, private val container: AppContaine
     }
 
     fun markRead() {
-        viewModelScope.launch { runCatching { groups.markRead(groupId) } }
+        val cid = _channelId.value
+        viewModelScope.launch {
+            runCatching { if (cid == GroupChannels.GENERAL) groups.markRead(groupId) else channelsApi.markRead(groupId, cid) }
+        }
     }
 
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
-        action("Couldn't send") { groups.send(groupId, trimmed) }
+        val cid = _channelId.value
+        action("Couldn't send") { if (cid == GroupChannels.GENERAL) groups.send(groupId, trimmed) else channelsApi.send(groupId, cid, trimmed) }
     }
 
     fun startRoom(onStarted: (String) -> Unit) = action("Couldn't start the room", busy = true) {
@@ -272,8 +366,12 @@ fun GroupChatScreen(
     onOpenRoom: (code: String) -> Unit,
     onOpenInfo: () -> Unit,
     onAddPeople: () -> Unit,
+    onOpenVoice: (channelId: String) -> Unit = {},
 ) {
     val p = Glass.palette
+    val channelsUi by viewModel.channels.collectAsStateWithLifecycle()
+    val channelId by viewModel.channelId.collectAsStateWithLifecycle()
+    var showChannels by rememberSaveable { mutableStateOf(false) }
     val state by viewModel.group.collectAsStateWithLifecycle()
     val people by viewModel.people.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
@@ -284,7 +382,7 @@ fun GroupChatScreen(
     val group = state.group
     val me = viewModel.myUid
 
-    LaunchedEffect(messages?.size) { viewModel.markRead() }
+    LaunchedEffect(messages?.size, channelId) { viewModel.markRead() }
     val context = LocalContext.current
     DisposableEffect(viewModel.groupId) {
         PushNotifications.openGroupId = viewModel.groupId
@@ -320,6 +418,46 @@ fun GroupChatScreen(
                 }
                 Spacer(Modifier.width(8.dp))
                 GlassIconButton(Icons.Filled.Info, "Group info", onOpenInfo, plain = true)
+            }
+
+            // Channels, Discord style: which text channel is on screen, and who's talking in voice.
+            val channelName = channelsUi.text.firstOrNull { it.channel.id == channelId }?.channel?.name ?: "general"
+            val otherUnread = channelsUi.text.any { it.unread && it.channel.id != channelId }
+            val talking = channelsUi.voice.filter { it.people.isNotEmpty() }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(20.dp)).background(p.glassFallback).clickable { showChannels = true }.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("# $channelName", style = MaterialTheme.typography.labelLarge, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (otherUnread) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(p.textPrimary))
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    Text("▾", style = MaterialTheme.typography.labelLarge, color = p.textTertiary)
+                }
+                if (talking.isNotEmpty()) {
+                    val first = talking.first()
+                    val count = talking.sumOf { it.people.size }
+                    Row(
+                        Modifier.clip(RoundedCornerShape(20.dp)).background(p.glassFallback).clickable { onOpenVoice(first.channel.id) }.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(p.success))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "$count in ${first.channel.name}" + if (first.people.any { it.live }) " · LIVE" else "",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = p.textPrimary,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
 
             // A group of one (created without anyone, or everyone else left): offer Add people.
@@ -404,7 +542,7 @@ fun GroupChatScreen(
                 GlassTextField(
                     value = draft,
                     onValueChange = { draft = it.take(1_000) },
-                    placeholder = "Message ${group?.name.orEmpty()}",
+                    placeholder = if (channelId == GroupChannels.GENERAL) "Message ${group?.name.orEmpty()}" else "Message #$channelName",
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
                     singleLine = false,
                     modifier = Modifier.weight(1f),
@@ -417,6 +555,22 @@ fun GroupChatScreen(
             }
         }
         NoticeBanner(notice, onDismiss = viewModel::dismissNotice, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        ChannelsSheet(
+            visible = showChannels,
+            groupName = group?.name.orEmpty(),
+            ui = channelsUi,
+            selectedText = channelId,
+            serverNow = viewModel::serverNow,
+            onDismiss = { showChannels = false },
+            onSelectText = viewModel::selectChannel,
+            onOpenVoice = { id ->
+                showChannels = false
+                onOpenVoice(id)
+            },
+            onCreate = viewModel::createChannel,
+            onRename = viewModel::renameChannel,
+            onDelete = viewModel::deleteChannel,
+        )
     }
 }
 

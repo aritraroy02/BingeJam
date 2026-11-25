@@ -11,6 +11,7 @@ import com.syncit.core.social.AvatarStore
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendInvites
 import com.syncit.core.social.FriendsRepository
+import com.syncit.core.social.GroupChannels
 import com.syncit.core.social.GroupChats
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
@@ -23,6 +24,7 @@ import com.syncit.core.voice.VoiceAuth
 import com.syncit.firebase.social.ChatRoomLinks
 import com.syncit.firebase.social.FirebaseAppReports
 import com.syncit.firebase.social.FirebaseAvatarStore
+import com.syncit.firebase.social.FirebaseGroupChannels
 import com.syncit.firebase.social.FirebaseGroupChats
 import com.syncit.firebase.social.FirebaseDirectMessages
 import com.syncit.firebase.social.FirebaseFriendInvites
@@ -71,6 +73,9 @@ class FirebaseServices private constructor(context: Context) {
 
     /** Group chats, each with its own room. */
     val groups: GroupChats = FirebaseGroupChats(session, db, pushRelay, roomLinks)
+
+    /** A group's text and voice channels, Discord style (same data as the PC app). */
+    val channels: GroupChannels = FirebaseGroupChannels(session, db)
 
     /** Personal invite links, and report/block (2026-11-10). */
     val invites: FriendInvites = FirebaseFriendInvites(session, db, profiles, friends)

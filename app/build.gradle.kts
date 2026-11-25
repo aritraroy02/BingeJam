@@ -30,6 +30,8 @@ android {
         // check, banner or "new version" notification. -Pstore=github brings the old updater back.
         val store = (findProperty("store") as String?) ?: "indus"
         buildConfigField("boolean", "SELF_UPDATE", (store == "github").toString())
+        // WebRTC (watching Go Live) ships native code per CPU; phones are ARM, so leave out x86.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     signingConfigs {

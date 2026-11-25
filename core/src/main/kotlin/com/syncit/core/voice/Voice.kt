@@ -1,6 +1,8 @@
 package com.syncit.core.voice
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * How we send our own voice. Each person picks theirs; receivers decode whatever arrives (Opus
@@ -29,6 +31,8 @@ data class VoicePeer(
     val deafened: Boolean = false,
     /** How loud we play them, 0–2 (1 = as sent). Ours only; they never know. */
     val volume: Float = 1f,
+    /** Sharing their screen (a PC's Go Live, 2026-11-22); phones can watch it. */
+    val live: Boolean = false,
 )
 
 data class VoiceState(
@@ -46,6 +50,11 @@ data class VoiceState(
     val peers: List<VoicePeer> = emptyList(),
     /** Why [VoiceStatus.FAILED], worded for the user. */
     val error: String? = null,
+    /** IATA code of the data centre the voice chat runs in ("SIN"), and the one we came in through. */
+    val server: String? = null,
+    val edge: String? = null,
+    /** Round trip to the relay, smoothed (median of the last five); null until measured. */
+    val pingMs: Int? = null,
 ) {
     val active: Boolean get() = status != VoiceStatus.OFF && status != VoiceStatus.FAILED
 }
@@ -61,6 +70,10 @@ interface VoiceController {
     /** False on phones without an Opus encoder (Android 9 and older). */
     val supported: Boolean
 
+    /**
+     * [roomCode]: a room's 6-character code, [VOICE_ECHO_ROOM], or a group voice channel as
+     * [groupVoiceRoom] (gid, cid).
+     */
     fun join(roomCode: String, quality: VoiceQuality)
 
     fun leave()
@@ -87,6 +100,24 @@ interface VoiceController {
     fun setInputDevice(id: String?)
 
     fun setOutputDevice(id: String?)
+
+    /** Screen-share set-up messages from others in this voice chat (WebRTC offer / ICE as JSON). */
+    val signals: Flow<VoiceSignal> get() = emptyFlow()
+
+    /** Sends [data] (a JSON object) to [toSlot] only, through the relay. */
+    fun sendSignal(toSlot: Int, data: String) = Unit
+}
+
+/** A screen-share set-up message: [data] is the JSON object the sender put in "data". */
+class VoiceSignal(val fromSlot: Int, val data: String)
+
+/** The relay path of a group's voice channel: /voice/g/<gid>/<cid>. */
+fun groupVoiceRoom(groupId: String, channelId: String): String = "g/$groupId/$channelId"
+
+/** (gid, cid) for a [groupVoiceRoom] path, else null (a room code). */
+fun parseGroupVoiceRoom(room: String?): Pair<String, String>? {
+    val parts = room?.split('/') ?: return null
+    return if (parts.size == 3 && parts[0] == "g" && parts[1].isNotEmpty() && parts[2].isNotEmpty()) parts[1] to parts[2] else null
 }
 
 /**

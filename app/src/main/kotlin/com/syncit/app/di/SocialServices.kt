@@ -7,6 +7,7 @@ import com.syncit.core.social.ActivityTracker
 import com.syncit.core.social.DirectMessages
 import com.syncit.core.social.FriendInvites
 import com.syncit.core.social.FriendsRepository
+import com.syncit.core.social.GroupChannels
 import com.syncit.core.social.GroupChats
 import com.syncit.core.social.PresenceRepository
 import com.syncit.core.social.ProfileRepository
@@ -33,6 +34,8 @@ class SocialServices(
     val isFake: Boolean = false,
     /** Group chats, each with its own room (off in the fakes). */
     val groups: GroupChats = GroupChats.None,
+    /** A group's text and voice channels (only the built-in two in the fakes). */
+    val channels: GroupChannels = GroupChannels.None,
     /** Personal invite links (off in the fakes). */
     val invites: FriendInvites = FriendInvites.None,
     /** Report and block groups (off in the fakes). */

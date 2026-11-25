@@ -17,6 +17,8 @@ import com.syncit.core.voice.VOICE_ECHO_ROOM
 import com.syncit.core.voice.VoiceActivity
 import com.syncit.core.voice.VoiceAuth
 import com.syncit.core.voice.VoicePeer
+import com.syncit.core.voice.VoiceSignal
+import com.syncit.core.voice.parseGroupVoiceRoom
 import com.syncit.core.voice.VoiceQuality
 import com.syncit.core.voice.VoiceState
 import com.syncit.core.voice.VoiceStatus
@@ -52,6 +54,8 @@ internal class VoiceEngine(
     private val auth: VoiceAuth,
     private val preferredInput: () -> AudioDeviceInfo?,
     private val scope: CoroutineScope,
+    /** Screen-share set-up messages for us (any thread). */
+    private val onSignal: (VoiceSignal) -> Unit,
     private val update: ((VoiceState) -> VoiceState) -> Unit,
 ) {
     @Volatile private var stopped = false
@@ -72,6 +76,11 @@ internal class VoiceEngine(
     private var attempts = 0
     private var reconnectJob: Job? = null
     private var tickerJob: Job? = null
+    private var pingJob: Job? = null
+
+    /** When the unanswered "ping" went out (elapsedRealtime), and the last round trips. */
+    @Volatile private var pingSentAt = 0L
+    private val pings = ArrayDeque<Long>() // guarded by itself
 
     private val echo = room == VOICE_ECHO_ROOM
     private val client = OkHttpClient.Builder().pingInterval(20, TimeUnit.SECONDS).build()
@@ -103,6 +112,7 @@ internal class VoiceEngine(
         stopped = true
         reconnectJob?.cancel()
         tickerJob?.cancel()
+        pingJob?.cancel()
         socket?.close(1000, "bye")
         socket = null
         captureThread?.interrupt()
@@ -175,10 +185,12 @@ internal class VoiceEngine(
             connected = true
             sendState()
             update { it.copy(status = VoiceStatus.CONNECTED, error = null) }
+            startPings(webSocket)
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
-            if (current()) onControl(text)
+            if (!current()) return
+            if (text == "pong") onPong() else onControl(text)
         }
 
         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
@@ -194,7 +206,7 @@ internal class VoiceEngine(
             when (response?.code) {
                 401 -> if (freshToken) fail("Sign in again to use voice") else reconnect(forceToken = true, immediately = true)
                 403 -> fail("You're not in this room any more")
-                429 -> fail("Voice chat is full (8 people max)")
+                429 -> fail(if (parseGroupVoiceRoom(room) != null) "This voice channel is full (16 people max)" else "Voice chat is full (8 people max)")
                 else -> {
                     Log.w(TAG, "Voice connection lost: ${t.message}")
                     dropped()
@@ -234,11 +246,51 @@ internal class VoiceEngine(
         )
     }
 
+    /** Screen-share set-up for one person in this voice chat (the relay passes it to that slot only). */
+    fun sendSignal(toSlot: Int, data: String) {
+        if (!connected) return
+        val payload = runCatching { JSONObject(data) }.getOrNull() ?: return
+        socket?.send(JSONObject().put("t", "signal").put("to", toSlot).put("data", payload).toString())
+    }
+
+    // ---- Ping: "Voice connected · Singapore · 42 ms" ----
+
+    private fun startPings(webSocket: WebSocket) {
+        pingJob?.cancel()
+        pingJob = scope.launch {
+            while (isActive && !stopped) {
+                val now = SystemClock.elapsedRealtime()
+                // One at a time: a "pong" answers the oldest ping; an unanswered one is given up after 10 s.
+                if (pingSentAt == 0L || now - pingSentAt > 10_000) {
+                    pingSentAt = now
+                    webSocket.send("ping")
+                }
+                delay(PING_EVERY_MS)
+            }
+        }
+    }
+
+    private fun onPong() {
+        val sent = pingSentAt
+        if (sent == 0L) return
+        pingSentAt = 0L
+        val rtt = SystemClock.elapsedRealtime() - sent
+        val smoothed = synchronized(pings) {
+            pings.addLast(rtt)
+            while (pings.size > 5) pings.removeFirst()
+            pings.sorted()[pings.size / 2]
+        }
+        update { it.copy(pingMs = smoothed.toInt()) }
+    }
+
     private fun onControl(text: String) {
         val m = runCatching { JSONObject(text) }.getOrNull() ?: return
         when (m.optString("t")) {
             "hello" -> {
                 mySlot = m.optInt("slot", -1)
+                val server = m.optString("server").takeIf { it.matches(IATA) }
+                val edge = m.optString("edge").takeIf { it.matches(IATA) }
+                update { it.copy(server = server, edge = edge) }
                 val list = m.optJSONArray("peers")
                 synchronized(peers) {
                     peers.clear()
@@ -265,9 +317,16 @@ internal class VoiceEngine(
                             muted = m.optBoolean("muted"),
                             deafened = m.optBoolean("deafened"),
                             quality = VoiceQuality.fromWire(m.optString("quality")),
+                            live = m.optBoolean("live"),
                         )
                     }
                 }
+            }
+            "signal" -> {
+                val from = m.optInt("from", -1)
+                val data = m.optJSONObject("data")
+                if (from >= 0 && data != null) onSignal(VoiceSignal(from, data.toString()))
+                return
             }
         }
         publishPeers()
@@ -282,6 +341,7 @@ internal class VoiceEngine(
             muted = o.optBoolean("muted"),
             deafened = o.optBoolean("deafened"),
             quality = VoiceQuality.fromWire(o.optString("quality")),
+            live = o.optBoolean("live"),
         )
     }
 
@@ -485,6 +545,8 @@ internal class VoiceEngine(
     }
 
     private companion object {
+        private const val PING_EVERY_MS = 5_000L
+        private val IATA = Regex("^[A-Z]{3}$")
         const val TAG = "SyncItVoice"
         const val PLAY_RATE = Opus.DECODED_RATE
         const val PLAY_FRAME = PLAY_RATE * Opus.FRAME_MS / 1000

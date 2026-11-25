@@ -25,6 +25,8 @@ import com.syncit.media.activity.AndroidActivityTracker
 import com.syncit.media.service.AndroidSyncSessionController
 import com.syncit.sync.DefaultSyncEngine
 import com.syncit.voice.AndroidVoiceController
+import com.syncit.voice.ScreenShareViewer
+import com.syncit.app.social.GroupVoicePresence
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,6 +76,7 @@ class AppContainer(app: Application) : SyncDependencies {
             push = fb.push,
             avatars = fb.avatars,
             groups = fb.groups,
+            channels = fb.channels,
             invites = fb.invites,
             safety = fb.safety,
             appReports = fb.appReports,
@@ -95,6 +98,12 @@ class AppContainer(app: Application) : SyncDependencies {
 
     /** Room voice chat through our relay (unsupported with the debug fakes). */
     val voice: VoiceController = AndroidVoiceController(app, firebase?.voiceAuth)
+
+    /** Lists us in a group's voice channel while we talk there (2026-11-25, like the PC). */
+    val groupVoice = GroupVoicePresence(voice, social.channels, { prefs.displayName.trim().ifBlank { "Friend" } }, appScope)
+
+    /** Watching a PC's Go Live in a voice channel (WebRTC, receive only). */
+    val goLive = ScreenShareViewer(app, voice, firebase?.voiceAuth)
 
     init {
         // The watchlist lives in the account (2026-11-12) so the PC app shares it. The first time an

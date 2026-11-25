@@ -7,12 +7,16 @@ import com.syncit.core.voice.VoiceAuth
 import com.syncit.core.voice.VoiceController
 import com.syncit.core.voice.VoiceDevices
 import com.syncit.core.voice.VoiceQuality
+import com.syncit.core.voice.VoiceSignal
 import com.syncit.core.voice.VoiceState
 import com.syncit.core.voice.VoiceStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -38,6 +42,13 @@ class AndroidVoiceController(context: Context, private val auth: VoiceAuth?) : V
 
     override val state: StateFlow<VoiceState> = _state.asStateFlow()
 
+    private val _signals = MutableSharedFlow<VoiceSignal>(extraBufferCapacity = 64)
+    override val signals: SharedFlow<VoiceSignal> = _signals.asSharedFlow()
+
+    override fun sendSignal(toSlot: Int, data: String) {
+        engine?.sendSignal(toSlot, data)
+    }
+
     override val supported: Boolean get() = auth != null && Opus.encoderAvailable
 
     init {
@@ -58,7 +69,7 @@ class AndroidVoiceController(context: Context, private val auth: VoiceAuth?) : V
         routing.enter()
         VoiceService.start(app)
         lateinit var created: VoiceEngine
-        created = VoiceEngine(roomCode, quality, micVolume, volumes, auth, routing::preferredInput, scope) { change ->
+        created = VoiceEngine(roomCode, quality, micVolume, volumes, auth, routing::preferredInput, scope, onSignal = { _signals.tryEmit(it) }) { change ->
             if (engine !== created) return@VoiceEngine
             _state.update(change)
             if (_state.value.status == VoiceStatus.FAILED) scope.launch { if (engine === created) failed() }

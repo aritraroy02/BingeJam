@@ -83,6 +83,10 @@ import com.syncit.app.ui.profile.UserProfileScreen
 import com.syncit.app.ui.profile.UserProfileViewModel
 import com.syncit.app.ui.profile.ProfileViewModel
 import com.syncit.app.ui.room.OngoingRoomBar
+import com.syncit.app.ui.channels.VoiceChannelScreen
+import com.syncit.app.ui.channels.VoiceChannelViewModel
+import com.syncit.app.ui.channels.VoiceConnectedBar
+import com.syncit.app.ui.channels.VoiceConnectedViewModel
 import com.syncit.app.ui.room.OngoingRoomViewModel
 import com.syncit.app.ui.room.RoomScreen
 import com.syncit.app.ui.room.RoomViewModel
@@ -135,6 +139,9 @@ sealed interface Screen {
     /** WhatsApp-style group info and its Add people screen (2026-11-10). */
     data class GroupInfo(val groupId: String) : Screen
     data class AddGroupMembers(val groupId: String) : Screen
+
+    /** A group's voice channel (2026-11-25, Discord style, like the PC). */
+    data class VoiceChannel(val groupId: String, val channelId: String) : Screen
     data object NewGroup : Screen
     data object Settings : Screen
 
@@ -351,10 +358,24 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
 
     val roomBar: OngoingRoomViewModel = viewModel(factory = viewModelFactory { initializer { OngoingRoomViewModel(container) } })
     val ongoing by roomBar.ongoing.collectAsStateWithLifecycle()
-    val showRoomBar = ongoing?.let { o -> (nav.current as? Screen.Room)?.code != o.code } == true
+    val voiceBar: VoiceConnectedViewModel = viewModel(factory = viewModelFactory { initializer { VoiceConnectedViewModel(container) } })
+    val inVoice by voiceBar.connected.collectAsStateWithLifecycle()
+    val showVoiceBar = inVoice?.let { v -> (nav.current as? Screen.VoiceChannel).let { it?.groupId != v.groupId || it.channelId != v.channelId } } == true
+    val showRoomBar = !showVoiceBar && ongoing?.let { o -> (nav.current as? Screen.Room)?.code != o.code } == true
 
     val reduceMotion = rememberReduceMotion()
     Column(Modifier.fillMaxSize()) {
+        AnimatedVisibility(visible = showVoiceBar, enter = expandVertically(), exit = shrinkVertically()) {
+            inVoice?.let { v ->
+                VoiceConnectedBar(
+                    state = v,
+                    onOpen = { nav.push(Screen.VoiceChannel(v.groupId, v.channelId)) },
+                    onMute = voiceBar::setMuted,
+                    onDeafen = voiceBar::setDeafened,
+                    onLeave = voiceBar::leave,
+                )
+            }
+        }
         AnimatedVisibility(visible = showRoomBar, enter = expandVertically(), exit = shrinkVertically()) {
             ongoing?.let { o ->
                 OngoingRoomBar(
@@ -366,7 +387,7 @@ private fun MainNav(container: AppContainer, nav: NavViewModel, deletion: Delete
             }
         }
         // Under the bar, screens skip their own status-bar padding (the bar already covers it).
-        Box(Modifier.fillMaxSize().then(if (showRoomBar) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier)) {
+        Box(Modifier.fillMaxSize().then(if (showRoomBar || showVoiceBar) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier)) {
             CompositionLocalProvider(
                 LocalBottomBarInset provides if (currentTab != null) TabBarInset else 0.dp,
                 LocalOpenSheets provides openSheets,
@@ -523,7 +544,16 @@ private fun NavScreen(entry: NavEntry, container: AppContainer, nav: NavViewMode
                     onOpenRoom = { code -> nav.push(Screen.Room(code)) },
                     onOpenInfo = { nav.push(Screen.GroupInfo(screen.groupId)) },
                     onAddPeople = { nav.push(Screen.AddGroupMembers(screen.groupId)) },
+                    onOpenVoice = { cid -> nav.push(Screen.VoiceChannel(screen.groupId, cid)) },
                 )
+            }
+
+            is Screen.VoiceChannel -> {
+                val vm: VoiceChannelViewModel = viewModel(
+                    key = "voice-${screen.groupId}-${screen.channelId}",
+                    factory = viewModelFactory { initializer { VoiceChannelViewModel(screen.groupId, screen.channelId, container) } },
+                )
+                VoiceChannelScreen(vm, onBack = nav::pop)
             }
 
             is Screen.GroupInfo -> {
