@@ -3,6 +3,8 @@ import { BRAND } from '@shared/brand'
 import { Icon, LogoMark, type IconName } from './Icon'
 import type { VoiceConnectionVM } from './models'
 import { Avatar, Badge, LiveDot, Switch } from './primitives'
+import type { NowPlaying } from '@shared/music'
+import { ActivityCards, type GameNow } from './ActivityCards'
 import { RoomDock, type RoomDockVM } from './RoomDock'
 import { VoiceDock } from './VoiceDock'
 
@@ -30,7 +32,11 @@ export interface NavProps {
     /** What friends see, in full ("Playing VALORANT", "Listening to Sitaare · Spotify"). */
     activityLines?: string[]
     shareActivity?: boolean
+    game?: GameNow | null
+    nowPlaying?: NowPlaying | null
   }
+  /** "Edit profile" in your profile card. */
+  onEditProfile?: () => void
   extension?: { connected: boolean; detail: string }
   onStatus?: (status: 'online' | 'dnd' | 'invisible') => void
   onShareActivity?: (on: boolean) => void
@@ -45,7 +51,7 @@ export interface NavProps {
 const STATUS_LABEL = { online: 'Online', dnd: 'Do not disturb', invisible: 'Invisible' } as const
 
 /** Wide sidebar with labels: the Home layout in the design. */
-export function SideNav({ current, onNavigate, badges = {}, me, extension, onStatus, onShareActivity, voice, voiceActions, room, roomActions }: NavProps): JSX.Element {
+export function SideNav({ current, onNavigate, badges = {}, me, extension, onStatus, onShareActivity, onEditProfile, voice, voiceActions, room, roomActions }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--wide glass glass--strong rise" style={{ borderRadius: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 8px 24px' }}>
@@ -97,33 +103,36 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension, onSta
           onLeave={voiceActions.leave}
         />
       ) : null}
-      {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} /> : null}
+      {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} onEditProfile={onEditProfile} /> : null}
     </nav>
   )
 }
 
-/** Top of the status menu: exactly what friends see of you right now. */
-function FriendsSee({ me, status }: { me: NonNullable<NavProps['me']>; status: 'online' | 'dnd' | 'invisible' }): JSX.Element {
+/**
+ * The top of your status menu, like Discord's profile pop-out: your picture and name, the game and
+ * the Spotify song on this PC, and one line saying exactly what friends see.
+ */
+function ProfileHead({ me, status }: { me: NonNullable<NavProps['me']>; status: 'online' | 'dnd' | 'invisible' }): JSX.Element {
   const lines = me.activityLines ?? (me.activity ? [me.activity] : [])
-  let body: JSX.Element[]
-  if (status === 'invisible') body = [<span key="x" className="subtle">You look offline</span>]
-  else if (me.shareActivity === false)
-    body = [
-      <span key="x" className="subtle">
-        {status === 'dnd' ? 'Do not disturb' : 'Online'} · your activity is hidden
-      </span>
-    ]
-  else if (lines.length === 0) body = [<span key="x" className="subtle">{status === 'dnd' ? 'Do not disturb' : 'Online'}</span>]
-  else
-    body = lines.map((l) => (
-      <span key={l} className="status-menu__seen-line">
-        {l}
-      </span>
-    ))
+  const plain = status === 'dnd' ? 'Do not disturb' : 'Online'
+  const seen =
+    status === 'invisible'
+      ? 'Friends see you offline'
+      : me.shareActivity === false
+        ? `Friends see "${plain}": your activity is hidden`
+        : lines.length > 0
+          ? `Friends see "${lines.join(' · ')}"`
+          : `Friends see "${plain}"`
   return (
-    <div className="status-menu__seen" aria-label="What friends see">
-      <span className="subtle small">What friends see</span>
-      {body}
+    <div className="me-card">
+      <div className="me-card__band" aria-hidden="true" />
+      <div className="me-card__who">
+        <Avatar name={me.name} id={me.uid} photoUrl={me.photoUrl} size={64} online={status !== 'invisible'} dnd={status === 'dnd'} />
+        <span className="me-card__name truncate">{me.name}</span>
+        <span className="me-card__user truncate">@{me.username}</span>
+      </div>
+      <ActivityCards game={me.game ?? null} song={me.nowPlaying ?? null} />
+      <p className="me-card__seen">{seen}</p>
     </div>
   )
 }
@@ -133,11 +142,13 @@ function AccountCard({
   me,
   onStatus,
   onShareActivity,
+  onEditProfile,
   compact = false
 }: {
   me: NonNullable<NavProps['me']>
   onStatus?: NavProps['onStatus']
   onShareActivity?: NavProps['onShareActivity']
+  onEditProfile?: NavProps['onEditProfile']
   /** The icon rail: just the picture; the menu opens to the right. */
   compact?: boolean
 }): JSX.Element {
@@ -164,7 +175,21 @@ function AccountCard({
     <div ref={box} style={{ position: 'relative', marginTop: compact ? 0 : 12 }}>
       {open && onStatus ? (
         <div className={compact ? 'status-menu status-menu--side' : 'status-menu'} role="menu" aria-label="Your status">
-          <FriendsSee me={me} status={status} />
+          <ProfileHead me={me} status={status} />
+          {onEditProfile ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="status-menu__item"
+              onClick={() => {
+                onEditProfile()
+                setOpen(false)
+              }}
+            >
+              <Icon name="edit" size={16} />
+              <span style={{ fontWeight: 600 }}>Edit profile</span>
+            </button>
+          ) : null}
           {(['online', 'dnd', 'invisible'] as const).map((s) => (
             <button
               key={s}
@@ -253,7 +278,7 @@ function AccountCard({
 }
 
 /** Slim icon rail: chats, rooms and settings screens in the design. */
-export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity, voice, voiceActions, room, roomActions }: NavProps): JSX.Element {
+export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity, onEditProfile, voice, voiceActions, room, roomActions }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--rail glass glass--strong rise">
       <button type="button" className="logo-tile pressable" aria-label={`${BRAND.name} home`} onClick={() => onNavigate('home')} style={{ border: 'none' }}>
@@ -285,7 +310,7 @@ export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShar
           compact
         />
       ) : null}
-      {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} compact /> : null}
+      {me ? <AccountCard me={me} onStatus={onStatus} onShareActivity={onShareActivity} onEditProfile={onEditProfile} compact /> : null}
     </nav>
   )
 }

@@ -33,6 +33,10 @@ import {
   demoNewRoom
 } from './sample'
 
+// Your profile card: a game for 12 minutes and a song 1:04 in (made-up names).
+const DEMO_GAME = { name: 'VALORANT', since: Date.now() - 12 * 60_000 }
+const DEMO_SONG = { app: 'spotify' as const, title: 'Neon Streets', artist: 'The Midnight Drive', playing: true, durationMs: 242_000, positionMs: 64_000, at: Date.now(), artwork: null }
+
 // Demo mode with buttons that do something: sending adds a bubble, Ping turns into "Pinged",
 // Start room opens a room, and so on. All in memory; nothing leaves the window.
 
@@ -371,7 +375,14 @@ export function useDemo(profileUid: string | null = null): ShellData {
   // The real updater (it stays idle unless a test feed is set; see desktop/README).
   const update = useUpdateState()
   return {
-    me: { ...DEMO_ME, activity: 'Playing VALORANT +1', activityLines: ['Playing VALORANT', 'Listening to Sitaare · Spotify'], shareActivity: true },
+    me: {
+      ...DEMO_ME,
+      activity: 'Playing VALORANT +1',
+      activityLines: ['Playing VALORANT', 'Listening to Neon Streets · Spotify'],
+      shareActivity: true,
+      game: DEMO_GAME,
+      nowPlaying: DEMO_SONG
+    },
     home: DEMO_HOME,
     chats,
     header: (id) => headers[id] ?? null,

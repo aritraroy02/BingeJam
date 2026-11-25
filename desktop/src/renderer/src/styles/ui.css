@@ -662,19 +662,131 @@
   box-shadow: var(--float-shadow);
   border: 1px solid var(--hairline-strong);
   animation: bj-rise var(--rise) var(--ease-out) both;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
 }
-.status-menu__seen {
+/* Your profile card at the top of the status menu (Discord's pop-out). */
+.me-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px 10px;
-  margin-bottom: 4px;
+  gap: 10px;
+  margin: -6px -6px 6px;
+  padding: 0 12px 12px;
   border-bottom: 1px solid var(--hairline);
-  font-size: 13px;
 }
-.status-menu__seen-line {
-  font-weight: 500;
+.me-card__band {
+  height: 56px;
+  margin: 0 -12px;
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  background: var(--raised-2);
+}
+.me-card__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: -40px;
+  min-width: 0;
+}
+.me-card__who .avatar {
+  box-shadow: 0 0 0 4px var(--surface);
+  margin-bottom: 6px;
+}
+.me-card__name {
+  font-size: 17px;
+  font-weight: 600;
+}
+.me-card__user {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.me-card__seen {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-3);
   overflow-wrap: anywhere;
+}
+.activity-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.activity-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+}
+.activity-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.activity-card__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.activity-card__tile,
+.activity-card__art {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.activity-card__tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--raised-2);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-2);
+}
+.activity-card__art,
+.activity-card__tile--art {
+  width: 56px;
+  height: 56px;
+}
+.activity-card__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.activity-card__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.activity-card__sub {
+  font-size: 12px;
+  color: var(--text-2);
+}
+.activity-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.activity-card__bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(var(--ink), 0.14);
+  overflow: hidden;
+}
+.activity-card__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--text);
+  transform-origin: left;
 }
 .status-menu__item {
   all: unset;

@@ -24,6 +24,8 @@ import type { EditProfileValues } from '@/ui/ProfileDialogs'
 import type { InviteAlertVM, JoinAlertVM } from '@/ui/Alerts'
 import type { Density, ThemeMode } from '@/live/appearance'
 import type { UpdateState } from '@shared/update'
+import type { NowPlaying } from '@shared/music'
+import type { GameNow } from '@/ui/ActivityCards'
 
 /** Something outside the shell (a notification click, an invite link) wants a screen opened. */
 export interface NavRequest {
@@ -51,6 +53,9 @@ export interface ShellData {
     /** What friends see, in full (status menu). */
     activityLines?: string[]
     shareActivity?: boolean
+    /** Your profile card (like Discord's): the game and the Spotify song on this PC, with art and progress. */
+    game?: GameNow | null
+    nowPlaying?: NowPlaying | null
   }
   home: HomeVM
   chats: ChatSummaryVM[] | null

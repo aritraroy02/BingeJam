@@ -5,7 +5,7 @@ import type { DeviceActivity } from './devicePresence.ts'
 import type { NowPlaying } from '../../../shared/music.ts'
 
 const tab = (playing: boolean, inWatchParty = false): DeviceActivity => ({ app: 'netflix', title: 'Dune', subtitle: null, playing, durationMs: null, inWatchParty, watchingWith: null })
-const song = (playing: boolean): NowPlaying => ({ app: 'spotify', title: 'Sitaare', artist: 'Arijit Singh', playing, durationMs: 242916 })
+const song = (playing: boolean): NowPlaying => ({ app: 'spotify', title: 'Sitaare', artist: 'Arijit Singh', playing, durationMs: 242916, positionMs: 0, at: 0, artwork: null })
 
 test('Spotify playing shows as the PC activity', () => {
   assert.deepEqual(pcActivity(null, song(true)), { app: 'spotify', title: 'Sitaare', subtitle: 'Arijit Singh', playing: true, durationMs: 242916, inWatchParty: false, watchingWith: null })

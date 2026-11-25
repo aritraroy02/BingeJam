@@ -391,7 +391,8 @@ function Shell({
       ? { open: openVoice, toggleMute: act.voice.toggleMute, toggleDeafen: act.voice.toggleDeafen, leave: act.voice.leave }
       : undefined,
     room: roomDock,
-    roomActions: { open: openCurrentRoom, leave: () => act.leaveRoom() }
+    roomActions: { open: openCurrentRoom, leave: () => act.leaveRoom() },
+    onEditProfile: () => setEditing(true)
   }
 
   let screen: JSX.Element

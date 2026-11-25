@@ -692,7 +692,7 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
   const unread = chats?.reduce((n, c) => n + c.unread, 0) ?? 0
 
   return {
-    me: { uid, name: profile.displayName, username: profile.username, photoUrl: profile.photoUrl, status: myStatus, activity: myActivityLine, activityLines: myActivityLines, shareActivity: sharing },
+    me: { uid, name: profile.displayName, username: profile.username, photoUrl: profile.photoUrl, status: myStatus, activity: myActivityLine, activityLines: myActivityLines, shareActivity: sharing, game, nowPlaying: music },
     home,
     chats,
     header: (id) => (id === chatId ? header : null),
