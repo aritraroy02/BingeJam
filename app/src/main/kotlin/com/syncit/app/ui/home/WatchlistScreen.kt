@@ -1,5 +1,8 @@
 package com.syncit.app.ui.home
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,10 +49,29 @@ fun WatchlistScreen(viewModel: HomeViewModel, onWatchWithFriends: (code: String)
     val watchlist by viewModel.watchlist.collectAsStateWithLifecycle()
     val trending by viewModel.trending.collectAsStateWithLifecycle()
     var pick by remember { mutableStateOf<Pair<TrendingTitle, StreamingService>?>(null) }
+    // All, Movies or Web series (2026-11-25 redesign).
+    var type by rememberSaveable { mutableStateOf<String?>(null) }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            GlassTopBar(title = "Watchlist")
+            GlassTopBar(title = "Watchlist", actions = {
+                if (watchlist.isNotEmpty()) {
+                    Text(
+                        if (watchlist.size == 1) "1 title" else "${watchlist.size} titles",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = p.textTertiary,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
+            })
+            if (watchlist.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.syncit.app.ui.glass.GlassChip("All", onClick = { type = null }, selected = type == null)
+                    for (t in com.syncit.core.lookup.TitleType.entries) {
+                        com.syncit.app.ui.glass.GlassChip(t.label, onClick = { type = t.wire }, selected = type == t.wire)
+                    }
+                }
+            }
             if (watchlist.isEmpty()) {
                 Box(Modifier.fillMaxSize().padding(32.dp).padding(bottom = LocalBottomBarInset.current), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -70,7 +92,7 @@ fun WatchlistScreen(viewModel: HomeViewModel, onWatchWithFriends: (code: String)
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(watchlist, key = { it.key }) { item ->
+                    items(watchlist.filter { type == null || it.title.type.wire == type }, key = { it.key }) { item ->
                         PosterCard(item.title, fill = true) { pick = item.title to item.service }
                     }
                 }
