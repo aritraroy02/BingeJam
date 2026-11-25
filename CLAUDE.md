@@ -54,7 +54,9 @@ group search; DM: pinned activity with Ask to join, Watch together button by the
 dmReads/{uid}/{friend}, emulator 8 cases), quote + 3-button message sheet; group channel strip; room = one screen
 (hero, people strip with offsets, chat; People and sync sheet); full-screen countdown; Home: live room hero, Friends
 watching, title search (relay GET /search, TMDB multi + IN providers, KV search:v1:<q>); friend profile Ask to join +
-Watched together; Watchlist filters. **Needs deploying: database rules (dmReads read) and relay (search).**
+Watched together; Watchlist filters. **Database rules deployed 2026-11-25; relay (search) not yet: wrangler lost its
+sign-in on the main machine, the user runs `npx wrangler login` in push-relay/ first.** Phone 0.7.3 (versionCode 22)
+built and saved to the Desktop as BingeJam-0.7.3.apk; not uploaded to Indus.
 
 **PC in-app updates (2026-11-23, published as PC 0.1.3, `pc-v0.1.3`, user's go-ahead):** `src/main/updater.ts` checks the releases
 repo 15 s after start, every hour and on window focus after 15 min (was 6 h in 0.1.3/0.1.4) (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
