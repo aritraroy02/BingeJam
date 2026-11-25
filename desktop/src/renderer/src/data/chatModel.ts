@@ -192,14 +192,25 @@ export function roomSummary(preview: Preview | null, talking: number): string {
   return talking > 0 ? `${line} · talking in voice` : line
 }
 
-export function headerRoom(link: RoomLink | null, preview: Preview | null, people: ReadonlyMap<string, PersonVM>, talking: number, now: number): ChatHeaderVM['room'] {
+export function headerRoom(
+  link: RoomLink | null,
+  preview: Preview | null,
+  people: ReadonlyMap<string, PersonVM>,
+  talking: number,
+  now: number,
+  me: string | null = null
+): ChatHeaderVM['room'] {
   if (!link) return null
+  const youIn = me !== null && link.inRoom.includes(me)
+  // You first, so the card can say "You and Riya are in the room".
+  const order = youIn ? [me, ...link.inRoom.filter((uid) => uid !== me)] : link.inRoom
   return {
     code: link.code,
     inCount: link.inRoom.length,
     startedAtLabel: elapsedLabel(link.startedAt, now),
     summary: roomSummary(preview, talking),
-    names: link.inRoom.map((uid) => people.get(uid) ?? { id: uid, name: 'Someone' })
+    names: order.map((uid) => people.get(uid) ?? { id: uid, name: 'Someone' }),
+    youIn
   }
 }
 

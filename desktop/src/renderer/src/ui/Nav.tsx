@@ -3,6 +3,7 @@ import { BRAND } from '@shared/brand'
 import { Icon, LogoMark, type IconName } from './Icon'
 import type { VoiceConnectionVM } from './models'
 import { Avatar, Badge, LiveDot, Switch } from './primitives'
+import { RoomDock, type RoomDockVM } from './RoomDock'
 import { VoiceDock } from './VoiceDock'
 
 export type Tab = 'home' | 'chats' | 'watchlist' | 'friends' | 'settings'
@@ -34,12 +35,15 @@ export interface NavProps {
   /** "Voice connected" above your card, on every screen (like Discord). */
   voice?: VoiceConnectionVM | null
   voiceActions?: { open: () => void; toggleMute: () => void; toggleDeafen: () => void; leave: () => void }
+  /** "In a room · Back to room · Leave" while this PC is in a room and its screen isn't open. */
+  room?: RoomDockVM | null
+  roomActions?: { open: () => void; leave: () => void }
 }
 
 const STATUS_LABEL = { online: 'Online', dnd: 'Do not disturb', invisible: 'Invisible' } as const
 
 /** Wide sidebar with labels: the Home layout in the design. */
-export function SideNav({ current, onNavigate, badges = {}, me, extension, onStatus, onShareActivity, voice, voiceActions }: NavProps): JSX.Element {
+export function SideNav({ current, onNavigate, badges = {}, me, extension, onStatus, onShareActivity, voice, voiceActions, room, roomActions }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--wide glass glass--strong rise" style={{ borderRadius: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 8px 24px' }}>
@@ -81,6 +85,7 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension, onSta
           <span className="subtle">{extension.detail}</span>
         </div>
       ) : null}
+      {room && roomActions ? <RoomDock room={room} onOpen={roomActions.open} onLeave={roomActions.leave} /> : null}
       {voice && voiceActions ? (
         <VoiceDock
           voice={voice}
@@ -219,7 +224,7 @@ function AccountCard({
 }
 
 /** Slim icon rail: chats, rooms and settings screens in the design. */
-export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity, voice, voiceActions }: NavProps): JSX.Element {
+export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity, voice, voiceActions, room, roomActions }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--rail glass glass--strong rise">
       <button type="button" className="logo-tile pressable" aria-label={`${BRAND.name} home`} onClick={() => onNavigate('home')} style={{ border: 'none' }}>
@@ -240,6 +245,7 @@ export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShar
         </button>
       ))}
       <div style={{ flex: 1 }} />
+      {room && roomActions ? <RoomDock room={room} onOpen={roomActions.open} onLeave={roomActions.leave} compact /> : null}
       {voice && voiceActions ? (
         <VoiceDock
           voice={voice}

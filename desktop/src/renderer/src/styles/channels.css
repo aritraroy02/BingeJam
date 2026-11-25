@@ -468,6 +468,12 @@
   border-color: rgba(200, 16, 46, 0.5);
   background: transparent;
 }
+/* Back to room / Leave: words instead of icons. */
+.dock-btn--text {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+}
 .dock-btn--leave:hover {
   color: var(--accent-text);
   border-color: rgba(200, 16, 46, 0.5);

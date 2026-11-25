@@ -95,8 +95,11 @@ export interface ChatHeaderVM {
     inCount: number
     startedAtLabel: string
     summary: string
+    /** Who's in; you first when [youIn]. */
     names: PersonVM[]
-    /** You're already in this room: the button says "Open room" instead of "Join room". */
+    /** Your account is in the room (this PC or another device): names[0] is you. */
+    youIn?: boolean
+    /** This PC is in this room: "Open room" and "Leave" instead of "Join room". */
     meInRoom?: boolean
   } | null
   /** Group only. */

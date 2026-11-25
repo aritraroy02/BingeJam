@@ -184,7 +184,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
       setRoomChat(messages[chatId] ?? [])
       setHeaders((h) => ({
         ...h,
-        [chatId]: { ...header, room: { code: r.code, inCount: 1, startedAtLabel: 'now', summary: 'Nothing playing yet', names: [DEMO_PEOPLE.me], meInRoom: true } }
+        [chatId]: { ...header, room: { code: r.code, inCount: 1, startedAtLabel: 'now', summary: 'Nothing playing yet', names: [DEMO_PEOPLE.me], youIn: true, meInRoom: true } }
       }))
       setChats((cs) => cs.map((c) => (c.chatId === chatId ? { ...c, liveRoom: { inCount: 1 } } : c)))
     },
@@ -193,7 +193,9 @@ export function useDemo(profileUid: string | null = null): ShellData {
       setRoom(chatId === DEMO_ROOM.chatId ? DEMO_ROOM : demoNewRoom(headers[chatId]))
       setHeaders((h) => {
         const cur = h[chatId]
-        return cur?.room ? { ...h, [chatId]: { ...cur, room: { ...cur.room, meInRoom: true } } } : h
+        return cur?.room
+          ? { ...h, [chatId]: { ...cur, room: { ...cur.room, inCount: cur.room.inCount + 1, names: [DEMO_PEOPLE.me, ...cur.room.names], youIn: true, meInRoom: true } } }
+          : h
       })
     },
     leaveRoom: () => {
@@ -205,7 +207,13 @@ export function useDemo(profileUid: string | null = null): ShellData {
         if (!cur?.room) return h
         // A room you started alone ends when you leave; a group's room stays open for the others.
         const alone = cur.room.inCount <= 1
-        return { ...h, [chatId]: { ...cur, room: alone ? null : { ...cur.room, meInRoom: false } } }
+        return {
+          ...h,
+          [chatId]: {
+            ...cur,
+            room: alone ? null : { ...cur.room, inCount: cur.room.inCount - 1, names: cur.room.youIn ? cur.room.names.slice(1) : cur.room.names, youIn: false, meInRoom: false }
+          }
+        }
       })
       setChats((cs) => cs.map((c) => (c.chatId === chatId && c.liveRoom && c.liveRoom.inCount <= 1 ? { ...c, liveRoom: null } : c)))
     },

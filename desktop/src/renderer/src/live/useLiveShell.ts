@@ -247,7 +247,7 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
   const now = useServerNow()
 
   // ---------- The open chat ----------
-  const header = useChatHeader(chatId)
+  const chatHeader = useChatHeader(chatId)
   const messages = useChatMessages(chatId)
   const members = useGroupMembers(chatId && isGroupId(chatId) ? chatId : null)
   const friendIds = useMemo(() => (friends ?? []).map((f) => f.id), [friends])
@@ -277,6 +277,11 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
   const detected = useDetectedBrowsers(linked.map((c) => c.browser).join(','))
   const room = useRoomSync(uid)
   // "room:<code>" = a room joined by its code alone (no chat behind it).
+  // "Open room" and "Leave" when this PC is the one in the chat's room.
+  const header = useMemo(
+    () => (chatHeader?.room && chatHeader.room.code === room.active?.code ? { ...chatHeader, room: { ...chatHeader.room, meInRoom: true } } : chatHeader),
+    [chatHeader, room.active?.code]
+  )
   const roomChat = room.active && !room.active.chatId.startsWith('room:') ? room.active.chatId : null
   const roomCode = room.active?.code ?? null
   const roomHeader = useChatHeader(roomChat)

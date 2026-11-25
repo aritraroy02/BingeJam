@@ -35,7 +35,7 @@ const DEMO = params.get('demo') === '1'
  * Where the app opens (`?screen=`, set by BJ_SCREEN for snapshots): home, chats (1:1 with Riya in
  * demo mode), group (Movie Night), channel (its #off-topic), voice (its Gaming voice channel; stream = watching
  * Riya's share there, golive = the share picker open),
- * solo (a group with just you), room, watchlist, browser (Add to browser), settings, friends.
+ * solo (a group with just you), room, roomchat (in the room, its chat open), watchlist, browser (Add to browser), settings, friends.
  */
 type View =
   | { tab: 'home' }
@@ -60,6 +60,8 @@ function initialView(): { view: View; chatId: string | null; joinRoom: boolean; 
       return { view: { tab: 'chats', room: false }, chatId: DEMO ? ROAD_TRIP : null, joinRoom: false }
     case 'room':
       return { view: { tab: 'chats', room: true }, chatId: DEMO ? MOVIE_NIGHT : null, joinRoom: true }
+    case 'roomchat':
+      return { view: { tab: 'chats', room: false }, chatId: DEMO ? MOVIE_NIGHT : null, joinRoom: true }
     case 'friends':
     case 'watchlist':
       return { view: { tab: screen }, chatId: null, joinRoom: false }
@@ -361,6 +363,21 @@ function Shell({
     } else setView({ tab: 'chats', room: true })
   }
 
+  /** The sidebar's room card: back to the room this PC is in. */
+  function openCurrentRoom(): void {
+    const id = data.room?.chatId
+    if (id && !id.startsWith('room:')) setChatId(id)
+    setView({ tab: 'chats', room: true })
+  }
+  const roomDock =
+    data.room && !inRoom
+      ? {
+          name: data.chats?.find((c) => c.chatId === data.room?.chatId)?.name ?? data.room.context.replace(/^Room with /, '').split(' · ')[0],
+          title: data.room.title,
+          alone: !data.room.members.some((m) => !m.isMe && m.online !== false)
+        }
+      : null
+
   const nav = {
     current: tab,
     onNavigate: navigate,
@@ -372,7 +389,9 @@ function Shell({
     voice: data.voice ?? null,
     voiceActions: act.voice
       ? { open: openVoice, toggleMute: act.voice.toggleMute, toggleDeafen: act.voice.toggleDeafen, leave: act.voice.leave }
-      : undefined
+      : undefined,
+    room: roomDock,
+    roomActions: { open: openCurrentRoom, leave: () => act.leaveRoom() }
   }
 
   let screen: JSX.Element
@@ -482,6 +501,7 @@ function Shell({
           onAttach={() => undefined}
           onStartRoom={() => chatId && openRoom(chatId, true)}
           onJoinRoom={() => chatId && openRoom(chatId, false)}
+          onLeaveRoom={() => act.leaveRoom()}
           onPing={(uid) => chatId && act.ping(chatId, uid)}
           onRename={(name) => chatId && act.rename(chatId, name)}
           onNewGroup={(name, ids) => {

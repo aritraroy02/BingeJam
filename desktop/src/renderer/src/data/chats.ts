@@ -399,7 +399,7 @@ export function useChatHeader(chatId: string | null): ChatHeaderVM | null {
     const people = new Map<string, PersonVM>()
     for (const uid of uids) people.set(uid, personOf(profiles.get(uid), uid))
     const talking = parseVoiceMembers(extras.voice?.val).size
-    const roomVM = headerRoom(room, parsePreview(extras.preview?.val), people, talking, now)
+    const roomVM = headerRoom(room, parsePreview(extras.preview?.val), people, talking, now, me)
     if (friend) {
       const profile = profiles.get(friend)
       if (profile === undefined || !snaps.get('presence')) return null

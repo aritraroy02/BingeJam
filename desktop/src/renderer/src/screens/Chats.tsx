@@ -34,6 +34,8 @@ export interface ChatsProps {
   onStartRoom: () => void
   /** Join the chat's live room (or open it again if you're already in). */
   onJoinRoom: () => void
+  /** Leave the room this PC is in (the last one out ends it). */
+  onLeaveRoom: () => void
   onPing: (uid: string) => void
   onRename: (name: string) => void
   onNewGroup: (name: string, memberIds: string[]) => void
@@ -533,7 +535,7 @@ function ChatView(
       </header>
 
       <div className="chat-pane">
-        {h.room ? <RoomBanner room={h.room} onJoin={p.onJoinRoom} /> : null}
+        {h.room ? <RoomBanner room={h.room} onJoin={p.onJoinRoom} onLeave={p.onLeaveRoom} /> : null}
         <MessageList
           messages={p.messages}
           actions={(m) => [
@@ -616,9 +618,20 @@ function RenameField({ name, labelId, onDone }: { name: string; labelId: string;
   )
 }
 
-/** "Riya, Kabir and Meera are in the room" card at the top of a chat whose room is running. */
-function RoomBanner({ room, onJoin }: { room: NonNullable<ChatHeaderVM['room']>; onJoin: () => void }): JSX.Element {
-  const names = room.names.map((n) => firstName(n.name))
+/**
+ * "Riya, Kabir and Meera are in the room" card at the top of a chat whose room is running. When this
+ * PC is in it: "You're in the room" with Open room and Leave (the last one out ends it).
+ */
+function RoomBanner({ room, onJoin, onLeave }: { room: NonNullable<ChatHeaderVM['room']>; onJoin: () => void; onLeave: () => void }): JSX.Element {
+  const others = (room.youIn ? room.names.slice(1) : room.names).map((n) => firstName(n.name))
+  const who =
+    room.youIn
+      ? others.length === 0
+        ? "You're in the room"
+        : `${joinNames(['You', ...others])} are in the room`
+      : others.length === 0
+        ? 'The room is open'
+        : `${joinNames(others)} ${others.length === 1 ? 'is' : 'are'} in the room`
   return (
     <div className="room-banner" role="region" aria-label="Live room">
       <span className="avatar-stack" aria-hidden="true">
@@ -628,13 +641,20 @@ function RoomBanner({ room, onJoin }: { room: NonNullable<ChatHeaderVM['room']>;
       </span>
       <span style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{ fontWeight: 500 }}>
-          {names.length === 0 ? 'The room is open' : `${joinNames(names)} ${names.length === 1 ? 'is' : 'are'} in the room`}
+          {who}
         </span>
         <span style={{ fontSize: 13, color: 'rgba(var(--ink), 0.76)' }}>{room.summary}</span>
       </span>
-      <Button variant="primary" size="sm" onClick={onJoin}>
-        {room.meInRoom ? 'Open room' : 'Join room'}
-      </Button>
+      <span style={{ display: 'flex', gap: 8 }}>
+        <Button variant="primary" size="sm" onClick={onJoin}>
+          {room.meInRoom ? 'Open room' : 'Join room'}
+        </Button>
+        {room.meInRoom ? (
+          <Button size="sm" onClick={onLeave} title={room.inCount <= 1 ? 'You are the last one in: leaving ends the room' : undefined}>
+            {room.inCount <= 1 ? 'End room' : 'Leave'}
+          </Button>
+        ) : null}
+      </span>
     </div>
   )
 }
