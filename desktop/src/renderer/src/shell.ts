@@ -48,6 +48,8 @@ export interface ShellData {
     /** Online / Do not disturb / Invisible (this PC), the activity line and whether it's shared. */
     status?: MyStatus
     activity?: string | null
+    /** What friends see, in full (status menu). */
+    activityLines?: string[]
     shareActivity?: boolean
   }
   home: HomeVM

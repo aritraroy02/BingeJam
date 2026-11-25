@@ -5,13 +5,13 @@ import type { DeviceActivity } from './devicePresence.ts'
 
 /**
  * A watch party or a playing tab first; else Spotify while it plays (paused Spotify shows nothing,
- * like Discord); else a paused tab. While a game runs friends see "Playing VALORANT" instead of the
- * background music, so the song isn't published then.
+ * like Discord); else a paused tab. A running game is separate (devices/{id}/game): friends see both,
+ * "Playing VALORANT +1".
  */
-export function pcActivity(watch: DeviceActivity | null, music: NowPlaying | null, gameRunning: boolean): DeviceActivity | null {
+export function pcActivity(watch: DeviceActivity | null, music: NowPlaying | null): DeviceActivity | null {
   if (watch && (watch.playing || watch.inWatchParty)) return watch
   const listening: DeviceActivity | null =
-    music && music.playing && !gameRunning
+    music && music.playing
       ? { app: 'spotify', title: music.title, subtitle: music.artist, playing: true, durationMs: music.durationMs, inWatchParty: false, watchingWith: null }
       : null
   return listening ?? watch

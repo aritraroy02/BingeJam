@@ -27,6 +27,8 @@ export interface NavProps {
     photoUrl?: string | null
     status?: 'online' | 'dnd' | 'invisible'
     activity?: string | null
+    /** What friends see, in full ("Playing VALORANT", "Listening to Sitaare · Spotify"). */
+    activityLines?: string[]
     shareActivity?: boolean
   }
   extension?: { connected: boolean; detail: string }
@@ -100,6 +102,32 @@ export function SideNav({ current, onNavigate, badges = {}, me, extension, onSta
   )
 }
 
+/** Top of the status menu: exactly what friends see of you right now. */
+function FriendsSee({ me, status }: { me: NonNullable<NavProps['me']>; status: 'online' | 'dnd' | 'invisible' }): JSX.Element {
+  const lines = me.activityLines ?? (me.activity ? [me.activity] : [])
+  let body: JSX.Element[]
+  if (status === 'invisible') body = [<span key="x" className="subtle">You look offline</span>]
+  else if (me.shareActivity === false)
+    body = [
+      <span key="x" className="subtle">
+        {status === 'dnd' ? 'Do not disturb' : 'Online'} · your activity is hidden
+      </span>
+    ]
+  else if (lines.length === 0) body = [<span key="x" className="subtle">{status === 'dnd' ? 'Do not disturb' : 'Online'}</span>]
+  else
+    body = lines.map((l) => (
+      <span key={l} className="status-menu__seen-line">
+        {l}
+      </span>
+    ))
+  return (
+    <div className="status-menu__seen" aria-label="What friends see">
+      <span className="subtle small">What friends see</span>
+      {body}
+    </div>
+  )
+}
+
 /** Your card at the bottom of the sidebar: status dot, what you're doing, and the status menu. */
 function AccountCard({
   me,
@@ -136,6 +164,7 @@ function AccountCard({
     <div ref={box} style={{ position: 'relative', marginTop: compact ? 0 : 12 }}>
       {open && onStatus ? (
         <div className={compact ? 'status-menu status-menu--side' : 'status-menu'} role="menu" aria-label="Your status">
+          <FriendsSee me={me} status={status} />
           {(['online', 'dnd', 'invisible'] as const).map((s) => (
             <button
               key={s}

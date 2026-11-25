@@ -10,11 +10,15 @@ import com.syncit.core.model.Presence
  */
 object ActivityText {
 
-    /** What to show for a friend. Activity only counts while they're online (it may be stale otherwise). */
+    /**
+     * What to show for a friend. Activity only counts while they're online (it may be stale otherwise).
+     * A game on their PC plus something else (Spotify, a movie): "Playing VALORANT +1", like Discord.
+     */
     fun statusLine(presence: Presence?, nowMs: Long): String {
         if (presence == null) return "Offline"
         val activity = presence.activity
         return when {
+            presence.online && activity != null && presence.game != null -> "Playing ${presence.game} +1"
             presence.online && activity != null -> activityLine(activity)
             presence.online && presence.game != null -> "Playing ${presence.game}"
             presence.online && presence.dnd -> "Do not disturb"

@@ -117,6 +117,8 @@ class ActivityTextTest {
 
     @Test fun aGameOnTheirPcShowsAsPlaying() {
         assertEquals("Playing VALORANT", ActivityText.statusLine(Presence(online = true, lastSeen = 1L, activity = null, game = "VALORANT"), 10L))
+        val song = activity(ActivityApp.SPOTIFY, "Sitaare", "Arijit Singh")
+        assertEquals("Playing VALORANT +1", ActivityText.statusLine(Presence(online = true, lastSeen = 1L, activity = song, game = "VALORANT"), 10L))
         assertEquals("Do not disturb", ActivityText.statusLine(Presence(online = true, lastSeen = 1L, activity = null, dnd = true), 10L))
     }
 }

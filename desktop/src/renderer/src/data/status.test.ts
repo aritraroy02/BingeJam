@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { Presence, Profile } from './parse.ts'
-import { buildFriendVMs, friendAction, friendStatus, headerStatus } from './status.ts'
+import { activityLines, buildFriendVMs, friendAction, friendStatus, headerStatus } from './status.ts'
 
 const NOW = 1_000_000_000
 const profile = (uid: string, name: string): Profile => ({ uid, username: uid, displayName: name, photoUrl: null, bio: null, createdAt: 0, groupInvites: 'ask' })
@@ -65,4 +65,17 @@ test("a PC's Spotify shows the song but offers no jam (jams run on phones)", () 
   }
   assert.equal(friendStatus(pc, NOW), 'Sitaare · Spotify')
   assert.equal(friendAction(pc), null)
+})
+
+test('a game and Spotify at once: "Playing VALORANT +1" in lists, both in full in the chat header', () => {
+  const both: Presence = {
+    online: true,
+    lastSeen: NOW,
+    activity: { app: 'spotify', title: 'Sitaare', subtitle: 'Arijit Singh', playing: true, durationMs: null, startedAt: NOW, inWatchParty: false, watchingWith: null, onComputer: true },
+    game: { name: 'VALORANT', startedAt: NOW }
+  }
+  assert.equal(friendStatus(both, NOW), 'Playing VALORANT +1')
+  assert.equal(headerStatus(both, NOW), 'Playing VALORANT · Listening to Sitaare · Spotify')
+  assert.deepEqual(activityLines(both), ['Playing VALORANT', 'Listening to Sitaare · Spotify'])
+  assert.deepEqual(activityLines({ ...both, online: false }), [])
 })

@@ -663,6 +663,19 @@
   border: 1px solid var(--hairline-strong);
   animation: bj-rise var(--rise) var(--ease-out) both;
 }
+.status-menu__seen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 13px;
+}
+.status-menu__seen-line {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
 .status-menu__item {
   all: unset;
   box-sizing: border-box;

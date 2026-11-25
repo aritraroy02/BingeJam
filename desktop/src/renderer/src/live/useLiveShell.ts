@@ -40,6 +40,8 @@ import {
 } from '@/data'
 import { agoShort } from '@/data/format'
 import { pcActivity } from '@/data/pcActivity'
+import type { Presence } from '@/data/parse'
+import { activityLines, friendStatus } from '@/data/status'
 import type { NowPlaying } from '@shared/music'
 import { blockGroup, blockUser, reportGroup, reportUser, unblockGroup, unblockUser, unfriend, useBlockedGroups, useBlockedPeople } from '@/data/safety'
 import { checkUsername, createProfile, removePhoto, setBirthDate, updateProfile, uploadPhoto, useMyBirthDate } from '@/data/profile'
@@ -102,8 +104,6 @@ const ACTIVITY_APP: Partial<Record<ServiceId, DeviceActivity['app']>> = {
   PRIME_VIDEO: 'primevideo',
   YOUTUBE: 'youtube'
 }
-
-const APP_NAME: Record<DeviceActivity['app'], string> = { netflix: 'Netflix', jiohotstar: 'JioHotstar', primevideo: 'Prime Video', youtube: 'YouTube', spotify: 'Spotify' }
 
 const SERVICE_HOME: Partial<Record<ServiceId, string>> = {
   NETFLIX: 'https://www.netflix.com/browse',
@@ -494,15 +494,20 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
       watchingWith: others.length > 0 ? others.join(', ').slice(0, 100) : null
     }
   }, [ext, room.state.tabId, room.state.members, room.state.durationMs, room.active])
-  const myActivity = useMemo(() => pcActivity(watchActivity, music, game !== null), [watchActivity, music, game])
+  const myActivity = useMemo(() => pcActivity(watchActivity, music), [watchActivity, music])
   useEffect(() => setDeviceActivity(uid, myActivity), [myActivity, uid, sharing, myStatus])
-  const myActivityLine = game
-    ? `Playing ${game.name}`
-    : myActivity
-      ? myActivity.app === 'spotify'
-        ? `Listening to ${myActivity.title ?? ''} · Spotify`
-        : `${myActivity.playing ? 'Watching' : 'Paused'} ${myActivity.title ?? ''} · ${APP_NAME[myActivity.app]}`.replace('  ', ' ')
-      : null
+  // Your card shows exactly what friends see (the same lines as their lists and chat headers).
+  const shownToFriends = useMemo(
+    (): Presence => ({
+      online: true,
+      lastSeen: null,
+      activity: myActivity ? { ...myActivity, startedAt: 0, onComputer: true } : null,
+      game: game ? { name: game.name, startedAt: 0 } : null
+    }),
+    [myActivity, game]
+  )
+  const myActivityLines = useMemo(() => activityLines(shownToFriends), [shownToFriends])
+  const myActivityLine = myActivityLines.length > 0 ? friendStatus(shownToFriends, 0) : null
 
 
   // ---------- Notifications + taskbar badge ----------
@@ -687,7 +692,7 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
   const unread = chats?.reduce((n, c) => n + c.unread, 0) ?? 0
 
   return {
-    me: { uid, name: profile.displayName, username: profile.username, photoUrl: profile.photoUrl, status: myStatus, activity: myActivityLine, shareActivity: sharing },
+    me: { uid, name: profile.displayName, username: profile.username, photoUrl: profile.photoUrl, status: myStatus, activity: myActivityLine, activityLines: myActivityLines, shareActivity: sharing },
     home,
     chats,
     header: (id) => (id === chatId ? header : null),

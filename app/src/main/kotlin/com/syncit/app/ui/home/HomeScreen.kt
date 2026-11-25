@@ -358,7 +358,7 @@ private fun FriendSheetContent(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     ActivityAppBadge(activity.app)
-                    Text(row.status, style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
+                    Text(ActivityText.activityLine(activity), style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
                     ActivityText.watchPartyLabel(activity)?.let {
                         Text(it, style = MaterialTheme.typography.labelMedium, color = p.accentText)
                     }

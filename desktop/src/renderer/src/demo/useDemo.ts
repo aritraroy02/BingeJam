@@ -235,6 +235,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
       joinVoice: () => patchRoom((r) => ({ ...r, voice: { ...r.voice, joined: true } }))
     },
     addToBrowser: () => undefined,
+    status: { set: () => undefined, shareActivity: () => undefined },
     invite: { copy: () => undefined, reset: () => undefined },
     toggleWatchlist: () => undefined,
     channels: {
@@ -370,7 +371,7 @@ export function useDemo(profileUid: string | null = null): ShellData {
   // The real updater (it stays idle unless a test feed is set; see desktop/README).
   const update = useUpdateState()
   return {
-    me: DEMO_ME,
+    me: { ...DEMO_ME, activity: 'Playing VALORANT +1', activityLines: ['Playing VALORANT', 'Listening to Sitaare · Spotify'], shareActivity: true },
     home: DEMO_HOME,
     chats,
     header: (id) => headers[id] ?? null,

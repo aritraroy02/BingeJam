@@ -41,12 +41,16 @@ export function gameLine(p: Presence | null): string | null {
   return p?.online && p.game ? `Playing ${p.game.name}` : null
 }
 
-/** Activity while online, else a game, else "Do not disturb" / "Online", else "Last seen …" (ActivityText.statusLine). */
+/**
+ * A game and something else at once (VALORANT + Spotify): "Playing VALORANT +1", like Discord; else the
+ * activity, else the game, else "Do not disturb" / "Online", else "Last seen …" (ActivityText.statusLine).
+ */
 export function friendStatus(p: Presence | null, now: number): string {
   if (!p) return 'Offline'
   const a = visibleActivity(p)
-  if (a) return activityShort(a)
   const g = gameLine(p)
+  if (a && g) return `${g} +1`
+  if (a) return activityShort(a)
   if (g) return g
   if (p.online) return p.dnd ? 'Do not disturb' : 'Online'
   return lastSeenText(p.lastSeen, now)
@@ -54,12 +58,17 @@ export function friendStatus(p: Presence | null, now: number): string {
 
 export function headerStatus(p: Presence | null, now: number): string {
   if (!p) return 'Offline'
-  const a = visibleActivity(p)
-  if (a) return activityLong(a)
-  const g = gameLine(p)
-  if (g) return g
+  const lines = activityLines(p)
+  if (lines.length > 0) return lines.join(' · ')
   if (p.online) return p.dnd ? 'Do not disturb' : 'Online'
   return lastSeenText(p.lastSeen, now)
+}
+
+/** Everything they're doing, in full: ["Playing VALORANT", "Listening to Sitaare · Spotify"]. */
+export function activityLines(p: Presence | null): string[] {
+  const a = visibleActivity(p)
+  const g = gameLine(p)
+  return [g, a ? activityLong(a) : null].filter((l): l is string => l !== null)
 }
 
 /**
