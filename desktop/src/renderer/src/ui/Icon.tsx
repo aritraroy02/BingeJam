@@ -11,14 +11,6 @@ const STROKE: Record<string, JSX.Element> = {
       <path d="M19 8v6M16 11h6" />
     </>
   ),
-  streams: (
-    <>
-      <rect x="2" y="7" width="20" height="12" rx="4" />
-      <path d="M7 11v4M5 13h4" />
-      <circle cx="16" cy="12" r="1" />
-      <circle cx="18" cy="14" r="1" />
-    </>
-  ),
   settings: <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />,
   mic: (
     <>

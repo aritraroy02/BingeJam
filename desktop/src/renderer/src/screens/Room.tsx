@@ -31,7 +31,6 @@ export interface RoomProps {
   onPing: (uid: string) => void
   onToggleMute: () => void
   onJoinVoice: () => void
-  onGoLive: () => void
   /** Leave the room (it ends when the last person leaves). */
   onLeave: () => void
   /** The always-on-top mini window (real accounts). */
@@ -84,7 +83,7 @@ function RoomView(p: RoomProps & { room: RoomVM }): JSX.Element {
         <Hero {...p} />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
           <PeoplePanel room={r} onPing={p.onPing} />
-          <VoicePanel room={r} onToggleMute={p.onToggleMute} onJoinVoice={p.onJoinVoice} onGoLive={p.onGoLive} onLeave={p.onLeave} />
+          <VoicePanel room={r} onToggleMute={p.onToggleMute} onJoinVoice={p.onJoinVoice} onLeave={p.onLeave} />
         </div>
       </main>
       <aside aria-labelledby="h-room-chat" className="glass glass--strong side-panel rise" style={{ '--i': 4, flex: '1 1 320px' } as CSSProperties}>
@@ -295,13 +294,11 @@ function VoicePanel({
   room,
   onToggleMute,
   onJoinVoice,
-  onGoLive,
   onLeave
 }: {
   room: RoomVM
   onToggleMute: () => void
   onJoinVoice: () => void
-  onGoLive: () => void
   onLeave: () => void
 }): JSX.Element {
   const v = room.voice
@@ -343,10 +340,6 @@ function VoicePanel({
             Join voice
           </button>
         )}
-        <button type="button" className="voice-btn pressable" onClick={onGoLive}>
-          <Icon name="screen" size={18} />
-          Go Live
-        </button>
         <button type="button" className="voice-btn voice-btn--leave pressable" aria-label="Leave the room" onClick={onLeave}>
           Leave
         </button>

@@ -248,28 +248,6 @@ export interface RoomVM {
   openTitle?: string
 }
 
-// ---------- Streams (Go Live) ----------
-
-export type StreamSource = 'game' | 'screen' | 'window'
-export type StreamQuality = '1080p60' | '1440p60' | '2160p60'
-
-export interface StreamVM {
-  liveHost: PersonVM | null
-  /** "Skyline Racers · direct connection" */
-  liveDetail: string
-  stats: string // "4K · 60 fps · 41 ms"
-  viewers: number
-  source: StreamSource
-  quality: StreamQuality
-  /** "4K · 60 needs about 25 Mbps upload per viewer" + measured capacity line. */
-  capacityTitle: string
-  capacityDetail: string
-  /** This PC is streaming right now (Start streaming becomes Stop streaming). */
-  streaming?: boolean
-  /** People watching, shown as chips over the stream chat ("You", "Meera"). */
-  watchers?: PersonVM[]
-}
-
 // ---------- Add to browser ----------
 
 export type BrowserId = 'edge' | 'firefox' | 'chrome' | 'brave' | 'opera'

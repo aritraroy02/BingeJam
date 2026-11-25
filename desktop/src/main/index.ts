@@ -117,7 +117,7 @@ function createMainWindow(): void {
 
   // BJ_DEMO=1: the design's sample content, no Firebase (store screenshots, design reviews).
   const query: Record<string, string> = process.env['BJ_DEMO'] === '1' ? { demo: '1' } : {}
-  // BJ_SCREEN=chats|group|room|streams|browser|settings|friends|setup: open that screen (snapshots).
+  // BJ_SCREEN=chats|group|channel|voice|stream|golive|room|watchlist|browser|settings|friends|setup: open that screen (snapshots).
   if (process.env['BJ_SCREEN']) query.screen = process.env['BJ_SCREEN']
   // BJ_THEME=light|dark and BJ_ALERTS=1 for snapshots.
   if (process.env['BJ_THEME']) query.theme = process.env['BJ_THEME']

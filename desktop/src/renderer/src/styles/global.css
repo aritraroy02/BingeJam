@@ -259,7 +259,6 @@ textarea::placeholder {
 
 /* Things that sit on artwork or video stay dark in both themes. */
 :root[data-theme='light'] .room-hero,
-:root[data-theme='light'] .stream-art,
 :root[data-theme='light'] .poster {
   --ink: 239, 233, 222;
   --surface: #1a1917;

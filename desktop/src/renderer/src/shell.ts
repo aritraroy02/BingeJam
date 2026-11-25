@@ -17,9 +17,6 @@ import type {
   RoomVM,
   SettingsVM,
   ShareSourceVM,
-  StreamQuality,
-  StreamSource,
-  StreamVM,
   TrendingVM
 } from '@/ui/models'
 import type { ReportReasonValue } from '@/ui/ReportDialog'
@@ -75,9 +72,6 @@ export interface ShellData {
   /** Real accounts: true while Start/Join room is on its way. When false and room is null, the room view closes. */
   roomStarting?: boolean
   roomChat: MessageVM[] | null
-  stream: StreamVM
-  streamChat: MessageVM[] | null
-  media: MediaStream | null
   browser: BrowserSetupVM
   settings: SettingsVM
   friends: FriendsVM
@@ -159,13 +153,6 @@ export interface ShellActions {
     closeToTray: (on: boolean) => void
     globalShortcuts: (on: boolean) => void
     notifications: (on: boolean) => void
-  }
-  stream: {
-    source: (s: StreamSource) => void
-    quality: (q: StreamQuality) => void
-    start: () => void
-    stop: () => void
-    send: (text: string) => void
   }
   addToBrowser: (browser: BrowserId) => void
   /** The status menu on your profile card. */

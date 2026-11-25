@@ -40,7 +40,7 @@ const SHORTCUT_HELP: { keys: string; what: string }[] = [
   { keys: shortcutLabel(GLOBAL_SHORTCUTS.miniWindow), what: 'Mini room window on / off (any app)' },
   { keys: 'Ctrl+K', what: 'Search' },
   { keys: 'Ctrl+N', what: 'New room (Chats)' },
-  { keys: 'Ctrl+1 … 6', what: 'Home, Chats, Watchlist, Friends, Streams, Settings' },
+  { keys: 'Ctrl+1 … 5', what: 'Home, Chats, Watchlist, Friends, Settings' },
   { keys: 'Ctrl+,', what: 'Settings' }
 ]
 

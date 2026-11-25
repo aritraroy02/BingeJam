@@ -16,7 +16,6 @@ import { Home, type TrendingKind } from '@/screens/Home'
 import { SignIn } from '@/screens/SignIn'
 import { Chats } from '@/screens/Chats'
 import { Room } from '@/screens/Room'
-import { Streams } from '@/screens/Streams'
 import { AddToBrowser } from '@/screens/AddToBrowser'
 import { Settings } from '@/screens/Settings'
 import { Friends } from '@/screens/Friends'
@@ -36,14 +35,13 @@ const DEMO = params.get('demo') === '1'
  * Where the app opens (`?screen=`, set by BJ_SCREEN for snapshots): home, chats (1:1 with Riya in
  * demo mode), group (Movie Night), channel (its #off-topic), voice (its Gaming voice channel; stream = watching
  * Riya's share there, golive = the share picker open),
- * solo (a group with just you), room, streams, browser (Add to browser), settings, friends.
+ * solo (a group with just you), room, watchlist, browser (Add to browser), settings, friends.
  */
 type View =
   | { tab: 'home' }
   | { tab: 'chats'; room: boolean }
   | { tab: 'watchlist' }
   | { tab: 'friends' }
-  | { tab: 'streams' }
   | { tab: 'settings'; browser: boolean; reports?: boolean }
 
 function initialView(): { view: View; chatId: string | null; joinRoom: boolean; channelId?: string } {
@@ -62,7 +60,6 @@ function initialView(): { view: View; chatId: string | null; joinRoom: boolean; 
       return { view: { tab: 'chats', room: false }, chatId: DEMO ? ROAD_TRIP : null, joinRoom: false }
     case 'room':
       return { view: { tab: 'chats', room: true }, chatId: DEMO ? MOVIE_NIGHT : null, joinRoom: true }
-    case 'streams':
     case 'friends':
     case 'watchlist':
       return { view: { tab: screen }, chatId: null, joinRoom: false }
@@ -283,9 +280,9 @@ function Shell({
     } else setView({ tab: r.to })
   }, [data.navRequest?.id])
 
-  // In-app shortcuts: Ctrl+K search, Ctrl+N new room, Ctrl+1…6 tabs, Ctrl+, Settings.
+  // In-app shortcuts: Ctrl+K search, Ctrl+N new room, Ctrl+1…5 tabs, Ctrl+, Settings.
   useEffect(() => {
-    const TABS: Tab[] = ['home', 'chats', 'watchlist', 'friends', 'streams', 'settings']
+    const TABS: Tab[] = ['home', 'chats', 'watchlist', 'friends', 'settings']
     const onKey = (e: KeyboardEvent): void => {
       if (!e.ctrlKey || e.altKey || e.metaKey) return
       const key = e.key.toLowerCase()
@@ -300,7 +297,7 @@ function Shell({
       } else if (key === ',') {
         e.preventDefault()
         setView({ tab: 'settings', browser: false })
-      } else if (!e.shiftKey && /^[1-6]$/.test(key)) {
+      } else if (!e.shiftKey && /^[1-5]$/.test(key)) {
         e.preventDefault()
         navigate(TABS[Number(key) - 1])
       }
@@ -342,11 +339,9 @@ function Shell({
           : header?.kind === 'group'
             ? 'group'
             : 'chat'
-        : view.tab === 'streams'
-          ? 'live'
-          : view.tab === 'settings' && view.browser
-            ? 'browser'
-            : 'calm'
+        : view.tab === 'settings' && view.browser
+          ? 'browser'
+          : 'calm'
 
   // The open group's channels; a text channel other than #general has its own messages.
   const channels = chatId && header?.kind === 'group' ? data.channels?.(chatId) ?? null : null
@@ -434,7 +429,6 @@ function Shell({
           miniOpen={data.miniOpen === true}
           onReact={act.room.react}
           onOpenTitle={act.room.openTitle}
-          onGoLive={() => navigate('streams')}
           onLeave={() => {
             act.leaveRoom()
             setView({ tab: 'chats', room: false })
@@ -554,21 +548,6 @@ function Shell({
           onUnblockUser={act.safety.unblockUser}
           onUnblockGroup={act.safety.unblockGroup}
           onOpenProfile={onProfileUid}
-        />
-      )
-      break
-    case 'streams':
-      screen = (
-        <Streams
-          stream={data.stream}
-          meId={data.me.uid}
-          media={data.media}
-          messages={data.streamChat}
-          onSource={act.stream.source}
-          onQuality={act.stream.quality}
-          onStartStreaming={act.stream.start}
-          onStopStreaming={act.stream.stop}
-          onSend={act.stream.send}
         />
       )
       break

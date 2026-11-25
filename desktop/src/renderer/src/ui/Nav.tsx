@@ -5,14 +5,13 @@ import type { VoiceConnectionVM } from './models'
 import { Avatar, Badge, LiveDot, Switch } from './primitives'
 import { VoiceDock } from './VoiceDock'
 
-export type Tab = 'home' | 'chats' | 'watchlist' | 'friends' | 'streams' | 'settings'
+export type Tab = 'home' | 'chats' | 'watchlist' | 'friends' | 'settings'
 
 const ITEMS: { tab: Tab; label: string; icon: IconName }[] = [
   { tab: 'home', label: 'Home', icon: 'home' },
   { tab: 'chats', label: 'Chats', icon: 'chat' },
   { tab: 'watchlist', label: 'Watchlist', icon: 'bookmark' },
   { tab: 'friends', label: 'Friends', icon: 'friends' },
-  { tab: 'streams', label: 'Streams', icon: 'streams' },
   { tab: 'settings', label: 'Settings', icon: 'settings' }
 ]
 
@@ -219,7 +218,7 @@ function AccountCard({
   )
 }
 
-/** Slim icon rail: chats, rooms, streams and settings screens in the design. */
+/** Slim icon rail: chats, rooms and settings screens in the design. */
 export function RailNav({ current, onNavigate, badges = {}, me, onStatus, onShareActivity, voice, voiceActions }: NavProps): JSX.Element {
   return (
     <nav aria-label="Main" className="nav nav--rail glass glass--strong rise">

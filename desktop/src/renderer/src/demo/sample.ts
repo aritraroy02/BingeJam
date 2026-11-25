@@ -8,8 +8,7 @@ import type {
   MessageVM,
   PersonVM,
   RoomVM,
-  SettingsVM,
-  StreamVM
+  SettingsVM
 } from '@/ui/models'
 
 // Demo mode (`BJ_DEMO=1`): the design's sample content with made-up names and titles, for store
@@ -212,33 +211,6 @@ export function demoNewRoom(header: ChatHeaderVM): RoomVM {
     voice: { members: [{ ...me, speaking: false, muted: false, isMe: true }], quality: 'HD', pushToTalkKey: 'V', joined: true, muted: false },
     settings: { waitForBuffering: true, subtitles: null }
   }
-}
-
-// ---------- Streams ----------
-
-export const DEMO_STREAM: StreamVM = {
-  liveHost: kabir,
-  liveDetail: 'Skyline Racers · direct connection',
-  stats: '4K · 60 fps · 41 ms',
-  viewers: 2,
-  source: 'game',
-  quality: '2160p60',
-  capacityTitle: '4K · 60 needs about 25 Mbps upload per viewer',
-  capacityDetail: 'Your connection: 100 Mbps up · good for 2 viewers at 4K, 6 at 1080p. Quality drops on its own if the line gets busy.',
-  streaming: false,
-  watchers: [me, meera]
-}
-
-export const DEMO_STREAM_CHAT: MessageVM[] = [
-  text('s1', meera, 'Take the inside line on the bridge', TODAY_2102 + 10 * MIN),
-  text('s2', kabir, 'Watch this', TODAY_2102 + 11 * MIN),
-  text('s3', me, 'That drift was clean', TODAY_2102 + 12 * MIN)
-]
-
-export const DEMO_CAPACITY: Record<StreamVM['quality'], string> = {
-  '1080p60': '1080p · 60 needs about 8 Mbps upload per viewer',
-  '1440p60': '1440p · 60 needs about 14 Mbps upload per viewer',
-  '2160p60': '4K · 60 needs about 25 Mbps upload per viewer'
 }
 
 // ---------- Add to browser, Settings, Friends ----------

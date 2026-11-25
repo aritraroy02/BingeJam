@@ -9,7 +9,6 @@ import type {
   MessageVM,
   RoomVM,
   SettingsVM,
-  StreamVM,
   FriendsVM,
   ProfileVM,
   VoiceConnectionVM
@@ -20,7 +19,6 @@ import { useUpdateState } from '@/live/updates'
 import type { ShellData } from '@/shell'
 import {
   DEMO_BROWSER,
-  DEMO_CAPACITY,
   DEMO_CHATS,
   DEMO_FRIENDS,
   DEMO_HEADERS,
@@ -32,8 +30,6 @@ import {
   DEMO_ROOM,
   DEMO_ROOM_CHAT,
   DEMO_SETTINGS,
-  DEMO_STREAM,
-  DEMO_STREAM_CHAT,
   demoNewRoom
 } from './sample'
 
@@ -54,8 +50,6 @@ export function useDemo(profileUid: string | null = null): ShellData {
   const [members, setMembers] = useState<Record<string, GroupMemberVM[]>>(DEMO_MEMBERS)
   const [room, setRoom] = useState<RoomVM | null>(null)
   const [roomChat, setRoomChat] = useState<MessageVM[]>(DEMO_ROOM_CHAT)
-  const [stream, setStream] = useState<StreamVM>(DEMO_STREAM)
-  const [streamChat, setStreamChat] = useState<MessageVM[]>(DEMO_STREAM_CHAT)
   const [settings, setSettings] = useState<SettingsVM>(DEMO_SETTINGS)
   const [friends, setFriends] = useState<FriendsVM>(DEMO_FRIENDS)
   const [channels, setChannels] = useState<Record<string, GroupChannelsVM>>(DEMO_CHANNELS)
@@ -232,13 +226,6 @@ export function useDemo(profileUid: string | null = null): ShellData {
         })),
       joinVoice: () => patchRoom((r) => ({ ...r, voice: { ...r.voice, joined: true } }))
     },
-    stream: {
-      source: (source) => setStream((s) => ({ ...s, source })),
-      quality: (quality) => setStream((s) => ({ ...s, quality, capacityTitle: DEMO_CAPACITY[quality] })),
-      start: () => setStream((s) => ({ ...s, streaming: true, liveHost: { ...DEMO_PEOPLE.me }, liveDetail: 'Your game · direct connection', viewers: 0 })),
-      stop: () => setStream(DEMO_STREAM),
-      send: (text) => setStreamChat((m) => [...m, myText(text)])
-    },
     addToBrowser: () => undefined,
     invite: { copy: () => undefined, reset: () => undefined },
     toggleWatchlist: () => undefined,
@@ -389,9 +376,6 @@ export function useDemo(profileUid: string | null = null): ShellData {
     friendPeople: people,
     room,
     roomChat,
-    stream,
-    streamChat,
-    media: null,
     browser: DEMO_BROWSER,
     settings,
     friends,

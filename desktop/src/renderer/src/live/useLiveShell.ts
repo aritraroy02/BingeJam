@@ -705,18 +705,6 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
       globalShortcuts: desktop.prefs?.globalShortcuts ?? null,
       notifications: desktop.notifications
     },
-    stream: {
-      liveHost: null,
-      liveDetail: '',
-      stats: '',
-      viewers: 0,
-      source: 'game',
-      quality: '1080p60',
-      capacityTitle: '1080p · 60 needs about 8 Mbps upload per viewer',
-      capacityDetail: 'Streaming arrives in a later update.'
-    },
-    streamChat: [],
-    media: null,
     browser: {
       found: (detected ?? []).map((b) => ({ id: b.id, name: b.name })),
       connected: linked[0]
@@ -967,7 +955,6 @@ export function useLiveShell({ profile, chatId, channelId, trendingKind, version
           if (room.active) voice.join({ kind: 'room', code: room.active.code })
         }
       },
-      stream: { source: () => undefined, quality: () => undefined, start: () => setNotice('Streaming arrives in a later update'), stop: () => undefined, send: () => undefined },
       addToBrowser: (id: BrowserId) =>
         void window.bingejam.browsers.addTo(id).then(
           (r) =>
