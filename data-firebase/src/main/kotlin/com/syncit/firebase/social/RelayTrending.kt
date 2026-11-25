@@ -46,6 +46,13 @@ internal class RelayTrending(
         return rows
     }
 
+    override suspend fun search(query: String): List<TrendingRow> {
+        val q = query.replace(Regex("""\s+"""), " ").trim()
+        if (q.length < 2) return emptyList()
+        val url = Uri.parse(baseUrl).buildUpon().appendPath("search").appendQueryParameter("q", q.take(60)).build().toString()
+        return get(url)?.let(::parseTrending).orEmpty()
+    }
+
     override suspend fun watchLink(title: TrendingTitle, service: StreamingService): String? {
         val key = "${service.name}:${title.type.wire}:${title.tmdbId}"
         links[key]?.let { return it }

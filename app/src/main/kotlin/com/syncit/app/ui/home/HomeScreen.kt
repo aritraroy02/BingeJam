@@ -1,5 +1,11 @@
 package com.syncit.app.ui.home
 
+import com.syncit.core.lookup.TrendingRow
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.focus.focusRequester
+import com.syncit.app.ui.glass.GlassIconButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import android.content.Intent
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -110,10 +116,31 @@ fun HomeScreen(
     val watchlist by viewModel.watchlist.collectAsStateWithLifecycle()
     var pick by remember { mutableStateOf<Pair<TrendingTitle, StreamingService>?>(null) }
     LaunchedEffect(Unit) { viewModel.refreshLastRoom() }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    androidx.activity.compose.BackHandler(enabled = searching) {
+        searching = false
+        viewModel.setSearchQuery("")
+    }
 
     GlassScreen {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            GlassTopBar(title = "Watch")
+            if (searching) {
+                TitleSearch(
+                    query = searchQuery,
+                    results = searchResults,
+                    onQuery = viewModel::setSearchQuery,
+                    onClose = {
+                        searching = false
+                        viewModel.setSearchQuery("")
+                    },
+                    onOpen = { title, service -> pick = title to service },
+                )
+            } else {
+            GlassTopBar(title = "Watch", actions = {
+                GlassIconButton(Icons.Filled.Search, "Search titles", { searching = true })
+            })
             Column(
                 Modifier
                     .fillMaxSize()
@@ -124,13 +151,17 @@ fun HomeScreen(
                     .padding(bottom = 24.dp + LocalBottomBarInset.current),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // What friends are playing right now, up top: the quickest way into something.
+                // 2026-11-25 redesign: the room your friends are in first (one tap to Join), then what
+                // each friend is playing, then trending.
+                liveRooms.firstOrNull()?.let { first ->
+                    LiveRoomHero(first, onJoin = { onOpenLiveRoom(first) }, modifier = Modifier.staggerIn(0))
+                }
                 val live = friends.orEmpty().filter { it.online && it.activity != null }
                 if (live.isNotEmpty()) {
                     LiveNowRow(live, onOpen = { sheetUid = it.uid }, modifier = Modifier.staggerIn(0))
                 }
-                if (liveRooms.isNotEmpty()) {
-                    LiveRoomsRow(liveRooms, onOpen = onOpenLiveRoom, modifier = Modifier.staggerIn(0))
+                if (liveRooms.size > 1) {
+                    LiveRoomsRow(liveRooms.drop(1), onOpen = onOpenLiveRoom, modifier = Modifier.staggerIn(0))
                 }
 
                 TrendingSection(
@@ -155,6 +186,7 @@ fun HomeScreen(
                         )
                     }
                 }
+            }
             }
         }
 
@@ -214,7 +246,7 @@ private fun LiveNowRow(rows: List<FriendRow>, onOpen: (FriendRow) -> Unit, modif
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
             SyncDots()
             Spacer(Modifier.width(8.dp))
-            SectionLabel("Live now", Modifier.weight(1f))
+            SectionLabel("Friends watching", Modifier.weight(1f))
         }
         // Bleed the row to the screen edges so cards scroll under the gutters.
         LazyRow(
@@ -418,5 +450,68 @@ private fun FriendSheetContent(
             },
             dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel") } },
         )
+    }
+}
+
+/** Home's title search: a field, then titles that stream on each service; tap opens the title sheet. */
+@Composable
+private fun TitleSearch(
+    query: String,
+    results: List<TrendingRow>?,
+    onQuery: (String) -> Unit,
+    onClose: () -> Unit,
+    onOpen: (TrendingTitle, StreamingService) -> Unit,
+) {
+    val p = Glass.palette
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            GlassIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Close search", onClose)
+            Spacer(Modifier.width(8.dp))
+            val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+            LaunchedEffect(Unit) { focus.requestFocus() }
+            com.syncit.app.ui.glass.GlassTextField(
+                value = query,
+                onValueChange = onQuery,
+                placeholder = "Search movies and series",
+                leadingIcon = Icons.Filled.Search,
+                singleLine = true,
+                modifier = Modifier.weight(1f).focusRequester(focus),
+            )
+        }
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp + LocalBottomBarInset.current),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            when {
+                query.trim().length < 2 -> Text("Find a title on Netflix, JioHotstar or Prime Video", style = MaterialTheme.typography.bodyMedium, color = p.textSecondary, modifier = Modifier.padding(top = 8.dp))
+                results == null -> CircularProgressIndicator(color = p.accent, modifier = Modifier.padding(top = 16.dp))
+                results.isEmpty() -> Text("Nothing streaming with that name on Netflix, JioHotstar or Prime Video", style = MaterialTheme.typography.bodyMedium, color = p.textSecondary, modifier = Modifier.padding(top = 8.dp))
+                else -> for (row in results) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel(row.service.displayName)
+                        for (title in row.titles) {
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onOpen(title, row.service) }.padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(Modifier.size(width = 44.dp, height = 64.dp).clip(RoundedCornerShape(8.dp)).background(p.raised)) {
+                                    title.posterUrl?.let { coil3.compose.AsyncImage(model = it, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(title.title, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(
+                                        listOfNotNull(title.year?.toString(), if (title.type == com.syncit.core.lookup.TitleType.SERIES) "Series" else "Movie", title.rating?.let { "%.1f".format(it) }).joinToString(" · "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = p.textSecondary,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

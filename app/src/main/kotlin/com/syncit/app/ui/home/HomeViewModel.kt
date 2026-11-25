@@ -1,5 +1,6 @@
 package com.syncit.app.ui.home
 
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flatMapLatest
 import com.syncit.core.lookup.TrendingFilter
@@ -160,6 +161,33 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _searchQuery = MutableStateFlow("")
+
+    /** Title search on Home (2026-11-25): what's typed. */
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun setSearchQuery(value: String) {
+        _searchQuery.value = value.take(60)
+    }
+
+    /** Results for the query, grouped by service; null while searching, empty when nothing streams. */
+    val searchResults: StateFlow<List<TrendingRow>?> = _searchQuery
+        .map { it.trim() }
+        .distinctUntilChanged()
+        .flatMapLatest { q ->
+            flow {
+                if (q.length < 2) {
+                    emit(emptyList())
+                    return@flow
+                }
+                emit(null)
+                kotlinx.coroutines.delay(350) // wait for typing to pause
+                emit(container.trending.search(q))
+            }
+        }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val watchlist: StateFlow<List<WatchlistItem>> = container.watchlist.items
 

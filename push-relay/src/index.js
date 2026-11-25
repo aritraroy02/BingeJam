@@ -3,7 +3,7 @@
 // older than 7 days (sweepRooms). POST /broadcast: App reports notifications (owner, developers).
 // Routes: POST / (notify, below), PUT|DELETE /avatar and GET /avatar/<uid>, GET /netflix (title lookup),
 // GET /voice/<code> and /voice/g/<gid>/<cid> (room and group voice channel WebSockets, src/voice.js), GET /ice (screen
-// share connection servers, src/voice.js), GET /trending and GET /watch-link
+// share connection servers, src/voice.js), GET /trending, GET /search and GET /watch-link
 // (Home's trending titles and the link that opens one, src/trending.js).
 //
 // Firebase Cloud Messaging is free, but sending needs a trusted server, and Cloud Functions need
@@ -20,7 +20,7 @@
 // admin access to the database and FCM, so it lives only in Cloudflare's secret store.
 
 import { connectVoice, iceServers, VoiceRoom } from './voice.js';
-import { refreshTrendingIfStale, trending, watchLink } from './trending.js';
+import { refreshTrendingIfStale, search, trending, watchLink } from './trending.js';
 
 export { VoiceRoom };
 
@@ -47,6 +47,7 @@ export default {
     if (path === '/avatar' && (request.method === 'PUT' || request.method === 'DELETE')) return changeAvatar(request, env);
     if (path === '/netflix' && request.method === 'GET') return netflixLookup(request, env);
     if (path === '/trending' && request.method === 'GET') return trending(request, env, { verifyIdToken, bearer, json });
+    if (path === '/search' && request.method === 'GET') return search(request, env, { verifyIdToken, bearer, json });
     if (path === '/watch-link' && request.method === 'GET') return watchLink(request, env, { verifyIdToken, bearer, json });
     if (path === '/ice' && request.method === 'GET') return iceServers(request, env, { verifyIdToken, bearer, json });
     if (path.startsWith('/voice/') && request.method === 'GET') {

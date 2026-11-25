@@ -1,5 +1,9 @@
 package com.syncit.app.ui.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -139,6 +143,37 @@ fun LiveRoomsRow(rooms: List<LiveRoom>, onOpen: (LiveRoom) -> Unit, modifier: Mo
                     }
                 }
             }
+        }
+    }
+}
+
+/** The first live room as a big card on Home: who's in and Join, in thumb reach of the top. */
+@Composable
+fun LiveRoomHero(room: LiveRoom, onJoin: () -> Unit, modifier: Modifier = Modifier) {
+    val p = Glass.palette
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .glass(shape)
+            .clickable(role = Role.Button, onClickLabel = "Join the room", onClick = onJoin),
+    ) {
+        Box(Modifier.fillMaxWidth().height(96.dp).background(p.raised), contentAlignment = Alignment.BottomStart) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                SyncDots(size = 10.dp)
+                Spacer(Modifier.width(10.dp))
+                Text("Room live", style = MaterialTheme.typography.titleMedium, color = p.textPrimary)
+            }
+        }
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(room.title, size = 40.dp, photoUrl = room.photoUrl)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(room.title, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(if (room.people == 1) "1 watching now" else "${room.people} watching now", style = MaterialTheme.typography.bodySmall, color = p.textSecondary)
+            }
+            com.syncit.app.ui.glass.GlassSmallButton("Join", onClick = onJoin)
         }
     }
 }

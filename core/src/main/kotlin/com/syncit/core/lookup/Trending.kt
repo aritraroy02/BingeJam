@@ -105,6 +105,9 @@ interface TrendingCatalog {
      */
     suspend fun watchLink(title: TrendingTitle, service: StreamingService): String?
 
+    /** Titles matching [query] that stream on Netflix, JioHotstar or Prime Video, grouped by service. */
+    suspend fun search(query: String): List<TrendingRow> = emptyList()
+
     /** Off (fakes, tests, no relay configured). */
     object None : TrendingCatalog {
         override suspend fun trending(filter: TrendingFilter): List<TrendingRow> = emptyList()

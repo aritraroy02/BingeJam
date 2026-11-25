@@ -171,6 +171,61 @@ async function tmdb(path, env) {
   return res.json();
 }
 
+// ---- GET /search?q=<title> (Home's title search, 2026-11-25) ----
+// TMDB's multi search, keeping only movies and series that stream in India with a subscription on
+// Netflix, JioHotstar or Prime Video, grouped like /trending ({rows: [{service, items}]}) so the app
+// reuses its parser. Cached in KV per query for a day.
+
+const SEARCH_PREFIX = 'search:v1:';
+const SEARCH_TTL_S = 24 * 3600;
+const SEARCH_LOOKUPS = 10;
+
+export function normalizeQuery(q) {
+  const t = String(q || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return t.length >= 2 && t.length <= 60 ? t : null;
+}
+
+export async function search(request, env, { verifyIdToken, bearer, json }) {
+  try {
+    await verifyIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
+  } catch (e) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  const q = normalizeQuery(new URL(request.url).searchParams.get('q'));
+  if (!q) return json({ error: 'bad_query' }, 400);
+  if (!env.TMDB_READ_TOKEN) return json({ rows: [] });
+  const key = SEARCH_PREFIX + q;
+  const cached = await env.AVATARS.get(key, { type: 'json' });
+  if (cached) return json(cached);
+  try {
+    const found = await tmdb(`/search/multi?query=${encodeURIComponent(q)}&include_adult=false&region=${REGION}&page=1`, env);
+    const titles = (found.results || [])
+      .filter((t) => (t.media_type === 'movie' || t.media_type === 'tv') && t.id && t.poster_path)
+      .slice(0, SEARCH_LOOKUPS);
+    const withProviders = await Promise.all(
+      titles.map(async (t) => {
+        const providers = await tmdb(`/${t.media_type}/${t.id}/watch/providers`, env).catch(() => null);
+        const flat = (providers && providers.results && providers.results[REGION] && providers.results[REGION].flatrate) || [];
+        return { t, ids: new Set(flat.map((p) => p.provider_id)) };
+      }),
+    );
+    const body = { updatedAt: Date.now(), rows: groupByService(withProviders) };
+    await env.AVATARS.put(key, JSON.stringify(body), { expirationTtl: SEARCH_TTL_S });
+    return json(body);
+  } catch (e) {
+    console.log('search failed', e.message);
+    return json({ rows: [] });
+  }
+}
+
+/** [{t, ids}] → rows per service in PROVIDERS order, each title where it streams. */
+export function groupByService(list) {
+  return PROVIDERS.map(({ service, id }) => ({
+    service,
+    items: list.filter((x) => x.ids.has(id)).map((x) => item(x.t, x.t.media_type)),
+  })).filter((row) => row.items.length > 0);
+}
+
 // ---- GET /watch-link?tmdb=<id>&type=movie|tv&service=NETFLIX|JIOHOTSTAR|PRIME_VIDEO ----
 
 export async function watchLink(request, env, { verifyIdToken, bearer, json }) {
