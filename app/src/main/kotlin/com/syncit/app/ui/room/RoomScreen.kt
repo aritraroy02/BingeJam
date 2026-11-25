@@ -713,22 +713,27 @@ private fun CountdownOverlay(room: Room?, serverNow: Long) {
     AnimatedVisibility(visible = active, enter = fadeIn(), exit = fadeOut()) {
         val ms = remainingMs ?: 0L
         val shown = label ?: "PLAY"
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Box(
-                    Modifier
-                        .size(200.dp)
-                        .glass(CircleShape)
-                        .semantics { liveRegion = LiveRegionMode.Assertive },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(shown, fontSize = if (shown.length > 2) 40.sp else 88.sp, fontWeight = FontWeight.SemiBold, color = p.textPrimary)
-                }
+        // The room's big moment (2026-11-25 redesign): the whole screen, the number, everyone's faces.
+        Box(Modifier.fillMaxSize().background(p.base.copy(alpha = 0.92f)), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    shown,
+                    fontSize = if (shown.length > 2) 48.sp else 112.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = p.textPrimary,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+                )
                 Text(
                     if (ms <= 0) "Everyone press play now" else "Get ready to press play together",
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
+                    color = p.textSecondary,
                 )
+                val here = room?.members.orEmpty().filter { it.online }
+                if (here.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                        for (m in here.take(8)) com.syncit.app.ui.glass.Avatar(m.name, size = 36.dp)
+                    }
+                }
             }
         }
     }
