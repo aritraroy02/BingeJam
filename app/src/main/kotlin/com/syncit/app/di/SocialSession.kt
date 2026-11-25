@@ -113,11 +113,17 @@ class SocialSession(
                     social.activityTracker.stop()
                     social.presence.stop()
                     if (activeUid != null) {
+                        social.presence.setDoNotDisturb(prefs.dnd.value, prefs.deviceId)
                         social.presence.start()
                         social.activityTracker.start(prefs.sharedApps, inWatchParty, watchingWith)
                     }
                 }
         }
+    }
+
+    /** Do not disturb changes apply at once (presence writes or removes this phone's device entry). */
+    private val dndJob = scope.launch {
+        prefs.dnd.collect { on -> social.presence.setDoNotDisturb(on, prefs.deviceId) }
     }
 
     /**

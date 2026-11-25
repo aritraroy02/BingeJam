@@ -117,6 +117,28 @@ class UserPrefs(context: Context) {
     /** Invisible: friends see us offline and no activity is shared, whatever [sharedApps] says. */
     val invisible: StateFlow<Boolean> = _invisible.asStateFlow()
 
+    private val _dnd = MutableStateFlow(false)
+
+    /** Do not disturb (2026-11-25): friends see a red dot; our own pop-ups are silent. */
+    val dnd: StateFlow<Boolean> = _dnd.asStateFlow()
+
+    @Synchronized
+    fun setDnd(value: Boolean) {
+        val uid = boundUid ?: return
+        prefs.edit { putBoolean(KEY_DND + uid, value) }
+        _dnd.value = value
+    }
+
+    /** This phone's id among the account's devices (presence/{uid}/devices/{id}), made once per install. */
+    val deviceId: String
+        @Synchronized get() = prefs.getString(KEY_DEVICE_ID, null)?.takeIf { it.matches(Regex("^[A-Za-z0-9_-]{20}$")) } ?: run {
+            val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+            val random = java.security.SecureRandom()
+            val id = (1..20).map { alphabet[random.nextInt(alphabet.length)] }.joinToString("")
+            prefs.edit { putString(KEY_DEVICE_ID, id) }
+            id
+        }
+
     /** Called whenever the signed-in account changes (null = signed out). Synchronous. */
     @Synchronized
     fun bindAccount(uid: String?) {
@@ -128,6 +150,7 @@ class UserPrefs(context: Context) {
             prefs.getStringSet(KEY_SHARED_APPS + uid, emptySet()).orEmpty().mapNotNull(ActivityApp::fromWire).toSet()
         }
         _invisible.value = uid != null && prefs.getBoolean(KEY_INVISIBLE + uid, false)
+        _dnd.value = uid != null && prefs.getBoolean(KEY_DND + uid, false)
     }
 
     /** Ignored while signed out (there's no account to store it for). */
@@ -168,6 +191,7 @@ class UserPrefs(context: Context) {
         prefs.edit {
             remove(KEY_SHARED_APPS + uid)
             remove(KEY_INVISIBLE + uid)
+            remove(KEY_DND + uid)
             putStringSet(KEY_ACTIVITY_SETUP_UIDS, setupDone)
             remove(KEY_NAME)
             remove(KEY_LAST_ROOM)
@@ -178,6 +202,7 @@ class UserPrefs(context: Context) {
         if (boundUid == uid) {
             _sharedApps.value = emptySet()
             _invisible.value = false
+            _dnd.value = false
         }
     }
 
@@ -195,6 +220,8 @@ class UserPrefs(context: Context) {
         const val KEY_QUIT = "quit"
         const val KEY_SHARED_APPS = "shared_apps_"
         const val KEY_INVISIBLE = "invisible_"
+        const val KEY_DND = "dnd_"
+        const val KEY_DEVICE_ID = "device_id"
         const val KEY_ACTIVITY_SETUP_UIDS = "activity_setup_uids"
     }
 }

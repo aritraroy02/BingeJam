@@ -3,6 +3,7 @@ package com.syncit.core.social
 import com.syncit.core.model.Activity
 import com.syncit.core.model.ActivityApp
 import com.syncit.core.model.JoinRequest
+import com.syncit.core.model.Presence
 import com.syncit.core.model.NowPlayingMetadata
 import com.syncit.core.model.RoomInvite
 import com.syncit.core.model.SentInvite
@@ -20,6 +21,15 @@ interface PresenceRepository {
 
     /** Publishes (or clears, with null) what we're playing. Server-stamps startedAt on change. */
     suspend fun publishActivity(update: ActivityUpdate?)
+
+    /**
+     * Do not disturb on this phone (2026-11-25, like the PC): friends see a red dot. Stored as this
+     * phone's presence/{uid}/devices/{[deviceId]} entry {kind: "phone", status: "dnd"} while connected.
+     */
+    fun setDoNotDisturb(on: Boolean, deviceId: String) = Unit
+
+    /** Our own presence as friends read it (phone, PCs, games), for "What friends see". */
+    fun observeOwn(): Flow<Presence?> = kotlinx.coroutines.flow.flowOf(null)
 }
 
 /**

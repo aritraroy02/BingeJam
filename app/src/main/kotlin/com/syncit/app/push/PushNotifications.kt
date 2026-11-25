@@ -116,9 +116,14 @@ object PushNotifications {
             .setPriority(if (channel == CHANNEL_FRIENDS) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(tap)
+            // Do not disturb (the profile's status): still listed, but no sound, vibration or pop-up.
+            .setSilent(doNotDisturb(context))
             .build()
         manager.notify(tag(type, uid), NOTIFICATION_ID, notification)
     }
+
+    private fun doNotDisturb(context: Context): Boolean =
+        (context.applicationContext as? com.syncit.app.SyncItApplication)?.container?.prefs?.dnd?.value == true
 
     /**
      * An announcement that arrived while the app is open (in the background Android shows console

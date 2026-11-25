@@ -1,5 +1,11 @@
 package com.syncit.firebase.social
 
+import com.syncit.firebase.snapshots
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.Flow
+import com.syncit.core.model.Presence
 import android.util.Base64
 import android.util.Log
 import com.google.firebase.database.DataSnapshot
@@ -46,6 +52,7 @@ import kotlinx.coroutines.sync.withLock
  * Writes are not awaited while holding the lock: Firebase queues them in order while offline,
  * and a failed write only makes the next publish a full one.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class FirebasePresenceRepository internal constructor(
     private val session: FirebaseSession,
     private val db: FirebaseDatabase,
@@ -78,6 +85,42 @@ class FirebasePresenceRepository internal constructor(
     /** Bumped on every full write and on clears, so late read-backs/failures for older writes are ignored. */
     private var generation = 0L
 
+    /** Do not disturb and this phone's device id (setDoNotDisturb). */
+    @Volatile private var dnd = false
+    @Volatile private var phoneId: String? = null
+    @Volatile private var deviceListed = false
+
+    override fun setDoNotDisturb(on: Boolean, deviceId: String) {
+        if (!DEVICE_ID.matches(deviceId)) return
+        dnd = on
+        phoneId = deviceId
+        val r = synchronized(connectionLock) { running } ?: return
+        writeDevice(r.ref)
+    }
+
+    /** DND on: list this phone as a device with status "dnd" (gone on disconnect); off: remove it. */
+    private fun writeDevice(ref: DatabaseReference) {
+        val id = phoneId ?: return
+        val device = ref.child("devices").child(id)
+        if (dnd) {
+            device.onDisconnect().updateChildren(mapOf("kind" to "phone", "online" to false, "lastSeen" to ServerValue.TIMESTAMP))
+                .addOnSuccessListener {
+                    device.updateChildren(
+                        mapOf("kind" to "phone", "online" to true, "lastSeen" to ServerValue.TIMESTAMP, "label" to "Phone", "status" to "dnd"),
+                    ).addOnFailureListener { Log.w(TAG, "Couldn't set Do not disturb", it) }
+                }
+            deviceListed = true
+        } else if (deviceListed) {
+            deviceListed = false
+            device.onDisconnect().cancel()
+            device.removeValue()
+        }
+    }
+
+    override fun observeOwn(): Flow<Presence?> = session.uid.flatMapLatest { me ->
+        if (me == null) flowOf(null) else db.getReference("presence").child(me).snapshots().map { SocialParser.presence(it) }
+    }
+
     override fun start() {
         val uid = session.currentUid ?: return
         if (uid == retiredUid) return
@@ -94,6 +137,7 @@ class FirebasePresenceRepository internal constructor(
                             // Separate from the activity: this one can't be rejected by activity validation.
                             ref.updateChildren(mapOf("online" to true, "lastSeen" to ServerValue.TIMESTAMP))
                                 .addOnFailureListener { Log.w(TAG, "Couldn't mark online", it) }
+                            if (dnd) writeDevice(ref)
                             // The server removed the activity when we dropped; send it again in full.
                             scope.launch { republish(uid) }
                         }
@@ -137,6 +181,13 @@ class FirebasePresenceRepository internal constructor(
         running = null
         db.getReference(".info/connected").removeEventListener(r.listener)
         r.ref.onDisconnect().cancel()
+        phoneId?.let { id ->
+            if (deviceListed) {
+                deviceListed = false
+                r.ref.child("devices").child(id).onDisconnect().cancel()
+                if (session.currentUid == r.uid) r.ref.child("devices").child(id).removeValue()
+            }
+        }
         // Must run while still signed in (FirebaseServices calls stop() before signing out).
         if (markOffline && session.currentUid == r.uid) {
             r.ref.updateChildren(mapOf("online" to false, "lastSeen" to ServerValue.TIMESTAMP, "activity" to null))
@@ -244,6 +295,7 @@ class FirebasePresenceRepository internal constructor(
     }
 
     companion object {
+        private val DEVICE_ID = Regex("^[A-Za-z0-9_-]{8,40}$")
         private const val TAG = "SyncItPresence"
         private const val MAX_META_LENGTH = 200
 

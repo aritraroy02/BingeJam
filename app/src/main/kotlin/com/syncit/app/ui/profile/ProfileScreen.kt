@@ -1,5 +1,11 @@
 package com.syncit.app.ui.profile
 
+import com.syncit.core.model.Presence
+import com.syncit.app.ui.glass.GlassSegmented
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,7 +46,6 @@ import com.syncit.app.ui.glass.GlassButtonStyle
 import com.syncit.app.ui.glass.GlassIconButton
 import com.syncit.app.ui.glass.GlassPanel
 import com.syncit.app.ui.glass.GlassScreen
-import com.syncit.app.ui.glass.GlassSwitchRow
 import com.syncit.app.ui.glass.GlassTopBar
 import com.syncit.app.ui.glass.SectionLabel
 import com.syncit.app.ui.nav.LocalBottomBarInset
@@ -65,6 +70,20 @@ class ProfileViewModel(container: AppContainer) : ViewModel() {
 
     fun setInvisible(value: Boolean) = prefs.setInvisible(value)
 
+    /** Do not disturb: friends see a red dot; pop-ups here are silent. */
+    val dnd: StateFlow<Boolean> = prefs.dnd
+
+    /** Online, Do not disturb or Invisible (like the PC's status menu). */
+    fun setStatus(status: Int) {
+        prefs.setInvisible(status == 2)
+        prefs.setDnd(status == 1)
+    }
+
+    /** Our presence as friends read it: this phone's activity, a PC's game or music. */
+    val own: StateFlow<Presence?> = social.presence.observeOwn()
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     val profile: StateFlow<UserProfile?> = social.profiles.observeMyProfile()
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -77,6 +96,16 @@ class ProfileViewModel(container: AppContainer) : ViewModel() {
     val sharingNow: StateFlow<Activity?> = social.activityTracker.current
 
     fun describe(activity: Activity): String = ActivityText.activityLine(activity)
+}
+
+/** One activity in "What friends see", like a Discord profile card. */
+@Composable
+private fun ActivityCard(label: String, content: @Composable () -> Unit) {
+    val p = Glass.palette
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(p.raised).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = p.textSecondary)
+        Row(verticalAlignment = Alignment.CenterVertically) { content() }
+    }
 }
 
 @Composable
@@ -92,6 +121,8 @@ fun ProfileScreen(
     val friendCount by viewModel.friendCount.collectAsStateWithLifecycle()
     val sharingNow by viewModel.sharingNow.collectAsStateWithLifecycle()
     val invisible by viewModel.invisible.collectAsStateWithLifecycle()
+    val dnd by viewModel.dnd.collectAsStateWithLifecycle()
+    val own by viewModel.own.collectAsStateWithLifecycle()
     val shared by viewModel.sharedApps.collectAsStateWithLifecycle()
     var viewingPhoto by remember { mutableStateOf(false) }
 
@@ -154,31 +185,65 @@ fun ProfileScreen(
                     )
                 }
 
-                SectionLabel("Sharing now", Modifier.padding(top = 8.dp))
-                GlassPanel(Modifier.fillMaxWidth(), spacing = 8.dp) {
-                    GlassSwitchRow(
-                        title = "Invisible",
-                        subtitle = "Friends see you as offline and nothing you play is shared.",
-                        checked = invisible,
-                        onCheckedChange = viewModel::setInvisible,
-                    )
-                    val now = sharingNow
-                    if (invisible || now == null) {
+                SectionLabel("Your status", Modifier.padding(top = 8.dp))
+                GlassSegmented(
+                    options = listOf("Online", "Do not disturb", "Invisible"),
+                    selected = if (invisible) 2 else if (dnd) 1 else 0,
+                    onSelect = viewModel::setStatus,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    when {
+                        invisible -> "You look offline to friends and nothing you play is shared."
+                        dnd -> "Friends see a red dot. Notifications here arrive silently."
+                        else -> "Friends see you online and what you share."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textSecondary,
+                )
+
+                // What friends see, read back from the server (this phone, and any PC signed in).
+                SectionLabel("What friends see", Modifier.padding(top = 8.dp))
+                GlassPanel(Modifier.fillMaxWidth(), spacing = 12.dp) {
+                    val presence = own
+                    val line = when {
+                        invisible -> "Offline"
+                        presence == null -> "Online"
+                        else -> ActivityText.statusLine(presence, 0L)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(profile?.displayName ?: "?", size = 40.dp, photoUrl = profile?.photoUrl, online = !invisible)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(profile?.displayName.orEmpty(), style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(line, style = MaterialTheme.typography.bodySmall, color = if (dnd && !invisible) p.danger else p.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    if (!invisible && presence != null && presence.online) {
+                        presence.game?.let { game ->
+                            ActivityCard(label = "Playing on PC") {
+                                Box(
+                                    Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)).background(p.raised),
+                                    contentAlignment = Alignment.Center,
+                                ) { Text(game.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = p.textSecondary) }
+                                Spacer(Modifier.width(12.dp))
+                                Text(game, style = MaterialTheme.typography.titleSmall, color = p.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                        presence.activity?.let { a ->
+                            ActivityCard(label = if (a.onComputer) "On PC" else "On this phone") {
+                                ActivityThumb(a, size = 48.dp)
+                                Spacer(Modifier.width(12.dp))
+                                Text(viewModel.describe(a), style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
+                            }
+                        }
+                    }
+                    if (!invisible && presence?.activity == null && presence?.game == null) {
                         Text(
-                            when {
-                                invisible -> "You're invisible."
-                                shared.isEmpty() -> "You're not sharing any apps. Pick them in Settings → Activity sharing."
-                                else -> "Nothing playing in a shared app right now."
-                            },
+                            if (shared.isEmpty()) "You're not sharing any apps. Pick them in Settings → Activity sharing." else "Nothing playing in a shared app right now.",
                             style = MaterialTheme.typography.bodySmall,
                             color = p.textSecondary,
                         )
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            ActivityThumb(now, size = 40.dp)
-                            Spacer(Modifier.width(12.dp))
-                            Text(viewModel.describe(now), style = MaterialTheme.typography.bodyMedium, color = p.textPrimary)
-                        }
                     }
                 }
             }
