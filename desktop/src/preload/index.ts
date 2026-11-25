@@ -5,6 +5,7 @@ import type { BingeJamBridge } from './bridge'
 const bridge: BingeJamBridge = {
   platform: process.platform,
   version: () => ipcRenderer.invoke('app:version'),
+  device: () => ipcRenderer.invoke('system:device'),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
   relayFetch: (request) => ipcRenderer.invoke('relay:fetch', request),
   relayAvatar: (request) => ipcRenderer.invoke('relay:avatar', request),

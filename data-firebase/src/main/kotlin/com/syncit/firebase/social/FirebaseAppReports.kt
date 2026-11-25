@@ -1,5 +1,7 @@
 package com.syncit.firebase.social
 
+import com.syncit.firebase.combineAll
+import com.syncit.core.social.UserDevice
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
@@ -117,34 +119,84 @@ internal class FirebaseAppReports(
         )
     }
 
-    override fun observeUsers(): Flow<List<AppUser>> = combine(
-        db.getReference("users").snapshots(),
-        db.getReference("users_private").snapshots(),
-        db.getReference("presence").snapshots(),
-    ) { users, private, presence ->
-        users?.children?.mapNotNull { u ->
-            val uid = u.key ?: return@mapNotNull null
-            val p = private?.child(uid)
-            val pr = presence?.child(uid)
-            val device = p?.child("device")
-            AppUser(
-                uid = uid,
-                username = u.child("username").string().orEmpty(),
-                displayName = u.child("displayName").string().orEmpty(),
-                photoUrl = u.child("photoUrl").string(),
-                email = p?.child("email")?.string(),
-                birthDate = p?.child("dob")?.string(),
-                bio = u.child("bio").string(),
-                provider = p?.child("provider")?.string(),
-                joinedAt = u.child("createdAt").long() ?: 0L,
-                online = pr?.child("online")?.value == true,
-                lastSeen = pr?.child("lastSeen")?.long(),
-                appVersion = device?.child("app")?.string(),
-                device = device?.child("model")?.string(),
-                android = device?.child("android")?.string(),
-            )
-        }.orEmpty().sortedByDescending { it.joinedAt }
+    override fun observeUsers(owner: Boolean): Flow<List<AppUser>> {
+        val devices = db.getReference("staffDevices").snapshots().map { s -> parseDevices(s) }
+        if (!owner) {
+            // Developers can't list users or read private records: the people with devices listed,
+            // with their public profile.
+            return devices.flatMapLatest { byUid ->
+                if (byUid.isEmpty()) return@flatMapLatest flowOf(emptyList())
+                combineAll(
+                    byUid.keys.sorted().map { uid ->
+                        db.getReference("users").child(uid).snapshots().map { u ->
+                            AppUser(
+                                uid = uid,
+                                username = u?.child("username")?.string().orEmpty(),
+                                displayName = u?.child("displayName")?.string().orEmpty(),
+                                photoUrl = u?.child("photoUrl")?.string(),
+                                email = null,
+                                birthDate = null,
+                                bio = u?.child("bio")?.string(),
+                                provider = null,
+                                joinedAt = u?.child("createdAt")?.long() ?: 0L,
+                                online = false,
+                                lastSeen = null,
+                                appVersion = null,
+                                device = null,
+                                android = null,
+                                devices = byUid[uid].orEmpty(),
+                            )
+                        }
+                    },
+                ).map { list -> list.sortedByDescending { u -> u.devices.maxOfOrNull { it.at } ?: 0L } }
+            }
+        }
+        return combine(
+            db.getReference("users").snapshots(),
+            db.getReference("users_private").snapshots(),
+            db.getReference("presence").snapshots(),
+            devices,
+        ) { users, private, presence, byUid ->
+            users?.children?.mapNotNull { u ->
+                val uid = u.key ?: return@mapNotNull null
+                val p = private?.child(uid)
+                val pr = presence?.child(uid)
+                val device = p?.child("device")
+                AppUser(
+                    uid = uid,
+                    username = u.child("username").string().orEmpty(),
+                    displayName = u.child("displayName").string().orEmpty(),
+                    photoUrl = u.child("photoUrl").string(),
+                    email = p?.child("email")?.string(),
+                    birthDate = p?.child("dob")?.string(),
+                    bio = u.child("bio").string(),
+                    provider = p?.child("provider")?.string(),
+                    joinedAt = u.child("createdAt").long() ?: 0L,
+                    online = pr?.child("online")?.value == true || pr?.child("devices")?.children?.any { it.child("online").value == true } == true,
+                    lastSeen = pr?.child("lastSeen")?.long(),
+                    appVersion = device?.child("app")?.string(),
+                    device = device?.child("model")?.string(),
+                    android = device?.child("android")?.string(),
+                    devices = byUid[uid].orEmpty(),
+                )
+            }.orEmpty().sortedByDescending { it.joinedAt }
+        }
     }
+
+    private fun parseDevices(s: DataSnapshot?): Map<String, List<UserDevice>> =
+        s?.children?.mapNotNull { user ->
+            val uid = user.key ?: return@mapNotNull null
+            val list = user.children.mapNotNull { d ->
+                UserDevice(
+                    desktop = d.child("kind").string() == "desktop",
+                    name = d.child("name").string() ?: return@mapNotNull null,
+                    os = d.child("os").string().orEmpty(),
+                    app = d.child("app").string().orEmpty(),
+                    at = d.child("at").long() ?: 0L,
+                )
+            }.sortedByDescending { it.at }
+            if (list.isEmpty()) null else uid to list
+        }?.toMap().orEmpty()
 
     override fun observeDevelopers(): Flow<List<String>> =
         db.getReference("staff").snapshots().map { s ->
@@ -203,9 +255,22 @@ internal class FirebaseAppReports(
                 "at" to ServerValue.TIMESTAMP,
             ),
         ).await()
+        // The device list owner and developers see (2026-11-25).
+        info.deviceId?.takeIf { DEVICE_ID.matches(it) }?.let { id ->
+            db.getReference("staffDevices").child(uid).child(id).setValue(
+                mapOf(
+                    "kind" to "phone",
+                    "name" to info.model.take(80).ifBlank { "Android phone" },
+                    "os" to "Android ${info.android}".take(60),
+                    "app" to info.appVersion.take(20).ifBlank { "?" },
+                    "at" to ServerValue.TIMESTAMP,
+                ),
+            ).await()
+        }
     }
 
     private companion object {
+        private val DEVICE_ID = Regex("^[A-Za-z0-9_-]{8,40}$")
         const val MAX_KEYS = 10
         const val MAX_CRASHES = 500
         val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")

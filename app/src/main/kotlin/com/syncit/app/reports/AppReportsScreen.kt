@@ -152,7 +152,8 @@ private fun Unlocked(
     openUser: String?,
     onOpenUser: (String?) -> Unit,
 ) {
-    val tabs = if (role == StaffRole.OWNER) Tab.entries else listOf(Tab.CRASHES, Tab.NOTIFY)
+    // Developers see Users too, with each person's devices but not their email or birthday.
+    val tabs = if (role == StaffRole.OWNER) Tab.entries else listOf(Tab.CRASHES, Tab.USERS, Tab.NOTIFY)
     var tab by rememberSaveable { mutableStateOf(Tab.CRASHES) }
     val crashes by viewModel.crashes.collectAsStateWithLifecycle()
     val group = openGroup?.let { sig -> crashes?.firstOrNull { it.sig == sig } }
@@ -323,7 +324,10 @@ private fun UsersTab(viewModel: AppReportsViewModel, onOpenUser: (String?) -> Un
         return
     }
     val online = list.count { it.online }
-    SectionLabel("${list.size} ${if (list.size == 1) "person" else "people"} joined · $online online now")
+    SectionLabel(
+        if (list.none { it.email != null || it.provider != null }) "${list.size} ${if (list.size == 1) "person" else "people"} with devices listed"
+        else "${list.size} ${if (list.size == 1) "person" else "people"} joined · $online online now",
+    )
     // Birthdays in the next 30 days, soonest first: for planning surprises.
     val today = LocalDate.now()
     val soon = list.mapNotNull { u -> BirthDates.parse(u.birthDate)?.let { d -> Triple(u, d, BirthDates.daysUntil(d, today)) } }
@@ -365,6 +369,10 @@ private fun UsersTab(viewModel: AppReportsViewModel, onOpenUser: (String?) -> Un
     }
 }
 
+/** "OPPO CPH2607 · Android 15 (API 35) · v0.7.1 · 3 h ago", "ASUS TUF Gaming A15 · Windows 11 Pro · PC 0.1.6". */
+private fun deviceLine(d: com.syncit.core.social.UserDevice): String =
+    listOf(d.name, d.os, if (d.desktop) "PC ${d.app}" else "v${d.app}", ago(d.at)).filter { it.isNotBlank() }.joinToString(" · ")
+
 private fun AppUser.matches(q: String): Boolean {
     val t = q.trim().removePrefix("@").lowercase()
     return t.isEmpty() || displayName.lowercase().contains(t) || username.contains(t) || email?.lowercase()?.contains(t) == true
@@ -396,13 +404,23 @@ private fun UserRow(u: AppUser, onClick: (() -> Unit)? = null, trailing: (@Compo
                     "Joined ${ago(u.joinedAt)}",
                     if (u.online) "online" else u.lastSeen?.let { "seen ${ago(it)}" },
                     u.appVersion?.let { "v$it" },
-                    u.device,
+                    u.device.takeIf { u.devices.isEmpty() },
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = p.textTertiary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            // Every phone and PC they use (staffDevices): owner and developers.
+            for (d in u.devices) {
+                Text(
+                    deviceLine(d),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = p.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         trailing?.invoke()
     }
@@ -443,6 +461,7 @@ private fun UserDetail(u: AppUser, viewModel: AppReportsViewModel) {
             Field("Joined", if (u.joinedAt > 0) DateUtils.formatDateTime(context, u.joinedAt, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR) else "Unknown")
             Field("Last online", if (u.online) "Online now" else u.lastSeen?.let { ago(it) } ?: "Unknown")
             Field("Phone", listOfNotNull(u.device, u.android?.let { "Android $it" }).joinToString(" · ").ifEmpty { "Not recorded yet" })
+            for (d in u.devices) Field(if (d.desktop) "PC" else "Device", deviceLine(d))
             Field("App", u.appVersion?.let { "v$it" } ?: "Not recorded yet")
             Field("User ID", u.uid)
         }

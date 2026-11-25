@@ -344,6 +344,23 @@ After the rules and the relay are deployed. Two PCs signed in as two friends in 
 | V15 | 4K · 60 on A, two viewers | Plays if A's upload allows (~25 Mbps each); otherwise lower quality is the fix |
 | V16 | One PC on a mobile hotspot | If Watch fails with "may block direct connections", TURN isn't set up: add the Cloudflare TURN key (PLAN.md) |
 
+## Phone channels, voice channels, Go Live, status (added 2026-11-25)
+
+Needs the database rules deployed for P10 (`staffDevices`); P1–P9 work with the rules already live.
+
+| # | Do this | Expect |
+|---|---|---|
+| P1 | Phone: open a group, tap "# general ▾" | Sheet with Text channels and Voice channels, same as the PC's column |
+| P2 | PC admin adds #movie-picks; phone opens it and sends a message | Shows on the PC in #movie-picks, not in #general; unread dot on the other side |
+| P3 | Phone admin long-presses a channel it added → rename, then delete | PC follows; a deleted text channel takes its messages with it |
+| P4 | Phone taps the General voice channel → Join voice (mic allowed) | PC lists the phone in the channel; both hear each other; call timer counts |
+| P5 | Phone leaves the channel screen | Green "Voice connected · General / <group> · Singapore · N ms" bar; mute/deafen/leave work from it |
+| P6 | PC goes Live in that channel; phone taps the LIVE tile | Stream plays on the phone (picture and the PC's sound); Full screen works; Stop watching ends it |
+| P7 | PC stops sharing while the phone watches | Phone says "The stream ended" |
+| P8 | Phone: Profile → Your status → Do not disturb | Friends (phone and PC) see a red dot; the phone's notifications arrive silently |
+| P9 | Profile → "What friends see" while the PC plays VALORANT and Spotify | Shows "Playing VALORANT +1" with the game and song cards |
+| P10 | Owner, then a developer: Settings → App reports → Users | Each person's phones and PCs ("Lenovo IdeaPad Gaming 3-15ARH05 · Windows 11 Pro · PC 0.1.6"); developers see no emails |
+
 ## PC in-app updates (added 2026-11-23)
 Needs two published PC versions with the updater (0.1.3 and a later one). Checked once with a local feed (see desktop/README).
 

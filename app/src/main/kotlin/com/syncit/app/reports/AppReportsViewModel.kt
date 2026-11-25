@@ -94,8 +94,8 @@ class AppReportsViewModel(private val container: AppContainer) : ViewModel() {
 
     private val unlocked = MutableStateFlow(false)
 
-    val users: StateFlow<List<AppUser>?> = combine(role, unlocked) { r, u -> r == StaffRole.OWNER && u }
-        .flatMapLatest { ok -> if (ok) reports.observeUsers().catch { emit(emptyList()) } else flowOf(null) }
+    val users: StateFlow<List<AppUser>?> = combine(role, unlocked) { r, u -> if (u) r else null }
+        .flatMapLatest { r -> if (r != null) reports.observeUsers(owner = r == StaffRole.OWNER).catch { emit(emptyList()) } else flowOf(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val developers: StateFlow<List<String>> = combine(role, unlocked) { r, u -> r == StaffRole.OWNER && u }

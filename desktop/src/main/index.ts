@@ -8,6 +8,7 @@ import { setupDesktop, shouldCloseToTray, startedHidden } from './desktop'
 import { setupMini, toggleMini } from './mini'
 import { setupGames } from './games'
 import { setupMusic } from './music'
+import { setupDeviceInfo } from './deviceInfo'
 import { setupScreenShare } from './screenShare'
 import { setupUpdater } from './updater'
 
@@ -53,6 +54,7 @@ function onReady(): void {
   setupMini({ main: () => mainWindow, load: loadUi })
   setupGames()
   setupMusic()
+  setupDeviceInfo()
   setupScreenShare()
   setupUpdater({ quit: quitApp })
   createMainWindow()

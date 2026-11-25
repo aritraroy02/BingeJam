@@ -912,6 +912,22 @@
       }
     },
 
+    "staffDevices": {
+      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email === 'aritraditya.roy@gmail.com' || root.child('staff').child(auth.token.email.toLowerCase().replace('.', ',')).val() === 'developer')",
+      "$uid": {
+        "$deviceId": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $uid",
+          ".validate": "$deviceId.matches(/^[A-Za-z0-9_-]{8,40}$/) && newData.hasChildren(['kind', 'name', 'os', 'app', 'at'])",
+          "kind": { ".validate": "newData.val() === 'phone' || newData.val() === 'desktop'" },
+          "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+          "os": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60" },
+          "app": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20" },
+          "at": { ".validate": "newData.val() === now" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
     "crashes": {
       ".read": "auth != null && auth.token.email_verified == true && (auth.token.email === 'aritraditya.roy@gmail.com' || root.child('staff').child(auth.token.email.toLowerCase().replace('.', ',')).val() === 'developer')",
       ".indexOn": ["at"],

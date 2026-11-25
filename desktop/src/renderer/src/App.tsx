@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { User } from 'firebase/auth'
 import { BRAND } from '@shared/brand'
 import { signOut, useAuth } from '@/lib/auth'
-import { startDevicePresence, useMyBirthDate, useMyProfile, writePrivateProfile, type Profile } from '@/data'
+import { recordStaffDevice, startDevicePresence, useMyBirthDate, useMyProfile, writePrivateProfile, type Profile } from '@/data'
 import { useLiveShell } from '@/live/useLiveShell'
 import { MOVIE_NIGHT, RIYA_DM, ROAD_TRIP } from '@/demo/sample'
 import { useDemo } from '@/demo/useDemo'
@@ -146,6 +146,8 @@ function ProfileGate({ user }: { user: User }): JSX.Element {
     stopPresence.current = stop
     // Android writes users_private on every sign-in (email, provider); best effort.
     void writePrivateProfile()
+    // This PC in App reports' device list (owner and developers only).
+    void recordStaffDevice(user.uid)
     return () => void stop()
   }, [user.uid])
 

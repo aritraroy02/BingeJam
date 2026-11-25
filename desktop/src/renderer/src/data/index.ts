@@ -58,6 +58,7 @@ export {
   isInvisible,
   deviceId,
   setDeviceActivity,
+  recordStaffDevice,
   setDeviceGame,
   isDnd,
   setDnd,

@@ -34,6 +34,18 @@ sessions every 3 s, Spotify's only, → devices/{id}/activity app `spotify` (no 
 song; friends get no Jam button for PC music (`onComputer` in parse.ts / phone `Activity.onComputer`, phone code
 unreleased). web/privacy.html has a PC section (hosting not deployed).
 
+**Unreleased (2026-11-25, phone parity with the PC, user's ask "everything, channels too"):** group chats have a
+"# general ▾" switcher + channel sheet (`ui/channels/ChannelsSheet.kt`; admins add/rename/delete), text channels via
+`GroupChannels` (core) / `FirebaseGroupChannels` (same paths as the PC), voice channels (`VoiceChannelScreen.kt`,
+`GroupVoicePresence` writes groupVoice entries; voice engine joins `g/<gid>/<cid>`, reads hello server/edge, pings,
+LIVE flags, screen-share signals), a "Voice connected · <city> · N ms" bar, **watching a PC's Go Live** with WebRTC
+(`voice/ScreenShareViewer.kt`, dependency `io.github.webrtc-sdk:android:144.7559.15` approved by the user; APK now
+ARM-only via abiFilters). Profile: status Online / Do not disturb / Invisible (DND = this phone's
+presence/devices/{id} entry with status dnd + silent pop-ups) and "What friends see" from our own presence. App
+reports: `staffDevices/{uid}/{deviceId}` {kind, name, os, app, at} written by phones and PCs, readable by owner and
+developers (developers now get the Users tab without emails); **rules change needs deploying** (emulator: 14 + 59
+cases pass). Privacy policy updated (not deployed). Manual checks: RUN_ON_MY_MACHINE.md P1-P10.
+
 **PC in-app updates (2026-11-23, published as PC 0.1.3, `pc-v0.1.3`, user's go-ahead):** `src/main/updater.ts` checks the releases
 repo 15 s after start, every hour and on window focus after 15 min (was 6 h in 0.1.3/0.1.4) (GitHub API, newest `pc-vX.Y.Z` with `BingeJam-Setup-X.Y.Z.exe`; phone `v` tags
 ignored; `src/shared/update.ts` + tests), downloads the installer in the background with `net.fetch` to

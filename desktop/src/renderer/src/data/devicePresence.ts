@@ -154,6 +154,26 @@ export async function setInvisible(invisible: boolean, uid: string | null = want
   }
 }
 
+// ---------- This PC in App reports (staffDevices/{uid}/{deviceId}, 2026-11-25) ----------
+
+/** The owner and developers see each person's phones and PCs: model, Windows edition, app version. */
+export async function recordStaffDevice(uid: string): Promise<void> {
+  try {
+    const bridge = (globalThis as { bingejam?: { device?: () => Promise<{ name: string; os: string }>; version?: () => Promise<string> } }).bingejam
+    if (!bridge?.device) return
+    const [device, version] = await Promise.all([bridge.device(), bridge.version?.() ?? Promise.resolve('')])
+    await set(ref(db, `staffDevices/${uid}/${deviceId()}`), {
+      kind: 'desktop',
+      name: device.name.slice(0, 80) || 'Windows PC',
+      os: device.os.slice(0, 60) || 'Windows',
+      app: (version || '?').slice(0, 20),
+      at: serverTimestamp()
+    })
+  } catch (e) {
+    logRefused('device record')(e)
+  }
+}
+
 // ---------- What this PC is playing (devices/{id}/activity) ----------
 
 export interface DeviceActivity {

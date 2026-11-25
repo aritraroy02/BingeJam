@@ -8,6 +8,8 @@ import type { UpdateState } from '@shared/update'
 
 export interface BingeJamBridge {
   platform: string
+  /** This PC's hardware model and Windows edition, for App reports (src/main/deviceInfo.ts). */
+  device(): Promise<{ name: string; os: string }>
   version(): Promise<string>
   /** Opens an https:// or mailto: link in the user's browser / mail app. */
   openExternal(url: string): Promise<void>

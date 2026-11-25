@@ -55,10 +55,22 @@ data class AppUser(
     val appVersion: String?,
     val device: String?,
     val android: String?,
+    /** Every phone and PC they use BingeJam on (staffDevices, 2026-11-25), newest first. */
+    val devices: List<UserDevice> = emptyList(),
 )
 
+/** "OPPO CPH2607 · Android 15 · 0.7.1" or "ASUS TUF Gaming A15 · Windows 11 Pro · PC 0.1.6". */
+data class UserDevice(val desktop: Boolean, val name: String, val os: String, val app: String, val at: Long)
+
 /** The phone this app runs on, recorded for the owner's user list. */
-data class DeviceInfo(val appVersion: String, val versionCode: Int, val model: String, val android: String)
+data class DeviceInfo(
+    val appVersion: String,
+    val versionCode: Int,
+    val model: String,
+    val android: String,
+    /** This phone's id among the account's devices (staffDevices/{uid}/{deviceId}); null = not listed. */
+    val deviceId: String? = null,
+)
 
 interface AppReports {
     /** Our role, or null for everyone else (the App reports entry stays hidden). */
@@ -73,8 +85,11 @@ interface AppReports {
 
     fun observeCrashes(): Flow<List<SealedCrash>>
 
-    /** Owner only. */
-    fun observeUsers(): Flow<List<AppUser>>
+    /**
+     * The owner sees everyone with email and birthday; developers ([owner] false) see the people
+     * whose devices are listed (name, username and devices only).
+     */
+    fun observeUsers(owner: Boolean = true): Flow<List<AppUser>>
 
     /** Owner only: developers' emails. */
     fun observeDevelopers(): Flow<List<String>>
@@ -94,7 +109,7 @@ interface AppReports {
         override suspend fun publishKey(keyId: String, publicKey: String) = Unit
         override suspend fun upload(iv: String, box: String, keys: Map<String, String>, at: Long) = Unit
         override fun observeCrashes(): Flow<List<SealedCrash>> = flowOf(emptyList())
-        override fun observeUsers(): Flow<List<AppUser>> = flowOf(emptyList())
+        override fun observeUsers(owner: Boolean): Flow<List<AppUser>> = flowOf(emptyList())
         override fun observeDevelopers(): Flow<List<String>> = flowOf(emptyList())
         override suspend fun addDeveloper(email: String) = Unit
         override suspend fun removeDeveloper(email: String) = Unit

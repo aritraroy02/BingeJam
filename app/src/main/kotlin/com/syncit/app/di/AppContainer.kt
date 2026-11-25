@@ -94,7 +94,7 @@ class AppContainer(app: Application) : SyncDependencies {
     val chatRooms = ChatRoomTracker(social, sessionController, appScope)
 
     /** Sends crash reports, encrypted, once someone is signed in (App reports, 2026-11-10). */
-    val crashUploader = CrashUploader(app, social.appReports)
+    val crashUploader = CrashUploader(app, social.appReports) { prefs.deviceId }
 
     /** Room voice chat through our relay (unsupported with the debug fakes). */
     val voice: VoiceController = AndroidVoiceController(app, firebase?.voiceAuth)

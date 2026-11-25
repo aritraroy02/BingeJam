@@ -19,7 +19,7 @@ import org.json.JSONObject
  * Nothing is sent before a staff phone has published its key: reports wait on the phone (up to 7
  * days) rather than being stored in a form nobody can read. The rules allow one upload per 5 s.
  */
-class CrashUploader(private val context: Context, private val reports: AppReports) {
+class CrashUploader(private val context: Context, private val reports: AppReports, private val deviceId: () -> String? = { null }) {
     private val lock = Mutex()
 
     suspend fun run(uid: String, username: String?) = lock.withLock {
@@ -60,6 +60,7 @@ class CrashUploader(private val context: Context, private val reports: AppReport
         versionCode = BuildConfig.VERSION_CODE,
         model = "${Build.MANUFACTURER} ${Build.MODEL}",
         android = "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+        deviceId = deviceId(),
     )
 
     private companion object {
